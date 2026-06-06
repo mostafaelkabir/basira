@@ -169,3 +169,20 @@ export const addTicketComment = (ticketId, data) =>
   request(`/work-tickets/${ticketId}/comments`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
 export const deleteTicketComment = (ticketId, commentId) =>
   request(`/work-tickets/${ticketId}/comments/${commentId}`, { method: 'DELETE' })
+
+// ── Check-ins ──────────────────────────────────────────────────────────────
+export const getTodayCheckin   = () => request('/checkins/today')
+export const saveMorningCheckin = (data) =>
+  request('/checkins/morning', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+export const saveEveningCheckin = (data) =>
+  request('/checkins/evening', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+
+// ── Journal ────────────────────────────────────────────────────────────────
+export const getJournalEntries  = (limit = 30) => request(`/journal?limit=${limit}`)
+export const getJournalByDate   = (date) => request(`/journal/date/${date}`)
+export const saveJournalEntry   = (data) =>
+  request('/journal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+export const updateJournalEntry = (id, data) =>
+  request(`/journal/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+export const deleteJournalEntry = (id) => request(`/journal/${id}`, { method: 'DELETE' })
+export const getJournalAI       = () => request('/journal/ai/reflect', { method: 'POST' })

@@ -3,6 +3,7 @@ import AnalyticsPage from './AnalyticsPage'
 import ContactsPage from './ContactsPage'
 import GoalPage from './GoalPage'
 import GoalsPage from './GoalsPage'
+import JournalPage from './JournalPage'
 import ProgressPage from './ProgressPage'
 import SettingsModal from './SettingsModal'
 import TodayPage from './TodayPage'
@@ -16,10 +17,10 @@ import { createTask, getGoal, getGoals } from './api'
 
 const NAV_ITEMS = [
   { id: 'today',       label: 'Today',    icon: '📅' },
+  { id: 'journal',     label: 'Journal',  icon: '📖' },
   { id: 'goals',       label: 'Goals',    icon: '◎' },
   { id: 'work',        label: 'Work',     icon: '⌨️' },
   { id: 'progress',    label: 'Progress', icon: '📊' },
-  { id: 'insights',    label: 'Insights', icon: '💡' },
   { id: 'connections', label: 'People',   icon: '👥' },
 ]
 
@@ -104,6 +105,7 @@ export default function App() {
                 ? <GoalsPage onSelectGoal={setGoalId} />
                 : <GoalPage goalId={goalId} onBack={() => setGoalId(null)} onGoToGoal={setGoalId} />
             )}
+            {tab === 'journal' && <JournalPage />}
             {tab === 'work' && <WorkPage />}
             {tab === 'progress' && <ProgressPage onGoToGoal={openGoal} />}
             {tab === 'insights' && <AnalyticsPage onGoToGoal={openGoal} />}

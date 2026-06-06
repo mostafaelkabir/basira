@@ -4,6 +4,7 @@ import {
   deleteTask, deferTask, getToday, getTimerToday, logManualTime,
   pinTask, planTask, reorderTasks, uncheckinHabit, unpinTask, unplanTask,
   uploadProofFile, uploadProofImage, updateTask,
+  getTodayCheckin, saveMorningCheckin, saveEveningCheckin,
 } from './api'
 import { ProofForm, TaskTags } from './GoalPage'
 import { useTimer } from './TimerContext'
@@ -93,6 +94,190 @@ function getSuggestions(daily, projects, today, focusIds) {
     }
   }
   return candidates.sort((a, b) => b.score - a.score).slice(0, 3)
+}
+
+const MOOD_OPTS = [
+  { val: 1, emoji: '😔', label: 'Rough' },
+  { val: 2, emoji: '😐', label: 'Okay' },
+  { val: 3, emoji: '🙂', label: 'Good' },
+  { val: 4, emoji: '😊', label: 'Great' },
+  { val: 5, emoji: '🌟', label: 'Amazing' },
+]
+
+function DailyCheckinCard({ onCheckinSaved }) {
+  const hour = new Date().getHours()
+  const isEvening = hour >= 17
+  const [checkin, setCheckin] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
+
+  // Morning form state
+  const [energy, setEnergy] = useState(3)
+  const [intention, setIntention] = useState('')
+
+  // Evening form state
+  const [mood, setMood] = useState(3)
+  const [rating, setRating] = useState(3)
+  const [reflection, setReflection] = useState('')
+
+  useEffect(() => {
+    getTodayCheckin().then(c => { setCheckin(c); setLoading(false) }).catch(() => setLoading(false))
+  }, [])
+
+  if (loading) return null
+
+  const morningDone = checkin?.morning_energy != null
+  const eveningDone = checkin?.evening_mood != null
+
+  // Don't show if today's relevant check-in is already done, or dismissed
+  if (dismissed) return null
+  if (!isEvening && morningDone) return null
+  if (isEvening && eveningDone) return null
+
+  async function handleMorning(e) {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      const updated = await saveMorningCheckin({ energy, intention })
+      setCheckin(updated)
+      onCheckinSaved?.(updated)
+    } catch (err) { alert(err.message) }
+    finally { setSaving(false) }
+  }
+
+  async function handleEvening(e) {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      const updated = await saveEveningCheckin({ mood, rating, reflection })
+      setCheckin(updated)
+      onCheckinSaved?.(updated)
+    } catch (err) { alert(err.message) }
+    finally { setSaving(false) }
+  }
+
+  if (!isEvening) {
+    // ── Morning check-in ──
+    return (
+      <div className="bg-gradient-to-br from-[#1B3A2D] to-[#2D7A6B] rounded-2xl p-5 text-white shadow-md">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-white/60 mb-0.5">Morning Check-in ☀️</p>
+            <h3 className="text-lg font-bold">What kind of day do you want?</h3>
+          </div>
+          <button onClick={() => setDismissed(true)} className="text-white/40 hover:text-white/70 text-lg leading-none mt-0.5">✕</button>
+        </div>
+
+        <form onSubmit={handleMorning} className="space-y-4">
+          {/* Energy */}
+          <div>
+            <p className="text-xs font-semibold text-white/70 mb-2">Energy level</p>
+            <div className="flex gap-2">
+              {[1,2,3,4,5].map(v => (
+                <button key={v} type="button" onClick={() => setEnergy(v)}
+                  className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all border ${
+                    energy === v
+                      ? 'bg-white text-[#1B3A2D] border-white shadow-sm'
+                      : 'bg-white/10 border-white/20 text-white/70 hover:bg-white/20'
+                  }`}>
+                  {v}
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-between text-[10px] text-white/40 mt-1 px-1">
+              <span>Low</span><span>High</span>
+            </div>
+          </div>
+
+          {/* Intention */}
+          <div>
+            <p className="text-xs font-semibold text-white/70 mb-2">Intention</p>
+            <input
+              value={intention}
+              onChange={e => setIntention(e.target.value)}
+              placeholder="What would make today great?"
+              className="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/40 focus:outline-none focus:bg-white/20 transition-colors"
+            />
+          </div>
+
+          <button type="submit" disabled={saving}
+            className="w-full bg-white text-[#1B3A2D] font-bold py-2.5 rounded-xl text-sm hover:bg-white/90 transition-colors disabled:opacity-60">
+            {saving ? 'Saving…' : 'Start My Day →'}
+          </button>
+        </form>
+      </div>
+    )
+  }
+
+  // ── Evening check-in ──
+  return (
+    <div className="bg-gradient-to-br from-[#1A1A2E] to-[#1B3A2D] rounded-2xl p-5 text-white shadow-md">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-white/60 mb-0.5">Evening Reflection 🌙</p>
+          <h3 className="text-lg font-bold">How was today?</h3>
+        </div>
+        <button onClick={() => setDismissed(true)} className="text-white/40 hover:text-white/70 text-lg leading-none mt-0.5">✕</button>
+      </div>
+
+      <form onSubmit={handleEvening} className="space-y-4">
+        {/* Mood */}
+        <div>
+          <p className="text-xs font-semibold text-white/70 mb-2">How do you feel?</p>
+          <div className="flex gap-2">
+            {MOOD_OPTS.map(o => (
+              <button key={o.val} type="button" onClick={() => setMood(o.val)}
+                className={`flex-1 flex flex-col items-center py-2 rounded-xl transition-all border ${
+                  mood === o.val
+                    ? 'bg-white border-white shadow-sm'
+                    : 'bg-white/10 border-white/20 hover:bg-white/20'
+                }`}>
+                <span className="text-lg">{o.emoji}</span>
+                <span className={`text-[9px] font-semibold mt-0.5 ${mood === o.val ? 'text-[#1B3A2D]' : 'text-white/50'}`}>{o.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Day rating */}
+        <div>
+          <p className="text-xs font-semibold text-white/70 mb-2">Rate the day</p>
+          <div className="flex gap-2">
+            {[1,2,3,4,5].map(v => (
+              <button key={v} type="button" onClick={() => setRating(v)}
+                className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all border ${
+                  rating === v
+                    ? 'bg-[#E8C334] text-[#1A1A1A] border-[#E8C334] shadow-sm'
+                    : 'bg-white/10 border-white/20 text-white/70 hover:bg-white/20'
+                }`}>
+                {v}
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-between text-[10px] text-white/40 mt-1 px-1">
+            <span>Tough</span><span>Excellent</span>
+          </div>
+        </div>
+
+        {/* Reflection */}
+        <div>
+          <p className="text-xs font-semibold text-white/70 mb-2">One-line reflection</p>
+          <input
+            value={reflection}
+            onChange={e => setReflection(e.target.value)}
+            placeholder="What stood out today?"
+            className="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/40 focus:outline-none focus:bg-white/20 transition-colors"
+          />
+        </div>
+
+        <button type="submit" disabled={saving}
+          className="w-full bg-[#E8C334] text-[#1A1A1A] font-bold py-2.5 rounded-xl text-sm hover:bg-[#d4b02e] transition-colors disabled:opacity-60">
+          {saving ? 'Saving…' : 'Close the Day ✦'}
+        </button>
+      </form>
+    </div>
+  )
 }
 
 export default function TodayPage({ onGoToGoal, onOpenReview }) {
@@ -334,6 +519,9 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
           </button>
         </div>
       </div>
+
+      {/* ── Daily Check-in ── */}
+      <DailyCheckinCard />
 
       {/* ── Progress Bar ── */}
       {totalItems > 0 && (

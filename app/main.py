@@ -26,6 +26,8 @@ from app.routes.upload import router as upload_router
 from app.routes.companies import router as companies_router
 from app.routes.work_logs import router as work_logs_router
 from app.routes.work_tickets import router as work_tickets_router
+from app.routes.checkins import router as checkins_router
+from app.routes.journal import router as journal_router
 from app.scheduler import start_scheduler
 
 
@@ -166,6 +168,32 @@ def run_migrations():
         "UPDATE work_tickets SET logged_seconds = logged_minutes * 60 WHERE logged_seconds = 0",
         "ALTER TABLE work_time_entries ADD COLUMN duration_seconds INTEGER DEFAULT 0",
         "UPDATE work_time_entries SET duration_seconds = duration_minutes * 60 WHERE duration_seconds = 0",
+        # Daily check-ins
+        """CREATE TABLE IF NOT EXISTS daily_checkins (
+            id VARCHAR PRIMARY KEY,
+            date VARCHAR NOT NULL UNIQUE,
+            morning_energy INTEGER,
+            morning_intention TEXT,
+            evening_mood INTEGER,
+            evening_rating INTEGER,
+            evening_reflection TEXT,
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL
+        )""",
+        # Journal entries
+        """CREATE TABLE IF NOT EXISTS journal_entries (
+            id VARCHAR PRIMARY KEY,
+            date VARCHAR NOT NULL,
+            mood INTEGER,
+            energy INTEGER,
+            body TEXT,
+            wins TEXT,
+            improve TEXT,
+            gratitude TEXT,
+            tags TEXT DEFAULT '[]',
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL
+        )""",
     ]
     with engine.connect() as conn:
         for sql in migrations:
@@ -205,6 +233,8 @@ app.include_router(upload_router)
 app.include_router(companies_router)
 app.include_router(work_logs_router)
 app.include_router(work_tickets_router)
+app.include_router(checkins_router)
+app.include_router(journal_router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
