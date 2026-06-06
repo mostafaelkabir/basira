@@ -1,26 +1,36 @@
-# SysGo — Personal Life OS
+# بَصِيرَة — Basira
 
-> A self-hosted productivity platform for people who want full control over their goals, habits, work, and relationships — with no subscriptions, no data sharing, and AI built in.
+> *"Rather, man will be a witness against himself, even though he may offer his excuses."*
+> — Al-Qiyamah 75:14–15
 
-![SysGo Work Tracker](https://img.shields.io/badge/stack-FastAPI%20%2B%20React-1B3A2D?style=flat-square)
+> *"And within yourselves — do you not see?"*
+> — Adh-Dhariyat 51:21
+
+**Basira** (بَصِيرَة) means inner sight, clarity, and evidence. The root *b-s-r* (ب-ص-ر) means to see — not just outward, but inward. In the Quran it carries the meaning of evidence, witness, and deep self-knowledge.
+
+This app is your *basira* — a mirror of your own life in data. The time you logged, the habits you kept or skipped, the goals you moved toward or avoided. You cannot hide from your own numbers. The data sees you even when you look away.
+
+---
+
+![Stack](https://img.shields.io/badge/stack-FastAPI%20%2B%20React-1B3A2D?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-2D7A6B?style=flat-square)
 ![Python](https://img.shields.io/badge/python-3.12-blue?style=flat-square)
 
 ---
 
-## What is SysGo?
+## What is Basira?
 
-SysGo is a local-first life operating system. It runs entirely on your machine — no cloud accounts, no SaaS fees. You own your data.
+Basira is a **self-hosted personal OS** — a single app that tracks every dimension of your life so you can see yourself clearly and act accordingly. No cloud, no subscriptions, no data shared with anyone. You own everything.
 
-It covers five areas of life in one unified app:
+It is built on a simple idea: **the person who knows themselves best wins**. Most people drift. Basira gives you evidence — about your time, your energy, your relationships, and your progress — so you can stop guessing and start improving.
 
-| Module | What it does |
-|--------|-------------|
-| **Today** | Daily focus view — pinned tasks, a live timer, and a drag-and-drop planner |
+| Module | What it tracks |
+|--------|---------------|
+| **Today** | Daily focus — pinned tasks, live timer, drag-and-drop planner |
 | **Goals** | Resolutions, projects, and daily goals with progress tracking |
-| **Work** | Client/company work tracker — tickets, time entries, and proof of work |
-| **People** | Lightweight CRM — contacts, interaction logs, and overdue-check alerts |
-| **Progress** | Analytics — weekly velocity, consistency heatmap, and AI smart insights |
+| **Work** | Client work — tickets, time per company, proof of work |
+| **People** | Relationships — contacts, interaction logs, overdue-check alerts |
+| **Progress** | Analytics — weekly velocity, consistency heatmap, AI insights |
 
 ---
 
@@ -28,13 +38,21 @@ It covers five areas of life in one unified app:
 
 - **Task management** with subtasks, urgency/importance flags, due dates, and habit tracking
 - **Work tickets** (Jira-style) with a built-in timer, time logging, and status workflow
-- **Screenshot paste** — paste any image directly into a ticket to attach it as proof
-- **Time tracking** per client — today vs. this week breakdown, including ticket time
-- **People CRM** with call logs and automated overdue-contact alerts
+- **Time breakdown** per client — today vs. this week, including ticket time
+- **Screenshot paste** — paste any image directly into a ticket as proof
+- **People CRM** with interaction logs and overdue-contact alerts
 - **AI assistant** powered by Groq (free tier) — standups, weekly summaries, task coaching
-- **Weekly review** mode with structured reflection prompts
-- **macOS notifications** for habit reminders via a background scheduler
-- **Fully local** — SQLite database, file uploads stored on disk, no external services required (except the optional AI key)
+- **Weekly review** mode with structured self-reflection
+- **Habit reminders** via macOS notifications from a background scheduler
+- **Fully local** — SQLite database, files on disk, no external services required
+
+---
+
+## The Philosophy
+
+The Quran asks: *"Do you not see within yourselves?"* — وَفِي أَنْفُسِكُمْ أَفَلَا تُبْصِرُونَ
+
+Most productivity tools help you do more. Basira helps you **see more** — about who you are, how you spend your time, what you actually finish, and who you keep in touch with. The goal is not busyness. It is *basira*: the clarity that comes from honest self-knowledge.
 
 ---
 
@@ -60,8 +78,8 @@ It covers five areas of life in one unified app:
 ### 1. Clone & install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/sysgo.git
-cd sysgo
+git clone https://github.com/YOUR_USERNAME/basira.git
+cd basira
 
 # Python backend
 python3 -m venv venv
@@ -97,23 +115,21 @@ Open **http://localhost:8001** in your browser. The database is created automati
 
 ## Running as a Background Service (macOS)
 
-To keep SysGo running automatically at login, set it up as a launchd service:
+To keep Basira running automatically at login:
 
 ```bash
-# Copy the example plist
-cp com.sysgo.backend.plist.example ~/Library/LaunchAgents/com.sysgo.backend.plist
-
-# Edit the plist to match your absolute path
-nano ~/Library/LaunchAgents/com.sysgo.backend.plist
+# Copy and edit the example plist
+cp com.basira.backend.plist.example ~/Library/LaunchAgents/com.basira.backend.plist
+nano ~/Library/LaunchAgents/com.basira.backend.plist
 
 # Load it
-launchctl load ~/Library/LaunchAgents/com.sysgo.backend.plist
+launchctl load ~/Library/LaunchAgents/com.basira.backend.plist
 ```
 
-Logs stream to `/tmp/sysgo-backend.log`:
+Logs stream to `/tmp/basira-backend.log`:
 
 ```bash
-tail -f /tmp/sysgo-backend.log
+tail -f /tmp/basira-backend.log
 ```
 
 ---
@@ -121,7 +137,7 @@ tail -f /tmp/sysgo-backend.log
 ## Project Structure
 
 ```
-sysgo/
+basira/
 ├── app/
 │   ├── main.py          # FastAPI app, auto-migrations, static serving
 │   ├── database.py      # SQLAlchemy engine (SQLite)
@@ -150,19 +166,18 @@ sysgo/
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `GROQ_API_KEY` | Optional | Enables AI features. Get a free key at [console.groq.com](https://console.groq.com) |
+| `GROQ_API_KEY` | Optional | Enables AI features. Free key at [console.groq.com](https://console.groq.com) |
 
 ---
 
 ## Development
 
 ```bash
-# Backend (with hot-reload)
+# Backend with hot-reload
 venv/bin/uvicorn app.main:app --port 8001 --reload
 
-# Frontend (in a separate terminal, for hot module replacement)
+# Frontend dev server (separate terminal)
 cd frontend && npm run dev
-# Frontend dev server proxies API calls to localhost:8001
 ```
 
 After editing frontend files for production, rebuild:
@@ -173,26 +188,15 @@ cd frontend && npm run build
 
 ---
 
-## Adding a New Page
-
-1. Create `frontend/src/NewPage.jsx`
-2. Add a nav item and route in `App.jsx`
-3. Add API functions to `api.js`
-4. Create a FastAPI router in `app/routes/newpage.py`
-5. Register it in `app/main.py`
-6. Run `npm run build`
-
----
-
 ## Contributing
 
-Contributions are welcome! Some ideas:
+Contributions are welcome. Some open directions:
 
 - [ ] Cross-platform notifications (Linux / Windows)
 - [ ] Mobile-friendly responsive layout
-- [ ] Export to PDF (weekly report, payment report)
-- [ ] Google Calendar / Notion sync
-- [ ] Multi-user support
+- [ ] Export to PDF (weekly report, payment summary)
+- [ ] Dark mode
+- [ ] Multi-user / family support
 
 Please open an issue first to discuss larger changes.
 
@@ -200,8 +204,10 @@ Please open an issue first to discuss larger changes.
 
 ## License
 
-MIT — do whatever you want with it. Attribution appreciated but not required.
+MIT — free to use, modify, and share. Attribution appreciated.
 
 ---
 
 *Built by [Mostafa El-Kabir](https://github.com/mostafaelkabir)*
+
+*"See yourself clearly."*

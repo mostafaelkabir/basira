@@ -49,7 +49,7 @@ def check_habits_and_notify() -> None:
                 if remaining < total_habits
                 else "You haven't checked in on any habits today."
             )
-            send_mac_notification("SysGo", msg)
+            send_mac_notification("Basira", msg)
     finally:
         db.close()
 

@@ -72,7 +72,7 @@ export default function TimerWidget() {
   function refreshTask() {
     if (!timer?.taskId) return
     getTask(timer.taskId).then(t => setTaskData(t)).catch(() => {})
-    window.dispatchEvent(new CustomEvent('sysgo:task-updated', { detail: { taskId: timer.taskId } }))
+    window.dispatchEvent(new CustomEvent('basira:task-updated', { detail: { taskId: timer.taskId } }))
   }
 
   if (!timer) return null

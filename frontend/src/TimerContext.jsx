@@ -3,7 +3,7 @@ import { getActiveTimer, pauseTimer as apiPause, startTimer as apiStart } from '
 
 const TimerContext = createContext(null)
 
-const LS_KEY = 'sysgo_timer'
+const LS_KEY = 'basira_timer'
 
 function loadFromStorage() {
   try {

@@ -180,7 +180,7 @@ run_migrations()
 Base.metadata.create_all(bind=engine)
 start_scheduler()
 
-app = FastAPI(title="SysGo API")
+app = FastAPI(title="Basira API")
 
 app.add_middleware(
     CORSMiddleware,

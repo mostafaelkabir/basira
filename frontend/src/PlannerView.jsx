@@ -26,8 +26,8 @@ function fmtAbs(absMin) {           // absolute minutes from midnight → "9:30 
 }
 
 // ── LocalStorage helpers ──────────────────────────────────────────────────────
-function loadCal(date)        { try { return JSON.parse(localStorage.getItem(`sysgo_cal_${date}`) || '{}') } catch { return {} } }
-function saveCal(date, sched) { localStorage.setItem(`sysgo_cal_${date}`, JSON.stringify(sched)) }
+function loadCal(date)        { try { return JSON.parse(localStorage.getItem(`basira_cal_${date}`) || '{}') } catch { return {} } }
+function saveCal(date, sched) { localStorage.setItem(`basira_cal_${date}`, JSON.stringify(sched)) }
 
 function buildInitialSchedule(items, existing) {
   const out = { ...existing }

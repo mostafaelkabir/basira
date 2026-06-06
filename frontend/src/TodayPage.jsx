@@ -148,8 +148,8 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   // Refresh when the timer overlay adds a comment/proof to any task
   useEffect(() => {
     function onTaskUpdated() { load() }
-    window.addEventListener('sysgo:task-updated', onTaskUpdated)
-    return () => window.removeEventListener('sysgo:task-updated', onTaskUpdated)
+    window.addEventListener('basira:task-updated', onTaskUpdated)
+    return () => window.removeEventListener('basira:task-updated', onTaskUpdated)
   }, [])
 
   async function handlePlanDragEnd(event, currentItems) {

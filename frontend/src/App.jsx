@@ -40,8 +40,8 @@ export default function App() {
         <aside className="w-40 flex-shrink-0 fixed top-0 left-0 h-screen bg-white flex flex-col z-20 border-r border-[#E8E3DB]">
           {/* Logo */}
           <div className="px-5 pt-6 pb-4">
-            <div className="font-bold text-2xl text-[#1A1A1A] tracking-tight leading-none">SysGo</div>
-            <div className="text-[11px] text-[#6B6B6B] mt-0.5 uppercase tracking-wide">Life OS</div>
+            <div className="font-bold text-2xl text-[#1A1A1A] tracking-tight leading-none">Basira</div>
+            <div className="text-[11px] text-[#6B6B6B] mt-0.5 uppercase tracking-wide" style={{ fontFamily: 'serif' }}>بَصِيرَة</div>
           </div>
 
           {/* Add Task button */}
@@ -162,7 +162,7 @@ function AddTaskModal({ onClose }) {
         parent_task_id: parentTaskId || null,
         estimated_minutes: estimatedMinutes,
       })
-      window.dispatchEvent(new CustomEvent('sysgo:task-updated'))
+      window.dispatchEvent(new CustomEvent('basira:task-updated'))
       onClose()
     } catch (err) { alert(err.message) }
     finally { setSubmitting(false) }
