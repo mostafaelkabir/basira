@@ -1,0 +1,126 @@
+SYSGO — Product Overview
+========================
+For UX Design collaboration · May 2026
+
+
+WHAT IS SYSGO?
+--------------
+SysGo is a personal accountability app built around one idea: your goals should
+drive your daily actions. Most task managers treat everything as a flat list.
+SysGo organizes your work around the type of goal it belongs to, and surfaces
+the right things at the right time.
+
+It's designed for one user — someone who has long-term ambitions, ongoing
+projects, and daily habits, and wants one place to see all of it without
+noise.
+
+
+THE THREE GOAL TYPES
+--------------------
+Every goal in SysGo has a type, and the type determines how its tasks behave:
+
+  RESOLUTION — A yearly commitment (e.g. "Get fit", "Read more").
+    Tasks under resolutions are habits — they repeat indefinitely and are
+    checked in daily. Progress is measured in streaks and weekly consistency,
+    not completion. A habit is never "done", it just keeps going.
+
+  PROJECT — A finite goal with a clear end (e.g. "Launch website", "Write report").
+    Tasks have a start, and they complete. You can require proof of completion
+    (a photo, a note, a file) to keep yourself honest.
+
+  DAILY — Everyday operational tasks (e.g. "Reply to emails", "Review calendar").
+    These are recurring todos that persist until completed or removed. No habit
+    tracking, no proof required — just get it done.
+
+Goals can also have cover images and icons to make them feel more personal
+and motivating.
+
+
+THE FOUR SCREENS
+----------------
+
+  1. TODAY
+     The daily command center. Three sections:
+
+     - Focus (top): Up to 3 tasks pinned as today's most important things.
+       You pick them manually from your goals. Numbered 1–2–3 with a gold accent.
+
+     - Plan: All your daily todos, plus any habits or project tasks you've
+       explicitly added to today's plan. This is the full list of "what I'm
+       doing today". You can quick-add todos inline, defer things to tomorrow,
+       or pin something up to Focus.
+
+     - Add from habits & projects: A collapsible picker to pull in specific
+       habits or project tasks into today's plan without cluttering the view.
+
+  2. GOALS
+     A full list of all your goals, grouped by type (Resolutions, Projects,
+     Daily). Tapping a goal opens its detail view where you can see all tasks,
+     add new ones, set due dates, attach proof, and leave comments/notes on
+     individual tasks.
+
+  3. PROGRESS
+     A weekly view of how you're actually doing. Two sections:
+
+     - Goals grid: Every goal as a card showing momentum (when was the last
+       activity?), and a progress bar. For resolutions this shows "X/N habits
+       on track this week". For projects it shows task completion percentage.
+
+     - Habits this week: Every habit with a 7-day dot grid (the last 7 days),
+       a weekly fraction (e.g. 2/3 for a 3x/week habit), and a streak counter.
+       Habits that have hit their weekly target are dimmed and moved to the
+       bottom. Expanding a habit shows a 4-week heatmap.
+
+  4. PEOPLE
+     A lightweight relationship tracker. Store contacts, log calls/interactions,
+     and add notes. Separate from goals — it's for maintaining relationships you
+     care about.
+
+
+KEY INTERACTIONS
+----------------
+
+  Checking in a habit:
+    Tap the circle on any habit. If the habit requires proof, a modal appears
+    asking for a note, photo, or file before the check-in is recorded.
+
+  Completing a task:
+    Tap the circle on any task. Same proof flow if proof is required.
+
+  Pinning to Focus:
+    From the Plan section or the Focus picker, tap the star/pin icon on any
+    task to add it to today's Focus (max 3). Remove by tapping ✕.
+
+  Deferring:
+    Tasks can be deferred to tomorrow with one tap. They disappear from today
+    and reappear the next day.
+
+  Adding proof:
+    Text note, image upload, or file attachment. Proof is attached to the task
+    and visible in the activity feed below it.
+
+  Comments:
+    Any task can have comments — quick notes or updates that appear in a
+    collapsible activity feed under the task.
+
+  Weekly Review:
+    Accessible from the Today header. Shows a summary of the past week —
+    what got done, streaks, and momentum across goals.
+
+
+VISUAL LANGUAGE (current)
+--------------------------
+  - Warm, neutral palette: sand tones, teal accents, gold highlights
+  - Cards with subtle shadows and rounded corners throughout
+  - Gold diamond (◆) used as section dividers
+  - Color-coded momentum: green = active, gold = slowing, orange/red = stalled
+  - Habit heatmaps inspired by GitHub's contribution graph
+  - Cover images on goals replace the card background (full bleed with overlay)
+
+
+WHAT'S NOT BUILT YET
+---------------------
+The longer-term vision is for SysGo to learn from your patterns and eventually
+suggest realistic next steps toward your goals — an AI layer that knows your
+history and helps you plan, not just track. The data model and task structure
+are being built with that in mind.

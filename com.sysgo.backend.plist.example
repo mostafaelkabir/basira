@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>             <string>com.sysgo.backend</string>
+  <key>ProgramArguments</key>
+  <array>
+    <!-- Update this path to match your clone location -->
+    <string>/YOUR/PATH/TO/sysgo/venv/bin/uvicorn</string>
+    <string>app.main:app</string>
+    <string>--port</string>
+    <string>8001</string>
+  </array>
+  <!-- Update this path to match your clone location -->
+  <key>WorkingDirectory</key>  <string>/YOUR/PATH/TO/sysgo</string>
+  <key>RunAtLoad</key>         <true/>
+  <key>KeepAlive</key>         <true/>
+  <key>StandardOutPath</key>   <string>/tmp/sysgo-backend.log</string>
+  <key>StandardErrorPath</key> <string>/tmp/sysgo-backend.log</string>
+</dict>
+</plist>

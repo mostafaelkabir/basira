@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sqlite3 /Users/mostafaelkabir/Desktop/projects/sysgo-langgraph/sysgo.db ' *)",
+      "Bash(curl -s http://localhost:8000/health)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(curl -s http://localhost:5173/goals)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(curl -s http://localhost:8000/today)",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s http://localhost:8000/today/overview)",
+      "Bash(npm run *)",
+      "Bash(curl -s http://localhost:8001/review/weekly)",
+      "Bash(curl -s http://localhost:8001/today)",
+      "Bash(curl -v http://localhost:8001/review/weekly)",
+      "Bash(lsof -ti:8001)",
+      "Bash(lsof -ti:5173)",
+      "Bash(tail -30 /tmp/uvicorn.log)",
+      "Bash(curl -s http://localhost:8001/health)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npx playwright *)",
+      "Bash(node -e \"require\\('puppeteer'\\)\")",
+      "Bash(python3 -c \"from playwright.sync_api import sync_playwright; print\\('ok'\\)\")",
+      "Bash(python3 /tmp/sysgo_shot.py)"
+    ]
+  }
+}
