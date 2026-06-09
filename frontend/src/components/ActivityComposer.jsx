@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { addComment, deleteComment, taskAiQuery, uploadProofFile, uploadProofImage } from '../api'
+import MicButton from './MicButton'
 
 const FILE_EXT_ICONS = { pdf: '📄', doc: '📝', docx: '📝', txt: '📃', md: '📃', pages: '📝', rtf: '📃', csv: '📊', xlsx: '📊', xls: '📊' }
 function extIcon(name) { const ext = (name || '').split('.').pop().toLowerCase(); return FILE_EXT_ICONS[ext] || '📎' }
@@ -197,6 +198,9 @@ export function ActivityComments({ task, onRefresh }) {
               ? 'border-violet-200 focus:ring-violet-300'
               : 'border-sand-200 focus:ring-teal-400'
           }`} />
+
+        {/* Mic — hidden in AI mode */}
+        {!aiMode && <MicButton value={text} onChange={setText} />}
 
         {/* Image + file attach — hidden in AI mode */}
         {!aiMode && (

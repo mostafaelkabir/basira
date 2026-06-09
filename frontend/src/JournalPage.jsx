@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   getJournalEntries, saveJournalEntry, updateJournalEntry, deleteJournalEntry, getJournalAI,
 } from './api'
+import MicButton from './components/MicButton'
 
 const MOOD_OPTS = [
   { val: 1, emoji: '😔', label: 'Rough' },
@@ -121,7 +122,10 @@ function EntryForm({ initial, onSave, onCancel }) {
 
       {/* Main entry */}
       <div>
-        <p className="text-xs font-semibold text-[#6B6B6B] mb-2 uppercase tracking-wide">Entry</p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Entry</p>
+          <MicButton value={form.body || ''} onChange={v => set('body', v)} />
+        </div>
         <textarea
           value={form.body}
           onChange={e => set('body', e.target.value)}
@@ -136,7 +140,10 @@ function EntryForm({ initial, onSave, onCancel }) {
         <div className="flex items-start gap-3">
           <span className="text-lg mt-2">✦</span>
           <div className="flex-1">
-            <p className="text-xs font-semibold text-[#6B6B6B] mb-1 uppercase tracking-wide">Wins</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Wins</p>
+              <MicButton value={form.wins || ''} onChange={v => set('wins', v)} />
+            </div>
             <input value={form.wins} onChange={e => set('wins', e.target.value)}
               placeholder="What went well today?"
               className="w-full px-3 py-2 rounded-xl border border-[#E8E3DB] text-sm bg-[#F9F6F1] focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30 placeholder:text-[#b5a08a]" />
@@ -145,7 +152,10 @@ function EntryForm({ initial, onSave, onCancel }) {
         <div className="flex items-start gap-3">
           <span className="text-lg mt-2">↺</span>
           <div className="flex-1">
-            <p className="text-xs font-semibold text-[#6B6B6B] mb-1 uppercase tracking-wide">Improve</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Improve</p>
+              <MicButton value={form.improve || ''} onChange={v => set('improve', v)} />
+            </div>
             <input value={form.improve} onChange={e => set('improve', e.target.value)}
               placeholder="What would you do differently?"
               className="w-full px-3 py-2 rounded-xl border border-[#E8E3DB] text-sm bg-[#F9F6F1] focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30 placeholder:text-[#b5a08a]" />
@@ -154,7 +164,10 @@ function EntryForm({ initial, onSave, onCancel }) {
         <div className="flex items-start gap-3">
           <span className="text-lg mt-2">🤲</span>
           <div className="flex-1">
-            <p className="text-xs font-semibold text-[#6B6B6B] mb-1 uppercase tracking-wide">Gratitude</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Gratitude</p>
+              <MicButton value={form.gratitude || ''} onChange={v => set('gratitude', v)} />
+            </div>
             <input value={form.gratitude} onChange={e => set('gratitude', e.target.value)}
               placeholder="One thing you're grateful for"
               className="w-full px-3 py-2 rounded-xl border border-[#E8E3DB] text-sm bg-[#F9F6F1] focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30 placeholder:text-[#b5a08a]" />

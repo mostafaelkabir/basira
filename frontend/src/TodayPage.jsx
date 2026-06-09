@@ -6,6 +6,7 @@ import {
   uploadProofFile, uploadProofImage, updateTask,
   getTodayCheckin, saveMorningCheckin, saveEveningCheckin,
 } from './api'
+import MicButton from './components/MicButton'
 import { ProofForm, TaskTags } from './GoalPage'
 import { useTimer } from './TimerContext'
 import PlannerView from './PlannerView'
@@ -192,7 +193,11 @@ function DailyCheckinCard({ onCheckinSaved }) {
 
           {/* Intention */}
           <div>
-            <p className="text-xs font-semibold text-white/70 mb-2">Intention</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-white/70">Intention</p>
+              <MicButton value={intention} onChange={setIntention}
+                className="!text-white/60 hover:!text-white hover:!bg-white/10 !border-transparent" />
+            </div>
             <input
               value={intention}
               onChange={e => setIntention(e.target.value)}
@@ -262,7 +267,11 @@ function DailyCheckinCard({ onCheckinSaved }) {
 
         {/* Reflection */}
         <div>
-          <p className="text-xs font-semibold text-white/70 mb-2">One-line reflection</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-white/70">One-line reflection</p>
+            <MicButton value={reflection} onChange={setReflection}
+              className="!text-white/60 hover:!text-white hover:!bg-white/10 !border-transparent" />
+          </div>
           <input
             value={reflection}
             onChange={e => setReflection(e.target.value)}

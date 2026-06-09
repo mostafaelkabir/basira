@@ -31,6 +31,7 @@ class TicketCreate(BaseModel):
 
 
 class TicketUpdate(BaseModel):
+    company_id: str | None = None
     title: str | None = None
     description: str | None = None
     type: str | None = None
@@ -184,6 +185,7 @@ def update_ticket(ticket_id: str, body: TicketUpdate, db: Session = Depends(get_
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
+    if body.company_id is not None: ticket.company_id = body.company_id
     if body.title is not None: ticket.title = body.title
     if body.description is not None: ticket.description = body.description
     if body.type is not None: ticket.type = body.type

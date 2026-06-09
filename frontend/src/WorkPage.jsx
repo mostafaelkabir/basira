@@ -8,6 +8,7 @@ import {
   addTicketComment, deleteTicketComment, uploadProofImage,
 } from './api'
 import Modal from './components/Modal'
+import MicButton from './components/MicButton'
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -187,7 +188,7 @@ function buildFeed(ticket) {
   return [...entries, ...comments].sort((a, b) => b.ts.localeCompare(a.ts))
 }
 
-function TicketDrawer({ ticket, onClose, onUpdate, onDelete }) {
+function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
   const [compose, setCompose] = useState('')
   const [logMode, setLogMode] = useState(false)  // true = time-log sub-form
   const [logForm, setLogForm] = useState({ duration_minutes: '', logged_at: todayStr(), note: '' })
@@ -342,6 +343,9 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete }) {
               </div>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
+              <button onClick={() => onEdit?.(ticket)}
+                title="Edit ticket"
+                className="w-7 h-7 flex items-center justify-center text-[#b5a08a] hover:text-[#2D7A6B] transition-colors text-sm">✏️</button>
               <button onClick={() => { if (confirm('Delete ticket?')) deleteWorkTicket(ticket.id).then(onDelete).catch(e => alert(e.message)) }}
                 className="w-7 h-7 flex items-center justify-center text-[#b5a08a] hover:text-red-400 transition-colors text-sm">🗑</button>
               <button onClick={onClose}
@@ -539,6 +543,7 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete }) {
               rows={compose.split('\n').length > 2 ? 4 : 2}
               className="flex-1 resize-none px-3 py-2.5 rounded-xl border border-[#E8E3DB] text-sm bg-[#F9F6F1] focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30 focus:bg-white transition-colors placeholder:text-[#b5a08a] leading-relaxed"
             />
+            <MicButton value={compose} onChange={setCompose} />
             <button onClick={handleSend} disabled={!compose.trim() || sending}
               className={`w-9 h-9 flex items-center justify-center rounded-xl text-white transition-colors flex-shrink-0 font-bold text-base ${
                 isProof ? 'bg-blue-500 hover:bg-blue-600' : 'bg-[#1B3A2D] hover:bg-[#2a5240]'
@@ -944,7 +949,7 @@ export default function WorkPage() {
   async function handleSaveTicket(data) {
     if (editTicket) {
       const updated = await updateWorkTicket(editTicket.id, data)
-      setOpenTicket(updated)
+      setOpenTicket(updated)   // refresh the open drawer instantly
     } else {
       await createWorkTicket(data)
     }
@@ -1227,6 +1232,7 @@ export default function WorkPage() {
           onClose={() => setOpenTicket(null)}
           onUpdate={handleTicketUpdate}
           onDelete={() => { setOpenTicket(null); load() }}
+          onEdit={t => { setEditTicket(t); setShowNewTicket(false) }}
         />
       )}
       {(showNewTicket || editTicket) && (
