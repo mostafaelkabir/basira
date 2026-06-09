@@ -3,6 +3,7 @@ import {
   getJournalEntries, saveJournalEntry, updateJournalEntry, deleteJournalEntry, getJournalAI,
 } from './api'
 import MicButton from './components/MicButton'
+import AIPolishButton from './components/AIPolishButton'
 
 const MOOD_OPTS = [
   { val: 1, emoji: '😔', label: 'Rough' },
@@ -124,7 +125,10 @@ function EntryForm({ initial, onSave, onCancel }) {
       <div>
         <div className="flex items-center justify-between mb-2">
           <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Entry</p>
-          <MicButton value={form.body || ''} onChange={v => set('body', v)} />
+          <div className="flex items-center gap-1">
+            <AIPolishButton value={form.body || ''} onChange={v => set('body', v)} context="journal" />
+            <MicButton value={form.body || ''} onChange={v => set('body', v)} />
+          </div>
         </div>
         <textarea
           value={form.body}
@@ -142,7 +146,10 @@ function EntryForm({ initial, onSave, onCancel }) {
           <div className="flex-1">
             <div className="flex items-center justify-between mb-1">
               <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Wins</p>
-              <MicButton value={form.wins || ''} onChange={v => set('wins', v)} />
+              <div className="flex items-center gap-1">
+                <AIPolishButton value={form.wins || ''} onChange={v => set('wins', v)} context="wins" />
+                <MicButton value={form.wins || ''} onChange={v => set('wins', v)} />
+              </div>
             </div>
             <input value={form.wins} onChange={e => set('wins', e.target.value)}
               placeholder="What went well today?"
@@ -154,7 +161,10 @@ function EntryForm({ initial, onSave, onCancel }) {
           <div className="flex-1">
             <div className="flex items-center justify-between mb-1">
               <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Improve</p>
-              <MicButton value={form.improve || ''} onChange={v => set('improve', v)} />
+              <div className="flex items-center gap-1">
+                <AIPolishButton value={form.improve || ''} onChange={v => set('improve', v)} context="improve" />
+                <MicButton value={form.improve || ''} onChange={v => set('improve', v)} />
+              </div>
             </div>
             <input value={form.improve} onChange={e => set('improve', e.target.value)}
               placeholder="What would you do differently?"
@@ -166,7 +176,10 @@ function EntryForm({ initial, onSave, onCancel }) {
           <div className="flex-1">
             <div className="flex items-center justify-between mb-1">
               <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Gratitude</p>
-              <MicButton value={form.gratitude || ''} onChange={v => set('gratitude', v)} />
+              <div className="flex items-center gap-1">
+                <AIPolishButton value={form.gratitude || ''} onChange={v => set('gratitude', v)} context="gratitude" />
+                <MicButton value={form.gratitude || ''} onChange={v => set('gratitude', v)} />
+              </div>
             </div>
             <input value={form.gratitude} onChange={e => set('gratitude', e.target.value)}
               placeholder="One thing you're grateful for"

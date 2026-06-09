@@ -7,6 +7,7 @@ import {
   getTodayCheckin, saveMorningCheckin, saveEveningCheckin,
 } from './api'
 import MicButton from './components/MicButton'
+import AIPolishButton from './components/AIPolishButton'
 import { ProofForm, TaskTags } from './GoalPage'
 import { useTimer } from './TimerContext'
 import PlannerView from './PlannerView'
@@ -195,8 +196,12 @@ function DailyCheckinCard({ onCheckinSaved }) {
           <div>
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-semibold text-white/70">Intention</p>
-              <MicButton value={intention} onChange={setIntention}
-                className="!text-white/60 hover:!text-white hover:!bg-white/10 !border-transparent" />
+              <div className="flex items-center gap-1">
+                <AIPolishButton value={intention} onChange={setIntention} context="intention"
+                  className="[&_button]:!bg-white/10 [&_button]:!border-white/20 [&_button]:!text-white/70 [&_button:hover]:!bg-white/20" />
+                <MicButton value={intention} onChange={setIntention}
+                  className="!text-white/60 hover:!text-white hover:!bg-white/10 !border-transparent" />
+              </div>
             </div>
             <input
               value={intention}
@@ -269,8 +274,12 @@ function DailyCheckinCard({ onCheckinSaved }) {
         <div>
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-semibold text-white/70">One-line reflection</p>
-            <MicButton value={reflection} onChange={setReflection}
-              className="!text-white/60 hover:!text-white hover:!bg-white/10 !border-transparent" />
+            <div className="flex items-center gap-1">
+              <AIPolishButton value={reflection} onChange={setReflection} context="reflection"
+                className="[&_button]:!bg-white/10 [&_button]:!border-white/20 [&_button]:!text-white/70 [&_button:hover]:!bg-white/20" />
+              <MicButton value={reflection} onChange={setReflection}
+                className="!text-white/60 hover:!text-white hover:!bg-white/10 !border-transparent" />
+            </div>
           </div>
           <input
             value={reflection}

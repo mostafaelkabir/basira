@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { addComment, deleteComment, taskAiQuery, uploadProofFile, uploadProofImage } from '../api'
 import MicButton from './MicButton'
+import AIPolishButton from './AIPolishButton'
 
 const FILE_EXT_ICONS = { pdf: '📄', doc: '📝', docx: '📝', txt: '📃', md: '📃', pages: '📝', rtf: '📃', csv: '📊', xlsx: '📊', xls: '📊' }
 function extIcon(name) { const ext = (name || '').split('.').pop().toLowerCase(); return FILE_EXT_ICONS[ext] || '📎' }
@@ -231,8 +232,13 @@ export function ActivityComments({ task, onRefresh }) {
           {submitting ? '…' : aiMode ? '✨' : '→'}
         </button>
       </div>
-      {!aiMode && <p className="text-[10px] text-sand-300">⌘V to paste a screenshot</p>}
-      {aiMode && <p className="text-[10px] text-violet-300">AI can read all your notes and comments on this task</p>}
+      <div className="flex items-center justify-between mt-1">
+        {aiMode
+          ? <p className="text-[10px] text-violet-300">AI can read all your notes and comments on this task</p>
+          : <p className="text-[10px] text-sand-300">⌘V to paste a screenshot</p>
+        }
+        {!aiMode && <AIPolishButton value={text} onChange={setText} context="comment" />}
+      </div>
     </div>
   )
 }

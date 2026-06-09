@@ -186,3 +186,7 @@ export const updateJournalEntry = (id, data) =>
   request(`/journal/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
 export const deleteJournalEntry = (id) => request(`/journal/${id}`, { method: 'DELETE' })
 export const getJournalAI       = () => request('/journal/ai/reflect', { method: 'POST' })
+
+// ── AI Tools ───────────────────────────────────────────────────────────────
+export const polishText = (text, context = 'default') =>
+  request('/ai/polish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, context }) })

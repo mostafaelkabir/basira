@@ -28,6 +28,7 @@ from app.routes.work_logs import router as work_logs_router
 from app.routes.work_tickets import router as work_tickets_router
 from app.routes.checkins import router as checkins_router
 from app.routes.journal import router as journal_router
+from app.routes.ai_tools import router as ai_tools_router
 from app.scheduler import start_scheduler
 
 
@@ -235,6 +236,7 @@ app.include_router(work_logs_router)
 app.include_router(work_tickets_router)
 app.include_router(checkins_router)
 app.include_router(journal_router)
+app.include_router(ai_tools_router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

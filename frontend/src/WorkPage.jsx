@@ -9,6 +9,7 @@ import {
 } from './api'
 import Modal from './components/Modal'
 import MicButton from './components/MicButton'
+import AIPolishButton from './components/AIPolishButton'
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -551,7 +552,10 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
               {sending ? '…' : '↑'}
             </button>
           </div>
-          <p className="text-[10px] text-[#b5a08a] mt-1.5 px-1">Shift+Enter for new line · paste a URL to save as proof · paste a screenshot to upload</p>
+          <div className="flex items-center justify-between mt-1.5 px-1">
+            <p className="text-[10px] text-[#b5a08a]">Shift+Enter for new line · paste URL or screenshot</p>
+            <AIPolishButton value={compose} onChange={setCompose} context="comment" />
+          </div>
         </div>
       </div>
     </div>
