@@ -54,14 +54,18 @@ def update_task(task_id: str, data: TaskUpdate, db: Session = Depends(get_db)) -
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     updates = data.model_dump(exclude_unset=True)
+    defer_reason = updates.pop("defer_reason", None)
     # Log deferral events when deferred_until is explicitly set to a future date
     if "deferred_until" in updates and updates["deferred_until"]:
-        db.add(DeferLog(
+        dl = DeferLog(
             id=str(uuid4()),
             task_id=task_id,
             deferred_on=date.today().isoformat(),
             deferred_until=updates["deferred_until"],
-        ))
+        )
+        if defer_reason:
+            dl.defer_reason = defer_reason
+        db.add(dl)
     for field, value in updates.items():
         setattr(task, field, value)
     db.commit()
@@ -191,8 +195,12 @@ def reorder_tasks(items: list[ReorderItem], db: Session = Depends(get_db)) -> No
     db.commit()
 
 
+class CompleteTaskBody(BaseModel):
+    feeling: str | None = None  # 'grind' | 'flow' | 'loved'
+
+
 @router.post("/{task_id}/complete", response_model=TaskRead)
-def complete_task(task_id: str, db: Session = Depends(get_db)) -> Task:
+def complete_task(task_id: str, body: CompleteTaskBody = CompleteTaskBody(), db: Session = Depends(get_db)) -> Task:
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -206,6 +214,8 @@ def complete_task(task_id: str, db: Session = Depends(get_db)) -> Task:
         task_id=task.id,
         completed_at=datetime.now(UTC),
     )
+    if body.feeling:
+        log.task_feeling = body.feeling
     db.add(log)
     db.commit()
     db.refresh(task)

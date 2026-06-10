@@ -178,3 +178,74 @@ def _journal_serialize(e: JournalEntry):
         "gratitude": e.gratitude, "gratitude_original": e.gratitude_original,
         "tags": json.loads(e.tags) if e.tags else [],
     }
+
+
+# ── Profile Narrative ─────────────────────────────────────────────────────────
+
+class ProfileNarrativeRequest(BaseModel):
+    profile: dict  # full /insights/profile response
+
+
+@router.post("/profile-narrative")
+def profile_narrative(body: ProfileNarrativeRequest):
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise HTTPException(503, "No GROQ_API_KEY configured")
+
+    p = body.profile
+    scores = p.get("dimension_scores", {})
+    best_hour = p.get("best_hour")
+    best_day = p.get("best_day", "")
+    affinity = p.get("task_type_affinity", [])
+    procrastination = p.get("procrastination", {})
+    eisenhower = p.get("eisenhower", {})
+
+    # Build a compact data summary for the prompt
+    lines = [
+        f"Performance window: peak hour {best_hour}:00, best day {best_day}.",
+        f"Execution score: {scores.get('execution', '?')}% | Consistency: {scores.get('consistency', '?')}% | Growth: {scores.get('growth', '?')}%",
+        f"Focus score: {scores.get('focus') or 'not yet rated (no timer ratings)'}",
+        f"Planning (Q2 work): {scores.get('planning', '?')}%",
+        f"Balance score: {scores.get('balance', '?')}",
+    ]
+
+    if affinity:
+        top = affinity[0]
+        lines.append(f"Top task type: {top.get('goal_type')} ({top.get('completions')} completions, feeling: {top.get('feeling_label', 'unrated')})")
+
+    reasons = procrastination.get("reason_distribution", [])
+    if reasons:
+        top_reason = reasons[0]
+        lines.append(f"Top deferral reason: {top_reason.get('reason')} ({top_reason.get('pct')}% of deferrals)")
+
+    most_deferred = procrastination.get("most_deferred_tasks", [])
+    if most_deferred:
+        lines.append(f"Most deferred task: \"{most_deferred[0].get('title')}\" ({most_deferred[0].get('defer_count')} times)")
+
+    q2 = eisenhower.get("q2", {})
+    lines.append(f"Q2 work (important, not urgent): {q2.get('pct', 0)}% of completions")
+
+    data_summary = "\n".join(lines)
+
+    client = OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1")
+    resp = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are Basira, a self-knowledge mirror. "
+                    "Based on 30–90 days of behavioral data, write a clear-eyed, warm, and specific "
+                    "narrative about this person as a performer. "
+                    "Mention their strongest pattern, their main friction point, and one concrete "
+                    "structural recommendation. Do not use generic motivational language. "
+                    "Be specific to the numbers. Write in flowing prose, 150–200 words."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"Here is my behavioral data summary:\n\n{data_summary}\n\nWhat does this say about me as a performer?",
+            },
+        ],
+    )
+    return {"narrative": resp.choices[0].message.content}

@@ -204,3 +204,26 @@ export const polishJournalField   = (entryId, field) =>
   request(`/ai/polish/journal/${entryId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ field }) })
 export const restoreJournalField  = (entryId, field) =>
   request(`/ai/restore/journal/${entryId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ field }) })
+
+// ── Self-Knowledge Engine ─────────────────────────────────────────────────────
+export const completeTaskWithFeeling = (taskId, feeling) =>
+  request(`/tasks/${taskId}/complete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feeling }) })
+export const deferTaskWithReason = (taskId, deferredUntil, deferReason) =>
+  request(`/tasks/${taskId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deferred_until: deferredUntil, defer_reason: deferReason }) })
+export const stopTimerWithFocus = (focusQuality) =>
+  request('/timer/pause', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ focus_quality: focusQuality }) })
+export const saveAfternoonCheckin = (data) =>
+  request('/checkins/afternoon', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+export const getAfternoonCheckin = (date) => request(`/checkins/afternoon/${date}`)
+export const saveReflection = (data) =>
+  request('/reflections', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+export const getReflections = (limit = 20) => request(`/reflections?limit=${limit}`)
+export const getReflection = (periodType, periodStart) => request(`/reflections/${periodType}/${periodStart}`)
+export const getInsightsProfile = () => request('/insights/profile')
+export const getProfileNarrative = (profile) =>
+  request('/ai/profile-narrative', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile }) })
+export const generateWeekPlan = (weekStart) =>
+  request('/plans/generate-week', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ week_start: weekStart }) })
+export const saveWeekPlan = (weekStart, plan, aiRationale) =>
+  request(`/plans/week/${weekStart}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan, ai_rationale: aiRationale }) })
+export const getWeekPlan = (weekStart) => request(`/plans/week/${weekStart}`)

@@ -29,6 +29,9 @@ from app.routes.work_tickets import router as work_tickets_router
 from app.routes.checkins import router as checkins_router
 from app.routes.journal import router as journal_router
 from app.routes.ai_tools import router as ai_tools_router
+from app.routes.insights import router as insights_router
+from app.routes.reflections import router as reflections_router
+from app.routes.plans import router as plans_router
 from app.scheduler import start_scheduler
 
 
@@ -202,6 +205,39 @@ def run_migrations():
             created_at DATETIME NOT NULL,
             updated_at DATETIME NOT NULL
         )""",
+        # Self-knowledge engine: micro-signal columns
+        "ALTER TABLE execution_logs ADD COLUMN task_feeling TEXT",
+        "ALTER TABLE defer_logs ADD COLUMN defer_reason TEXT",
+        "ALTER TABLE work_sessions ADD COLUMN focus_quality INTEGER",
+        # Self-knowledge engine: new tables
+        """CREATE TABLE IF NOT EXISTS afternoon_checkins (
+            id TEXT PRIMARY KEY,
+            date TEXT NOT NULL UNIQUE,
+            energy INTEGER NOT NULL,
+            working_on TEXT,
+            created_at TEXT NOT NULL
+        )""",
+        """CREATE TABLE IF NOT EXISTS periodic_reflections (
+            id TEXT PRIMARY KEY,
+            period_type TEXT NOT NULL,
+            period_start TEXT NOT NULL UNIQUE,
+            proud_of TEXT,
+            held_back TEXT,
+            energy_rating INTEGER,
+            values_alignment INTEGER,
+            do_differently TEXT,
+            monthly_answers TEXT DEFAULT '{}',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )""",
+        """CREATE TABLE IF NOT EXISTS weekly_plans (
+            id TEXT PRIMARY KEY,
+            week_start TEXT NOT NULL UNIQUE,
+            plan_json TEXT NOT NULL,
+            ai_rationale TEXT,
+            generated_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )""",
     ]
     with engine.connect() as conn:
         for sql in migrations:
@@ -244,6 +280,9 @@ app.include_router(work_tickets_router)
 app.include_router(checkins_router)
 app.include_router(journal_router)
 app.include_router(ai_tools_router)
+app.include_router(insights_router)
+app.include_router(reflections_router)
+app.include_router(plans_router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
