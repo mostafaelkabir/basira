@@ -110,13 +110,19 @@ def start_timer(body: StartBody, db: Session = Depends(get_db)):
 
 # ── Pause ──────────────────────────────────────────────────────────────────────
 
+class PauseBody(BaseModel):
+    focus_quality: int | None = None  # 1–5
+
+
 @router.post("/pause")
-def pause_timer(db: Session = Depends(get_db)):
+def pause_timer(body: PauseBody = PauseBody(), db: Session = Depends(get_db)):
     active = db.query(WorkSession).filter(WorkSession.ended_at.is_(None)).first()
     if not active:
         return {"ok": True, "duration_seconds": 0}
     now = datetime.now(UTC)
     _end_session(active, now)
+    if body.focus_quality is not None:
+        active.focus_quality = body.focus_quality
     db.commit()
     return {"ok": True, "duration_seconds": active.duration_seconds}
 

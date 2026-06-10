@@ -4,6 +4,7 @@ import ContactsPage from './ContactsPage'
 import GoalPage from './GoalPage'
 import GoalsPage from './GoalsPage'
 import JournalPage from './JournalPage'
+import ProfilePage from './ProfilePage'
 import ProgressPage from './ProgressPage'
 import SettingsModal from './SettingsModal'
 import TodayPage from './TodayPage'
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { id: 'goals',       label: 'Goals',    icon: '◎' },
   { id: 'work',        label: 'Work',     icon: '⌨️' },
   { id: 'progress',    label: 'Progress', icon: '📊' },
+  { id: 'profile',     label: 'Profile',  icon: '🪞' },
   { id: 'connections', label: 'People',   icon: '👥' },
 ]
 
@@ -108,6 +110,7 @@ export default function App() {
             {tab === 'journal' && <JournalPage />}
             {tab === 'work' && <WorkPage />}
             {tab === 'progress' && <ProgressPage onGoToGoal={openGoal} />}
+            {tab === 'profile' && <ProfilePage />}
             {tab === 'insights' && <AnalyticsPage onGoToGoal={openGoal} />}
             {tab === 'connections' && <ContactsPage />}
           </div>

@@ -5,9 +5,12 @@ import {
   pinTask, planTask, reorderTasks, uncheckinHabit, unpinTask, unplanTask,
   uploadProofFile, uploadProofImage, updateTask,
   getTodayCheckin, saveMorningCheckin, saveEveningCheckin,
+  completeTaskWithFeeling, deferTaskWithReason,
+  saveAfternoonCheckin, getAfternoonCheckin,
 } from './api'
 import MicButton from './components/MicButton'
 import AIPolishButton from './components/AIPolishButton'
+import PostTaskFeedback from './components/PostTaskFeedback'
 import { ProofForm, TaskTags } from './GoalPage'
 import { useTimer } from './TimerContext'
 import PlannerView from './PlannerView'
@@ -77,6 +80,34 @@ function SectionLabel({ children, right }) {
       <p className="text-[11px] font-bold text-[#1A1A1A] uppercase tracking-widest whitespace-nowrap">{children}</p>
       <span className="flex-1 border-t border-[#E8E3DB]" />
       {right && <span className="text-[11px] text-[#6B6B6B] flex-shrink-0">{right}</span>}
+    </div>
+  )
+}
+
+const DEFER_REASONS = [
+  { value: 'too_vague',         label: 'Too vague'         },
+  { value: 'low_energy',        label: 'Low energy'        },
+  { value: 'wrong_timing',      label: 'Wrong timing'      },
+  { value: 'blocked',           label: 'Blocked'           },
+  { value: 'changed_priority',  label: 'Changed priority'  },
+]
+
+function DeferReasonPicker({ onSelect, onDismiss }) {
+  return (
+    <div className="bg-white border border-[#E8E3DB] rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.10)] p-3">
+      <p className="text-[11px] text-[#6B6B6B] font-medium mb-2 text-center">Why are you deferring?</p>
+      <div className="flex flex-wrap gap-1.5 justify-center">
+        {DEFER_REASONS.map(r => (
+          <button key={r.value} onClick={() => onSelect(r.value)}
+            className="px-3 py-1.5 text-xs font-medium rounded-xl bg-[#F2EDE4] text-[#1A1A1A] hover:bg-[#E8C334] transition-colors">
+            {r.label}
+          </button>
+        ))}
+        <button onClick={() => onSelect(null)}
+          className="px-3 py-1.5 text-xs font-medium rounded-xl text-[#b5a08a] hover:text-[#1A1A1A] transition-colors">
+          skip
+        </button>
+      </div>
     </div>
   )
 }
@@ -315,6 +346,11 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   const quickAddRef = useRef(null)
   const [planItems, setPlanItems]           = useState(null) // null = derive from data
   const [viewMode, setViewMode]             = useState('list') // 'list' | 'planner'
+  const [feedbackTask, setFeedbackTask]     = useState(null)  // task awaiting feeling feedback
+  const [deferPending, setDeferPending]     = useState(null)  // { taskId } awaiting reason selection
+  const [afternoonCheckin, setAfternoonCheckin] = useState(null)
+  const [afternoonForm, setAfternoonForm]   = useState({ energy: null, working_on: '' })
+  const [afternoonSaving, setAfternoonSaving] = useState(false)
   const planSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
   function resetProofForm() { setProofForm({ type: 'text', content: '', imageFile: null, imagePreview: null }) }
@@ -329,7 +365,13 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
 
   async function load() {
     try {
-      const [d, timerData] = await Promise.all([getToday(), getTimerToday().catch(() => ({ tasks: [] }))])
+      const todayStr = new Date().toISOString().split('T')[0]
+      const [d, timerData, afternoonData] = await Promise.all([
+        getToday(),
+        getTimerToday().catch(() => ({ tasks: [] })),
+        getAfternoonCheckin(todayStr).catch(() => null),
+      ])
+      if (afternoonData?.energy) setAfternoonCheckin(afternoonData)
       // Preserve focus order across refreshes — only reorder when pins change
       const prevOrder = focusOrderRef.current
       const incomingIds = new Set(d.focus.map(t => t.id))
@@ -386,14 +428,26 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
     if (task.requires_proof && (!task.proofs || task.proofs.length === 0)) { setProofFor(task); return }
     // If no timer was logged for this task today, ask for time spent
     if (!todaySeconds[task.id]) { setTimeLogFor(task); return }
-    try { await completeTask(task.id); load() }
-    catch (err) { alert(err.message) }
+    try {
+      await completeTask(task.id)
+      setFeedbackTask(task)   // show feeling popover
+      load()
+    } catch (err) { alert(err.message) }
+  }
+
+  async function handleFeelingSelect(feeling) {
+    if (feedbackTask) {
+      // Send feeling to backend (fire-and-forget, non-blocking)
+      completeTaskWithFeeling(feedbackTask.id, feeling).catch(() => {})
+    }
+    setFeedbackTask(null)
   }
 
   async function handleCompleteWithTime(task, minutes) {
     try {
       if (minutes) await logManualTime(task.id, minutes)
       await completeTask(task.id)
+      setFeedbackTask(task)   // show feeling popover
       setTimeLogFor(null)
       load()
     } catch (err) { alert(err.message) }
@@ -403,9 +457,25 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
     try { await deleteTask(taskId); load() }
     catch (err) { alert(err.message) }
   }
-  async function handleDefer(taskId) {
-    try { await deferTask(taskId, tomorrow()); load() }
+  function handleDefer(taskId) {
+    setDeferPending({ taskId })
+  }
+
+  async function handleDeferWithReason(reason) {
+    if (!deferPending) return
+    const { taskId } = deferPending
+    setDeferPending(null)
+    try { await deferTaskWithReason(taskId, tomorrow(), reason); load() }
     catch (err) { alert(err.message) }
+  }
+  async function handleAfternoonSubmit() {
+    if (!afternoonForm.energy) return
+    setAfternoonSaving(true)
+    try {
+      const saved = await saveAfternoonCheckin({ energy: afternoonForm.energy, working_on: afternoonForm.working_on })
+      setAfternoonCheckin(saved)
+    } catch (err) { alert(err.message) }
+    finally { setAfternoonSaving(false) }
   }
   async function handlePlan(taskId) {
     try { await planTask(taskId, data.date); load() }
@@ -540,6 +610,65 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
 
       {/* ── Daily Check-in ── */}
       <DailyCheckinCard />
+
+      {/* ── Afternoon Pulse (14:00–20:00 only, if not yet submitted) ── */}
+      {(() => {
+        const h = new Date().getHours()
+        if (h < 14 || h >= 20 || afternoonCheckin?.energy) return null
+        return (
+          <div className="bg-gradient-to-br from-[#1B3A2D] to-[#2D7A6B] rounded-2xl p-4 text-white shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">⚡</span>
+              <p className="font-bold text-sm">Afternoon Pulse</p>
+              <span className="text-xs text-white/50 ml-auto">{new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+            </div>
+            <p className="text-xs text-white/70 mb-3">Quick mid-day check-in — how are you doing right now?</p>
+            <div className="flex gap-2 mb-3">
+              {[{ v: 1, label: 'Low' }, { v: 2, label: 'Okay' }, { v: 3, label: 'High' }].map(o => (
+                <button key={o.v} onClick={() => setAfternoonForm(f => ({ ...f, energy: o.v }))}
+                  className={`flex-1 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                    afternoonForm.energy === o.v
+                      ? 'bg-white text-[#1B3A2D] border-white'
+                      : 'border-white/30 text-white/80 hover:bg-white/10'
+                  }`}>
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={afternoonForm.working_on}
+                onChange={e => setAfternoonForm(f => ({ ...f, working_on: e.target.value }))}
+                placeholder="What are you working on? (optional)"
+                className="flex-1 text-xs bg-white/15 border border-white/20 rounded-xl px-3 py-2 text-white placeholder:text-white/40 focus:outline-none focus:border-white/40"
+              />
+              <button onClick={handleAfternoonSubmit} disabled={!afternoonForm.energy || afternoonSaving}
+                className="px-3 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-semibold border border-white/30 transition-colors disabled:opacity-40">
+                {afternoonSaving ? '…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ── Post-task feeling popover ── */}
+      {feedbackTask && (
+        <div className="flex justify-center">
+          <PostTaskFeedback
+            taskTitle={feedbackTask.title}
+            onSelect={handleFeelingSelect}
+            onDismiss={() => setFeedbackTask(null)}
+          />
+        </div>
+      )}
+
+      {/* ── Defer reason chips ── */}
+      {deferPending && (
+        <DeferReasonPicker
+          onSelect={handleDeferWithReason}
+          onDismiss={() => setDeferPending(null)}
+        />
+      )}
 
       {/* ── Progress Bar ── */}
       {totalItems > 0 && (

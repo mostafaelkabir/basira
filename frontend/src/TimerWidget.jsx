@@ -1,7 +1,41 @@
 import { useEffect, useRef, useState } from 'react'
-import { getTask } from './api'
+import { getTask, stopTimerWithFocus } from './api'
 import { ActivityComments } from './components/ActivityComposer'
 import { useTimer } from './TimerContext'
+
+const FOCUS_STARS = [1, 2, 3, 4, 5]
+
+function FocusPrompt({ onSelect, onDismiss }) {
+  const [hovering, setHovering] = useState(false)
+  const [hovered, setHovered] = useState(0)
+
+  useEffect(() => {
+    if (hovering) return
+    const t = setTimeout(onDismiss, 4000)
+    return () => clearTimeout(t)
+  }, [hovering, onDismiss])
+
+  return (
+    <div
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+      className="flex items-center gap-3 px-4 py-2.5 bg-[#1B3A2D] border-t border-white/10">
+      <span className="text-[11px] text-white/60 font-medium whitespace-nowrap">How focused were you?</span>
+      <div className="flex gap-1">
+        {FOCUS_STARS.map(n => (
+          <button key={n}
+            onMouseEnter={() => setHovered(n)}
+            onMouseLeave={() => setHovered(0)}
+            onClick={() => { onSelect(n); onDismiss() }}
+            className="text-lg leading-none transition-transform hover:scale-125">
+            {n <= (hovered || 0) ? '★' : '☆'}
+          </button>
+        ))}
+      </div>
+      <button onClick={onDismiss} className="text-white/30 hover:text-white/60 text-xs ml-auto">skip</button>
+    </div>
+  )
+}
 
 function formatElapsed(seconds) {
   const h = Math.floor(seconds / 3600)
@@ -43,7 +77,18 @@ export default function TimerWidget() {
   const [expanded, setExpanded] = useState(false)
   const [taskData, setTaskData] = useState(null)
   const [loadingTask, setLoadingTask] = useState(false)
+  const [showFocusPrompt, setShowFocusPrompt] = useState(false)
   const prevTaskId = useRef(null)
+
+  async function handleStop() {
+    await stopTimer()
+    setShowFocusPrompt(true)
+  }
+
+  async function handleFocusSelect(quality) {
+    try { await stopTimerWithFocus(quality) } catch (_) {}
+    setShowFocusPrompt(false)
+  }
 
   // Auto-expand when a new task starts
   useEffect(() => {
@@ -82,7 +127,13 @@ export default function TimerWidget() {
   /* ── Minimized pill (bottom-center) ── */
   if (!expanded) {
     return (
-      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center gap-2">
+        {showFocusPrompt && (
+          <FocusPrompt
+            onSelect={handleFocusSelect}
+            onDismiss={() => setShowFocusPrompt(false)}
+          />
+        )}
         <div className="pointer-events-auto bg-[#1B3A2D] text-white rounded-full shadow-2xl px-5 py-3 flex items-center gap-3 min-w-[300px] max-w-[90vw]">
           {/* Pulse indicator */}
           <div className="relative flex-shrink-0 w-2.5 h-2.5">
@@ -116,7 +167,7 @@ export default function TimerWidget() {
           </button>
 
           {/* Stop */}
-          <button onClick={stopTimer} title="Stop"
+          <button onClick={handleStop} title="Stop"
             className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-red-500/80 transition-colors text-sm flex-shrink-0">
             ⏹
           </button>
@@ -179,11 +230,17 @@ export default function TimerWidget() {
                 }`}>
                 {isRunning ? '⏸  Pause' : '▶  Resume'}
               </button>
-              <button onClick={stopTimer}
+              <button onClick={handleStop}
                 className="py-2.5 px-5 rounded-xl font-semibold text-sm bg-white/5 text-white/50 hover:bg-red-500/80 hover:text-white transition-all border border-white/5">
                 ⏹ Stop
               </button>
             </div>
+            {showFocusPrompt && (
+              <FocusPrompt
+                onSelect={handleFocusSelect}
+                onDismiss={() => setShowFocusPrompt(false)}
+              />
+            )}
           </div>
 
           {/* Light panel: notes & comments */}

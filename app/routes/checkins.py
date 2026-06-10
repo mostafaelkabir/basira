@@ -1,10 +1,13 @@
-from datetime import date
+from datetime import UTC, date, datetime
+from uuid import uuid4
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.daily_checkin import DailyCheckin
+from app.models.afternoon_checkin import AfternoonCheckin
 
 router = APIRouter(prefix="/checkins", tags=["checkins"])
 
@@ -76,3 +79,40 @@ def save_evening(body: EveningIn, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(c)
     return _serialize(c)
+
+
+# ── Afternoon pulse ────────────────────────────────────────────────────────────
+
+class AfternoonIn(BaseModel):
+    energy: int          # 1–3
+    working_on: str = ""
+
+
+def _serialize_afternoon(a: AfternoonCheckin):
+    return {
+        "id": a.id,
+        "date": a.date,
+        "energy": a.energy,
+        "working_on": a.working_on,
+        "created_at": a.created_at.isoformat() if a.created_at else None,
+    }
+
+
+@router.get("/afternoon/{date_str}")
+def get_afternoon(date_str: str, db: Session = Depends(get_db)):
+    a = db.query(AfternoonCheckin).filter(AfternoonCheckin.date == date_str).first()
+    return _serialize_afternoon(a) if a else {"date": date_str}
+
+
+@router.post("/afternoon")
+def save_afternoon(body: AfternoonIn, db: Session = Depends(get_db)):
+    today = _today()
+    a = db.query(AfternoonCheckin).filter(AfternoonCheckin.date == today).first()
+    if not a:
+        a = AfternoonCheckin(id=str(uuid4()), date=today, created_at=datetime.now(UTC))
+        db.add(a)
+    a.energy = body.energy
+    a.working_on = body.working_on or None
+    db.commit()
+    db.refresh(a)
+    return _serialize_afternoon(a)

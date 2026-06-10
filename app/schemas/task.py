@@ -32,6 +32,7 @@ class TaskUpdate(BaseModel):
     requires_proof: bool | None = None
     pinned_date: str | None = None
     deferred_until: str | None = None
+    defer_reason: str | None = None   # 'too_vague'|'low_energy'|'wrong_timing'|'blocked'|'changed_priority'
     plan_date: str | None = None
     parent_task_id: str | None = None
     is_urgent: bool | None = None
