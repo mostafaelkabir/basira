@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import {
   getJournalEntries, saveJournalEntry, updateJournalEntry, deleteJournalEntry, getJournalAI,
+  polishJournalField, restoreJournalField,
 } from './api'
 import MicButton from './components/MicButton'
 import AIPolishButton from './components/AIPolishButton'
+import SavedTextToggle from './components/SavedTextToggle'
 
 const MOOD_OPTS = [
   { val: 1, emoji: '😔', label: 'Rough' },
@@ -215,7 +217,7 @@ function EntryForm({ initial, onSave, onCancel }) {
 
 // ─── Entry Card ───────────────────────────────────────────────────────────────
 
-function EntryCard({ entry, onEdit, onDelete }) {
+function EntryCard({ entry, onEdit, onDelete, onUpdate }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -255,34 +257,54 @@ function EntryCard({ entry, onEdit, onDelete }) {
       {expanded && (
         <div className="px-5 pb-5 border-t border-[#F2EDE4] space-y-4 pt-4">
           {entry.body && (
-            <p className="text-sm text-[#1A1A1A] leading-relaxed whitespace-pre-wrap">{entry.body}</p>
+            <SavedTextToggle
+              text={entry.body} original={entry.body_original}
+              onPolish={() => polishJournalField(entry.id, 'body').then(onUpdate)}
+              onRestore={() => restoreJournalField(entry.id, 'body').then(onUpdate)}>
+              {(txt) => <p className="text-sm text-[#1A1A1A] leading-relaxed whitespace-pre-wrap">{txt}</p>}
+            </SavedTextToggle>
           )}
 
           <div className="grid grid-cols-1 gap-2">
             {entry.wins && (
               <div className="flex gap-2">
                 <span className="text-base flex-shrink-0 mt-0.5">✦</span>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-bold text-[#b5a08a] uppercase tracking-wide">Win</p>
-                  <p className="text-sm text-[#1A1A1A]">{entry.wins}</p>
+                  <SavedTextToggle
+                    text={entry.wins} original={entry.wins_original}
+                    onPolish={() => polishJournalField(entry.id, 'wins').then(onUpdate)}
+                    onRestore={() => restoreJournalField(entry.id, 'wins').then(onUpdate)}>
+                    {(txt) => <p className="text-sm text-[#1A1A1A]">{txt}</p>}
+                  </SavedTextToggle>
                 </div>
               </div>
             )}
             {entry.improve && (
               <div className="flex gap-2">
                 <span className="text-base flex-shrink-0 mt-0.5">↺</span>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-bold text-[#b5a08a] uppercase tracking-wide">Improve</p>
-                  <p className="text-sm text-[#1A1A1A]">{entry.improve}</p>
+                  <SavedTextToggle
+                    text={entry.improve} original={entry.improve_original}
+                    onPolish={() => polishJournalField(entry.id, 'improve').then(onUpdate)}
+                    onRestore={() => restoreJournalField(entry.id, 'improve').then(onUpdate)}>
+                    {(txt) => <p className="text-sm text-[#1A1A1A]">{txt}</p>}
+                  </SavedTextToggle>
                 </div>
               </div>
             )}
             {entry.gratitude && (
               <div className="flex gap-2">
                 <span className="text-base flex-shrink-0 mt-0.5">🤲</span>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-bold text-[#b5a08a] uppercase tracking-wide">Gratitude</p>
-                  <p className="text-sm text-[#1A1A1A]">{entry.gratitude}</p>
+                  <SavedTextToggle
+                    text={entry.gratitude} original={entry.gratitude_original}
+                    onPolish={() => polishJournalField(entry.id, 'gratitude').then(onUpdate)}
+                    onRestore={() => restoreJournalField(entry.id, 'gratitude').then(onUpdate)}>
+                    {(txt) => <p className="text-sm text-[#1A1A1A]">{txt}</p>}
+                  </SavedTextToggle>
                 </div>
               </div>
             )}
@@ -331,6 +353,14 @@ export default function JournalPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  function handleUpdated(entry) {
+    setEntries(prev => {
+      const idx = prev.findIndex(e => e.id === entry.id)
+      if (idx < 0) return prev
+      const next = [...prev]; next[idx] = entry; return next
+    })
+  }
 
   function handleSaved(entry) {
     setEntries(prev => {
@@ -425,6 +455,7 @@ export default function JournalPage() {
             entry={todayEntry}
             onEdit={e => { setEditEntry(e); setShowForm(false) }}
             onDelete={handleDelete}
+            onUpdate={handleUpdated}
           />
         </div>
       )}
@@ -443,6 +474,7 @@ export default function JournalPage() {
                 entry={e}
                 onEdit={entry => { setEditEntry(entry); setShowForm(false) }}
                 onDelete={handleDelete}
+                onUpdate={handleUpdated}
               />
             ))}
           </div>

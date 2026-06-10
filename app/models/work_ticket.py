@@ -55,6 +55,7 @@ class WorkTicketComment(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     ticket_id: Mapped[str] = mapped_column(String, ForeignKey("work_tickets.id"), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
+    body_original: Mapped[str | None] = mapped_column(Text, nullable=True)
     # type: note | proof
     type: Mapped[str] = mapped_column(String, default="note")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))

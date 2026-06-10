@@ -5,11 +5,13 @@ import {
   startWorkTimer, stopWorkTimer, getWeeklyWorkStats, generateWorkAI,
   getWorkTickets, getWorkTicket, createWorkTicket, updateWorkTicket, deleteWorkTicket,
   logTimeToTicket, deleteTimeEntry, startTicketTimer, stopTicketTimer,
-  addTicketComment, deleteTicketComment, uploadProofImage,
+  addTicketComment, updateTicketComment, deleteTicketComment, uploadProofImage,
+  polishTicketComment, restoreTicketComment,
 } from './api'
 import Modal from './components/Modal'
 import MicButton from './components/MicButton'
 import AIPolishButton from './components/AIPolishButton'
+import SavedTextToggle from './components/SavedTextToggle'
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -176,6 +178,82 @@ function fmtTimestamp(iso) {
   return `${base} ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
 }
 
+// Inline-editable note item in the ticket feed
+function NoteItem({ item, ticketId, onUpdate }) {
+  const [editing, setEditing] = useState(false)
+  const [editText, setEditText] = useState(item.body)
+  const [saving, setSaving] = useState(false)
+  const ref = useRef(null)
+
+  function startEdit() {
+    setEditText(item.body)
+    setEditing(true)
+    setTimeout(() => { ref.current?.focus(); ref.current?.select() }, 0)
+  }
+
+  async function saveEdit() {
+    const trimmed = editText.trim()
+    if (!trimmed || trimmed === item.body) { setEditing(false); return }
+    setSaving(true)
+    try {
+      const updated = await updateTicketComment(ticketId, item.id, trimmed)
+      onUpdate(updated)
+      setEditing(false)
+    } catch (err) { alert(err.message) }
+    finally { setSaving(false) }
+  }
+
+  function cancelEdit() { setEditing(false); setEditText(item.body) }
+
+  if (editing) {
+    return (
+      <div>
+        <textarea
+          ref={ref}
+          value={editText}
+          onChange={e => setEditText(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit() }
+            if (e.key === 'Escape') cancelEdit()
+          }}
+          rows={Math.max(2, editText.split('\n').length)}
+          className="w-full text-sm text-[#1A1A1A] leading-relaxed bg-[#F9F6F1] border border-[#2D7A6B]/30 rounded-xl px-3 py-2 focus:outline-none resize-none"
+        />
+        <div className="flex items-center gap-2 mt-1.5">
+          <button onClick={saveEdit} disabled={saving}
+            className="text-[11px] px-2.5 py-1 rounded-lg bg-[#1B3A2D] text-white font-medium disabled:opacity-50 hover:bg-[#2a5240] transition-colors">
+            {saving ? '…' : 'Save'}
+          </button>
+          <button onClick={cancelEdit}
+            className="text-[11px] px-2.5 py-1 rounded-lg text-[#6B6B6B] hover:text-[#1A1A1A] transition-colors">
+            Cancel
+          </button>
+          <span className="text-[10px] text-[#b5a08a] ml-auto">↵ save · Esc cancel</span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <SavedTextToggle
+        text={item.body}
+        original={item.body_original}
+        onPolish={() => polishTicketComment(item.id).then(onUpdate)}
+        onRestore={() => restoreTicketComment(item.id).then(onUpdate)}>
+        {(txt) => <p className="text-sm text-[#1A1A1A] leading-relaxed whitespace-pre-wrap">{txt}</p>}
+      </SavedTextToggle>
+      <div className="flex items-center gap-2 mt-0.5">
+        <p className="text-[10px] text-[#b5a08a]">{fmtTimestamp(item.ts)}</p>
+        <button onClick={startEdit}
+          className="opacity-0 group-hover:opacity-100 text-[10px] text-[#b5a08a] hover:text-[#2D7A6B] transition-all">
+          ✎ edit
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // Merge time entries + comments into one sorted feed
 function buildFeed(ticket) {
   const entries = (ticket.time_entries || []).map(e => ({
@@ -184,7 +262,8 @@ function buildFeed(ticket) {
     duration_minutes: e.duration_minutes, logged_at: e.logged_at, note: e.note,
   }))
   const comments = (ticket.comments || []).map(c => ({
-    id: c.id, kind: c.type === 'proof' ? 'proof' : 'note', ts: c.created_at, body: c.body,
+    id: c.id, kind: c.type === 'proof' ? 'proof' : 'note', ts: c.created_at,
+    body: c.body, body_original: c.body_original || null,
   }))
   return [...entries, ...comments].sort((a, b) => b.ts.localeCompare(a.ts))
 }
@@ -514,10 +593,11 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
                   </div>
                 )}
                 {item.kind === 'note' && (
-                  <div>
-                    <p className="text-sm text-[#1A1A1A] leading-relaxed whitespace-pre-wrap">{item.body}</p>
-                    <p className="text-[10px] text-[#b5a08a] mt-0.5">{fmtTimestamp(item.ts)}</p>
-                  </div>
+                  <NoteItem
+                    item={item}
+                    ticketId={ticket.id}
+                    onUpdate={onUpdate}
+                  />
                 )}
               </div>
 

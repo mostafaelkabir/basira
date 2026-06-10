@@ -71,6 +71,8 @@ export const unpinTask = (taskId) =>
 
 export const addComment = (taskId, data) =>
   request(`/tasks/${taskId}/comments`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(typeof data === 'string' ? { content: data } : data) })
+export const updateComment = (commentId, content) =>
+  request(`/comments/${commentId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) })
 export const deleteComment = (commentId) => request(`/comments/${commentId}`, { method: 'DELETE' })
 
 export const checkinHabit = (taskId) => request(`/tasks/${taskId}/checkin`, { method: 'POST' })
@@ -167,6 +169,8 @@ export const stopTicketTimer  = (ticketId) =>
   request(`/work-tickets/${ticketId}/timer/stop`,  { method: 'POST' })
 export const addTicketComment = (ticketId, data) =>
   request(`/work-tickets/${ticketId}/comments`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+export const updateTicketComment = (ticketId, commentId, body) =>
+  request(`/work-tickets/${ticketId}/comments/${commentId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body }) })
 export const deleteTicketComment = (ticketId, commentId) =>
   request(`/work-tickets/${ticketId}/comments/${commentId}`, { method: 'DELETE' })
 
@@ -190,3 +194,13 @@ export const getJournalAI       = () => request('/journal/ai/reflect', { method:
 // ── AI Tools ───────────────────────────────────────────────────────────────
 export const polishText = (text, context = 'default') =>
   request('/ai/polish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, context }) })
+
+// Polish / restore saved records
+export const polishTicketComment  = (commentId) => request(`/ai/polish/ticket-comment/${commentId}`, { method: 'POST' })
+export const restoreTicketComment = (commentId) => request(`/ai/restore/ticket-comment/${commentId}`, { method: 'POST' })
+export const polishTaskComment    = (commentId) => request(`/ai/polish/task-comment/${commentId}`, { method: 'POST' })
+export const restoreTaskComment   = (commentId) => request(`/ai/restore/task-comment/${commentId}`, { method: 'POST' })
+export const polishJournalField   = (entryId, field) =>
+  request(`/ai/polish/journal/${entryId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ field }) })
+export const restoreJournalField  = (entryId, field) =>
+  request(`/ai/restore/journal/${entryId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ field }) })

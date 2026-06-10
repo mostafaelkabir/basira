@@ -11,6 +11,7 @@ class Comment(Base):
     task_id: Mapped[str] = mapped_column(String, ForeignKey("tasks.id"), nullable=False)
     type: Mapped[str] = mapped_column(String, default="text")
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    content_original: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[str] = mapped_column(String, nullable=False)
 
     task: Mapped["Task"] = relationship("Task", back_populates="comments")

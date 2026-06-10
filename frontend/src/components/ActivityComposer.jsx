@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { addComment, deleteComment, taskAiQuery, uploadProofFile, uploadProofImage } from '../api'
+import { addComment, deleteComment, updateComment, taskAiQuery, uploadProofFile, uploadProofImage, polishTaskComment, restoreTaskComment } from '../api'
 import MicButton from './MicButton'
 import AIPolishButton from './AIPolishButton'
+import SavedTextToggle from './SavedTextToggle'
 
 const FILE_EXT_ICONS = { pdf: '📄', doc: '📝', docx: '📝', txt: '📃', md: '📃', pages: '📝', rtf: '📃', csv: '📊', xlsx: '📊', xls: '📊' }
 function extIcon(name) { const ext = (name || '').split('.').pop().toLowerCase(); return FILE_EXT_ICONS[ext] || '📎' }
@@ -11,7 +12,12 @@ function formatTime(iso) {
 }
 
 // Renders a single comment based on its type
-export function CommentBubble({ comment, onDelete }) {
+export function CommentBubble({ comment, onDelete, onUpdate }) {
+  const [editing, setEditing] = useState(false)
+  const [editText, setEditText] = useState(comment.content)
+  const [saving, setSaving] = useState(false)
+  const editRef = useRef(null)
+
   const isImage = comment.type === 'image'
   const isFile  = comment.type === 'file'
   const isAI    = comment.type === 'ai'
@@ -20,6 +26,28 @@ export function CommentBubble({ comment, onDelete }) {
   if (isFile) {
     try { const p = JSON.parse(comment.content); fileUrl = p.url; fileName = p.name } catch {}
   }
+
+  function startEdit() {
+    setEditText(comment.content)
+    setEditing(true)
+    setTimeout(() => { editRef.current?.focus(); editRef.current?.select() }, 0)
+  }
+
+  async function saveEdit() {
+    const trimmed = editText.trim()
+    if (!trimmed || trimmed === comment.content) { setEditing(false); return }
+    setSaving(true)
+    try {
+      await updateComment(comment.id, trimmed)
+      await onUpdate()
+      setEditing(false)
+    } catch (err) { alert(err.message) }
+    finally { setSaving(false) }
+  }
+
+  function cancelEdit() { setEditing(false); setEditText(comment.content) }
+
+  const canEdit = !isAI && !isImage && !isFile
 
   return (
     <div className="flex items-start gap-2 group">
@@ -48,15 +76,53 @@ export function CommentBubble({ comment, onDelete }) {
             </a>
             <p className="text-[10px] text-sand-400 mt-1">{formatTime(comment.created_at)}</p>
           </div>
+        ) : editing ? (
+          <div className="bg-sand-50 rounded-xl px-3 py-2 border border-[#2D7A6B]/30">
+            <textarea
+              ref={editRef}
+              value={editText}
+              onChange={e => setEditText(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit() }
+                if (e.key === 'Escape') cancelEdit()
+              }}
+              rows={Math.max(2, editText.split('\n').length)}
+              className="w-full text-sm bg-transparent focus:outline-none resize-none leading-relaxed text-sand-700"
+            />
+            <div className="flex items-center gap-2 mt-1.5">
+              <button onClick={saveEdit} disabled={saving}
+                className="text-[11px] px-2.5 py-1 rounded-lg bg-[#1B3A2D] text-white font-medium disabled:opacity-50 hover:bg-[#2a5240] transition-colors">
+                {saving ? '…' : 'Save'}
+              </button>
+              <button onClick={cancelEdit}
+                className="text-[11px] px-2.5 py-1 rounded-lg text-sand-500 hover:text-sand-700 transition-colors">
+                Cancel
+              </button>
+              <span className="text-[10px] text-sand-300 ml-auto">↵ save · Esc cancel</span>
+            </div>
+          </div>
         ) : (
           <div className="bg-sand-50 rounded-xl px-3 py-2">
-            <p className="text-sm text-sand-700 leading-relaxed whitespace-pre-wrap">{comment.content}</p>
+            <SavedTextToggle
+              text={comment.content}
+              original={comment.content_original}
+              onPolish={() => polishTaskComment(comment.id).then(onUpdate)}
+              onRestore={() => restoreTaskComment(comment.id).then(onUpdate)}>
+              {(txt) => <p className="text-sm text-sand-700 leading-relaxed whitespace-pre-wrap">{txt}</p>}
+            </SavedTextToggle>
             <p className="text-[10px] text-sand-400 mt-1">{formatTime(comment.created_at)}</p>
           </div>
         )}
       </div>
-      <button onClick={() => onDelete(comment.id)}
-        className="opacity-0 group-hover:opacity-100 text-sand-300 hover:text-terra-400 transition-all text-xs mt-2 flex-shrink-0">✕</button>
+      {/* Edit + Delete buttons */}
+      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 mt-2 transition-all flex-shrink-0">
+        {canEdit && !editing && (
+          <button onClick={startEdit}
+            className="text-sand-300 hover:text-[#2D7A6B] transition-colors text-xs" title="Edit">✎</button>
+        )}
+        <button onClick={() => onDelete(comment.id)}
+          className="text-sand-300 hover:text-terra-400 transition-colors text-xs" title="Delete">✕</button>
+      </div>
     </div>
   )
 }
@@ -144,7 +210,7 @@ export function ActivityComments({ task, onRefresh }) {
         <div className="space-y-2">
           <p className="text-[10px] font-semibold text-sand-400 uppercase tracking-widest">Comments</p>
           {task.comments.map(c => (
-            <CommentBubble key={c.id} comment={c} onDelete={handleDelete} />
+            <CommentBubble key={c.id} comment={c} onDelete={handleDelete} onUpdate={onRefresh} />
           ))}
         </div>
       )}
