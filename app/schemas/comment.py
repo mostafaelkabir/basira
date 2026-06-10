@@ -13,4 +13,5 @@ class CommentRead(BaseModel):
     task_id: str
     type: str = "text"
     content: str
+    content_original: str | None = None
     created_at: str

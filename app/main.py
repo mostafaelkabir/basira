@@ -169,6 +169,13 @@ def run_migrations():
         "UPDATE work_tickets SET logged_seconds = logged_minutes * 60 WHERE logged_seconds = 0",
         "ALTER TABLE work_time_entries ADD COLUMN duration_seconds INTEGER DEFAULT 0",
         "UPDATE work_time_entries SET duration_seconds = duration_minutes * 60 WHERE duration_seconds = 0",
+        # AI polish: store originals alongside polished versions
+        "ALTER TABLE work_ticket_comments ADD COLUMN body_original TEXT",
+        "ALTER TABLE comments ADD COLUMN content_original TEXT",
+        "ALTER TABLE journal_entries ADD COLUMN body_original TEXT",
+        "ALTER TABLE journal_entries ADD COLUMN wins_original TEXT",
+        "ALTER TABLE journal_entries ADD COLUMN improve_original TEXT",
+        "ALTER TABLE journal_entries ADD COLUMN gratitude_original TEXT",
         # Daily check-ins
         """CREATE TABLE IF NOT EXISTS daily_checkins (
             id VARCHAR PRIMARY KEY,

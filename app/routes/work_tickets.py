@@ -111,6 +111,7 @@ def _serialize(t: WorkTicket, db: Session, include_entries: bool = False) -> dic
             {
                 "id": c.id,
                 "body": c.body,
+                "body_original": c.body_original if hasattr(c, 'body_original') else None,
                 "type": c.type,
                 "created_at": str(c.created_at),
             }
@@ -292,6 +293,19 @@ def add_comment(ticket_id: str, body: CommentCreate, db: Session = Depends(get_d
 
     db.commit()
     db.refresh(ticket)
+    return _serialize(ticket, db, include_entries=True)
+
+
+@router.patch("/{ticket_id}/comments/{comment_id}")
+def update_comment(ticket_id: str, comment_id: str, body: dict, db: Session = Depends(get_db)):
+    comment = db.get(WorkTicketComment, comment_id)
+    if not comment or comment.ticket_id != ticket_id:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    if "body" in body:
+        comment.body = body["body"].strip()
+    db.commit()
+    db.refresh(comment)
+    ticket = db.get(WorkTicket, ticket_id)
     return _serialize(ticket, db, include_entries=True)
 
 
