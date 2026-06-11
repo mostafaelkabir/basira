@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
-import { createContact, deleteCall, deleteContact, getContacts, logCall, updateContact, uploadContactPhoto } from './api'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { createContact, deleteCall, deleteContact, getContacts, logCall, polishText, updateContact, uploadContactPhoto } from './api'
 import Modal from './components/Modal'
+import { useSpeechInput } from './hooks/useSpeechInput'
 
 function daysSince(days) {
   if (days === null) return { label: 'Never called', dot: 'bg-sand-300', badge: 'bg-sand-100 text-sand-500', urgent: false }
@@ -41,6 +42,137 @@ function Avatar({ contact, size = 'md' }) {
 function formatCallDate(iso) {
   const d = new Date(iso + 'T00:00:00')
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+/**
+ * VoiceCallLogger — big mic button + real-time transcript for the call log modal.
+ * Replaces the plain textarea for the summary field.
+ */
+function VoiceCallLogger({ value, onChange }) {
+  const [interim, setInterim] = useState('')
+  const [polishing, setPolishing] = useState(false)
+  const [polished, setPolished] = useState(false)
+  const baseRef = useRef('')
+
+  const handleResult = useCallback((finalChunk) => {
+    const base = baseRef.current
+    const sep = base && !base.endsWith(' ') && !base.endsWith('\n') ? ' ' : ''
+    const next = base + sep + finalChunk
+    baseRef.current = next
+    setInterim('')
+    onChange(next)
+  }, [onChange])
+
+  const handleInterim = useCallback((text) => {
+    setInterim(text)
+    const base = baseRef.current
+    const sep = base && !base.endsWith(' ') && !base.endsWith('\n') ? ' ' : ''
+    onChange(base + sep + text)
+  }, [onChange])
+
+  const { listening, toggle, supported } = useSpeechInput({
+    onResult: handleResult,
+    onInterim: handleInterim,
+    lang: 'en-US',
+  })
+
+  function handleMicClick(e) {
+    e.preventDefault()
+    if (!listening) {
+      baseRef.current = value || ''
+      setInterim('')
+      setPolished(false)
+    } else {
+      setInterim('')
+      onChange(baseRef.current)
+    }
+    toggle()
+  }
+
+  async function handlePolish() {
+    if (!value.trim()) return
+    setPolishing(true)
+    try {
+      const res = await polishText(value, 'call_log')
+      onChange(res.polished || res.text || value)
+      setPolished(true)
+    } catch (_) {}
+    finally { setPolishing(false) }
+  }
+
+  // Display text: if listening, show base + live interim in a muted style
+  const displayValue = listening && interim
+    ? baseRef.current + (baseRef.current ? ' ' : '') + interim
+    : value
+
+  return (
+    <div className="space-y-2">
+      {/* Big voice button */}
+      {supported && (
+        <button
+          type="button"
+          onClick={handleMicClick}
+          className={`w-full flex items-center justify-center gap-3 py-3.5 rounded-2xl font-semibold text-sm transition-all ${
+            listening
+              ? 'bg-red-50 border-2 border-red-300 text-red-600 animate-pulse'
+              : 'bg-[#F2EDE4] border-2 border-dashed border-[#E8E3DB] text-[#6B6B6B] hover:border-[#2D7A6B] hover:text-[#2D7A6B]'
+          }`}>
+          {listening ? (
+            <>
+              <span className="relative flex w-3 h-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex rounded-full w-3 h-3 bg-red-500" />
+              </span>
+              Recording… tap to stop
+            </>
+          ) : (
+            <>
+              <span className="text-xl">🎤</span>
+              Tap to record your notes
+            </>
+          )}
+        </button>
+      )}
+
+      {/* Transcript / textarea */}
+      <div className="relative">
+        <textarea
+          value={displayValue}
+          onChange={e => { if (!listening) { baseRef.current = e.target.value; onChange(e.target.value) } }}
+          placeholder={supported ? 'Or type your notes here…' : 'What did you talk about?'}
+          rows={5}
+          className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] resize-none bg-white placeholder:text-[#b5a08a] transition-colors ${
+            listening ? 'border-red-200 text-[#6B6B6B] italic' : 'border-[#E8E3DB] text-[#1A1A1A]'
+          }`} />
+        {listening && (
+          <div className="absolute bottom-2 right-2 flex items-center gap-1 text-[10px] text-red-400 font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+            live
+          </div>
+        )}
+      </div>
+
+      {/* AI Polish */}
+      {value.trim() && !listening && (
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-[#b5a08a]">
+            {polished ? '✦ AI polished' : 'Spoken notes can be messy — clean them up:'}
+          </span>
+          <button
+            type="button"
+            onClick={handlePolish}
+            disabled={polishing}
+            className="flex items-center gap-1.5 text-[11px] font-medium text-violet-600 hover:text-violet-800 disabled:opacity-50 transition-colors px-2 py-1 rounded-lg hover:bg-violet-50">
+            {polishing ? (
+              <><span className="animate-spin text-xs">⟳</span> Polishing…</>
+            ) : (
+              <><span>✨</span> {polished ? 'Re-polish' : 'Polish with AI'}</>
+            )}
+          </button>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function ContactsPage() {
@@ -388,12 +520,11 @@ export default function ContactsPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-[#1A1A1A]">What did you talk about?</label>
-              <textarea autoFocus value={logForm.summary}
-                onChange={e => setLogForm(f => ({ ...f, summary: e.target.value }))}
-                placeholder="Updates from their life, what was new, topics to follow up on next time…"
-                rows={5}
-                className="mt-1.5 w-full border border-[#E8E3DB] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] resize-none bg-white placeholder:text-[#b5a08a]" />
+              <label className="text-sm font-medium text-[#1A1A1A] block mb-1.5">What did you talk about?</label>
+              <VoiceCallLogger
+                value={logForm.summary}
+                onChange={v => setLogForm(f => ({ ...f, summary: v }))}
+              />
             </div>
 
             <div className="flex justify-end gap-2 pt-1">

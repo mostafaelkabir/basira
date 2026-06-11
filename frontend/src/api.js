@@ -227,3 +227,10 @@ export const generateWeekPlan = (weekStart) =>
 export const saveWeekPlan = (weekStart, plan, aiRationale) =>
   request(`/plans/week/${weekStart}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan, ai_rationale: aiRationale }) })
 export const getWeekPlan = (weekStart) => request(`/plans/week/${weekStart}`)
+
+export const generateWeeklyReport = (companyId, dateFrom, dateTo) =>
+  request('/work-tickets/report/weekly', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ company_id: companyId || null, date_from: dateFrom, date_to: dateTo }),
+  })
