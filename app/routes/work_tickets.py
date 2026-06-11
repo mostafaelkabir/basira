@@ -1,13 +1,16 @@
 import json
+import os
 from datetime import datetime, UTC
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
+from openai import OpenAI
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.company import Company
+from app.models.work_log import WorkLog
 from app.models.work_session import WorkSession
 from app.models.work_ticket import WorkTicket, WorkTimeEntry, WorkTicketComment
 
@@ -395,4 +398,197 @@ def stop_ticket_timer(ticket_id: str, db: Session = Depends(get_db)):
         "duration_minutes": elapsed_secs // 60,
         "logged_seconds": ticket.logged_seconds,
         "logged_minutes": ticket.logged_minutes,
+    }
+
+
+# ─── Weekly Report ─────────────────────────────────────────────────────────────
+
+class WeeklyReportBody(BaseModel):
+    company_id: str | None = None   # None = all companies
+    date_from: str                  # YYYY-MM-DD (Monday)
+    date_to: str                    # YYYY-MM-DD (Sunday)
+
+
+@router.post("/report/weekly")
+def weekly_report(body: WeeklyReportBody, db: Session = Depends(get_db)):
+    """Generate a structured weekly work report for a company (or all companies)."""
+
+    # ── Company display name ──
+    if body.company_id:
+        company = db.query(Company).filter(Company.id == body.company_id).first()
+        company_name = company.name if company else "Unknown"
+    else:
+        company_name = "All Clients"
+
+    # ── Work tickets active this week ──
+    # A ticket "belongs" to this week if it was completed in range OR had time logged in range
+    ticket_ids_with_time = {
+        row[0] for row in db.execute(
+            __import__("sqlalchemy").text(
+                "SELECT DISTINCT ticket_id FROM work_time_entries WHERE logged_at >= :df AND logged_at <= :dt"
+            ),
+            {"df": body.date_from, "dt": body.date_to},
+        ).fetchall()
+    }
+
+    ticket_query = db.query(WorkTicket)
+    if body.company_id:
+        ticket_query = ticket_query.filter(WorkTicket.company_id == body.company_id)
+
+    all_tickets = ticket_query.all()
+
+    # Filter to tickets relevant this week
+    def ticket_in_range(t):
+        if t.id in ticket_ids_with_time:
+            return True
+        completed_str = t.completed_at.strftime("%Y-%m-%d") if isinstance(t.completed_at, __import__("datetime").datetime) else (t.completed_at or "")[:10]
+        if completed_str and body.date_from <= completed_str <= body.date_to:
+            return True
+        return False
+
+    relevant_tickets = [t for t in all_tickets if ticket_in_range(t)]
+
+    # Per-ticket logged seconds from time entries in range
+    ticket_seconds: dict[str, int] = {}
+    for row in db.execute(
+        __import__("sqlalchemy").text(
+            "SELECT ticket_id, SUM(duration_seconds) FROM work_time_entries "
+            "WHERE logged_at >= :df AND logged_at <= :dt GROUP BY ticket_id"
+        ),
+        {"df": body.date_from, "dt": body.date_to},
+    ).fetchall():
+        ticket_seconds[row[0]] = int(row[1] or 0)
+
+    # ── Work logs (standalone) in range ──
+    log_query = db.query(WorkLog).filter(
+        WorkLog.logged_at >= body.date_from,
+        WorkLog.logged_at <= body.date_to,
+    )
+    if body.company_id:
+        log_query = log_query.filter(WorkLog.company_id == body.company_id)
+    standalone_logs = log_query.all()
+
+    # ── Categorise tickets ──
+    completed, in_progress, blocked = [], [], []
+    type_seconds: dict[str, int] = {}
+
+    for t in relevant_tickets:
+        secs = ticket_seconds.get(t.id, t.logged_seconds or 0)
+        entry = {
+            "id": t.id,
+            "title": t.title,
+            "type": t.type,
+            "priority": t.priority,
+            "status": t.status,
+            "logged_seconds": secs,
+            "ticket_ref": t.ticket_ref or "",
+        }
+        # Accumulate type breakdown
+        type_seconds[t.type] = type_seconds.get(t.type, 0) + secs
+
+        if t.status == "done":
+            completed.append(entry)
+        elif t.status == "blocked":
+            blocked.append(entry)
+        else:
+            in_progress.append(entry)
+
+    # Add standalone log seconds to type breakdown
+    log_seconds_total = 0
+    for l in standalone_logs:
+        secs = (l.duration_minutes or 0) * 60
+        type_seconds[l.type] = type_seconds.get(l.type, 0) + secs
+        log_seconds_total += secs
+
+    total_ticket_secs = sum(ticket_seconds.get(t.id, t.logged_seconds or 0) for t in relevant_tickets)
+    total_seconds = total_ticket_secs + log_seconds_total
+
+    def fmt_hours(secs: int) -> str:
+        h = secs / 3600
+        return f"{h:.1f}h"
+
+    # ── AI narrative ──
+    def ticket_line(e):
+        ref = f" [{e['ticket_ref']}]" if e['ticket_ref'] else ""
+        return f"- {e['title']}{ref} ({fmt_hours(e['logged_seconds'])})"
+
+    completed_lines = "\n".join(ticket_line(e) for e in completed) or "  (none)"
+    in_progress_lines = "\n".join(ticket_line(e) for e in in_progress) or "  (none)"
+    blocked_lines = "\n".join(ticket_line(e) for e in blocked) or "  (none)"
+    type_lines = "\n".join(
+        f"- {k.title()}: {fmt_hours(v)}" for k, v in sorted(type_seconds.items(), key=lambda x: -x[1])
+    ) or "  (none)"
+    log_lines = "\n".join(
+        f"- [{l.logged_at}] {l.type.upper()}: {l.title} ({l.duration_minutes or 0} min)"
+        for l in standalone_logs
+    ) or "  (none)"
+
+    prompt = f"""Write a professional weekly work report for {company_name}, week of {body.date_from} to {body.date_to}.
+
+TOTAL TIME LOGGED: {fmt_hours(total_seconds)}
+TICKETS COMPLETED ({len(completed)}):
+{completed_lines}
+
+IN PROGRESS ({len(in_progress)}):
+{in_progress_lines}
+
+BLOCKED ({len(blocked)}):
+{blocked_lines}
+
+TIME BY TYPE:
+{type_lines}
+
+STANDALONE WORK LOGS:
+{log_lines}
+
+Format the report exactly as:
+## Summary
+(2–3 sentence executive overview of the week's output)
+
+## Completed Work
+(bullet list with ticket refs and hours — be specific)
+
+## In Progress
+(what's actively being worked on heading into next week)
+
+## Time Breakdown
+(hours by type + total — be precise)
+
+## Next Week
+(priorities + any blockers to address)
+
+Be specific and professional. Use actual ticket titles and hours. Do not invent anything not in the data."""
+
+    ai_narrative = ""
+    api_key = os.getenv("GROQ_API_KEY")
+    if api_key and (relevant_tickets or standalone_logs):
+        try:
+            client = OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1")
+            resp = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=600,
+                temperature=0.3,
+            )
+            ai_narrative = resp.choices[0].message.content.strip()
+        except Exception:
+            ai_narrative = ""
+
+    return {
+        "company_name": company_name,
+        "date_from": body.date_from,
+        "date_to": body.date_to,
+        "total_seconds": total_seconds,
+        "tickets_completed": len(completed),
+        "tickets_in_progress": len(in_progress),
+        "tickets_blocked": len(blocked),
+        "by_type": type_seconds,
+        "completed_tickets": completed,
+        "in_progress_tickets": in_progress,
+        "blocked_tickets": blocked,
+        "standalone_logs": [
+            {"title": l.title, "type": l.type, "duration_minutes": l.duration_minutes or 0, "logged_at": l.logged_at}
+            for l in standalone_logs
+        ],
+        "ai_narrative": ai_narrative,
     }

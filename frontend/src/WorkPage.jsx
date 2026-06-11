@@ -6,7 +6,7 @@ import {
   getWorkTickets, getWorkTicket, createWorkTicket, updateWorkTicket, deleteWorkTicket,
   logTimeToTicket, deleteTimeEntry, startTicketTimer, stopTicketTimer,
   addTicketComment, updateTicketComment, deleteTicketComment, uploadProofImage,
-  polishTicketComment, restoreTicketComment,
+  polishTicketComment, restoreTicketComment, generateWeeklyReport,
 } from './api'
 import Modal from './components/Modal'
 import MicButton from './components/MicButton'
@@ -912,6 +912,283 @@ function CompanyModal({ initial, onSave, onClose }) {
   )
 }
 
+// ─── Weekly Report Modal ───────────────────────────────────────────────────────
+
+function getMondayOf(dateStr) {
+  const d = dateStr ? new Date(dateStr + 'T12:00:00') : new Date()
+  const day = d.getDay()                      // 0=Sun…6=Sat
+  const diff = day === 0 ? -6 : 1 - day       // shift to Monday
+  d.setDate(d.getDate() + diff)
+  return d.toISOString().split('T')[0]
+}
+
+function addWeeks(mondayStr, n) {
+  const d = new Date(mondayStr + 'T12:00:00')
+  d.setDate(d.getDate() + n * 7)
+  return d.toISOString().split('T')[0]
+}
+
+function getSunday(mondayStr) {
+  const d = new Date(mondayStr + 'T12:00:00')
+  d.setDate(d.getDate() + 6)
+  return d.toISOString().split('T')[0]
+}
+
+function fmtWeekRange(mondayStr) {
+  const mon = new Date(mondayStr + 'T12:00:00')
+  const sun = new Date(mondayStr + 'T12:00:00')
+  sun.setDate(sun.getDate() + 6)
+  const opts = { month: 'short', day: 'numeric' }
+  const sameMonth = mon.getMonth() === sun.getMonth()
+  const sunLabel = sameMonth
+    ? sun.toLocaleDateString(undefined, { day: 'numeric' })
+    : sun.toLocaleDateString(undefined, opts)
+  return `${mon.toLocaleDateString(undefined, opts)} – ${sunLabel}, ${sun.getFullYear()}`
+}
+
+const TYPE_COLORS = {
+  code:     '#1B3A2D',
+  research: '#2D7A6B',
+  planning: '#E8C334',
+  review:   '#b5a08a',
+  meeting:  '#6B6B6B',
+}
+
+function fmtSecs(secs) {
+  const h = secs / 3600
+  return h >= 1 ? `${h.toFixed(1)}h` : `${Math.round(secs / 60)}m`
+}
+
+function buildMarkdown(data) {
+  const lines = [
+    `# Weekly Work Report — ${data.company_name}`,
+    `**Week:** ${data.date_from} to ${data.date_to}`,
+    `**Total time:** ${fmtSecs(data.total_seconds)} · **Completed:** ${data.tickets_completed} tickets · **In progress:** ${data.tickets_in_progress} tickets`,
+    '',
+    data.ai_narrative,
+    '',
+    '---',
+    '',
+    `## Completed Work (${data.completed_tickets.length})`,
+    ...data.completed_tickets.map(t => `- [${t.type.toUpperCase()}] ${t.title}${t.ticket_ref ? ` [${t.ticket_ref}]` : ''} — ${fmtSecs(t.logged_seconds)}`),
+    '',
+    `## In Progress (${data.in_progress_tickets.length})`,
+    ...data.in_progress_tickets.map(t => `- [${t.type.toUpperCase()}] ${t.title}${t.ticket_ref ? ` [${t.ticket_ref}]` : ''} — ${fmtSecs(t.logged_seconds)} logged`),
+    '',
+    '## Time by Type',
+    ...Object.entries(data.by_type).sort((a, b) => b[1] - a[1]).map(([k, v]) => `- ${k.charAt(0).toUpperCase() + k.slice(1)}: ${fmtSecs(v)}`),
+  ]
+  if (data.blocked_tickets.length) {
+    lines.push('', `## Blocked (${data.blocked_tickets.length})`)
+    data.blocked_tickets.forEach(t => lines.push(`- ${t.title}${t.ticket_ref ? ` [${t.ticket_ref}]` : ''}`))
+  }
+  return lines.join('\n')
+}
+
+function WeeklyReportModal({ companies, defaultCompanyId, onClose }) {
+  const [companyId, setCompanyId] = useState(defaultCompanyId || null)
+  const [monday, setMonday] = useState(getMondayOf())
+  const [data, setData] = useState(null)
+  const [generating, setGenerating] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  async function generate() {
+    setGenerating(true); setData(null)
+    try {
+      const result = await generateWeeklyReport(companyId, monday, getSunday(monday))
+      setData(result)
+    } catch (err) { alert(err.message) }
+    finally { setGenerating(false) }
+  }
+
+  async function copyMarkdown() {
+    if (!data) return
+    await navigator.clipboard.writeText(buildMarkdown(data))
+    setCopied(true); setTimeout(() => setCopied(false), 2500)
+  }
+
+  const maxTypeSecs = data ? Math.max(1, ...Object.values(data.by_type)) : 1
+
+  return (
+    <Modal title="📋 Weekly Work Report" onClose={onClose}>
+      <div className="space-y-4 min-w-[480px]">
+
+        {/* Company picker */}
+        <div className="flex flex-wrap gap-1.5">
+          <button onClick={() => setCompanyId(null)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${!companyId ? 'bg-[#1B3A2D] text-white' : 'bg-[#F2EDE4] text-[#6B6B6B] hover:bg-[#E8E3DB]'}`}>
+            All Clients
+          </button>
+          {companies.map(c => (
+            <button key={c.id} onClick={() => setCompanyId(c.id)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${companyId === c.id ? 'text-white' : 'bg-[#F2EDE4] text-[#6B6B6B] hover:bg-[#E8E3DB]'}`}
+              style={companyId === c.id ? { backgroundColor: c.color || '#1B3A2D' } : {}}>
+              {c.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Week navigator */}
+        <div className="flex items-center justify-between bg-[#F9F6F1] rounded-xl px-4 py-2.5">
+          <button onClick={() => setMonday(m => addWeeks(m, -1))}
+            className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-[#E8E3DB] transition-colors text-[#6B6B6B] font-bold">
+            ‹
+          </button>
+          <span className="text-sm font-semibold text-[#1A1A1A]">{fmtWeekRange(monday)}</span>
+          <button onClick={() => setMonday(m => addWeeks(m, 1))}
+            className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-[#E8E3DB] transition-colors text-[#6B6B6B] font-bold">
+            ›
+          </button>
+        </div>
+
+        {/* Generate button */}
+        <button onClick={generate} disabled={generating}
+          className="w-full bg-[#1B3A2D] text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-[#2a5240] disabled:opacity-60 transition-colors">
+          {generating ? '⏳ Generating report…' : '📋 Generate Report'}
+        </button>
+
+        {/* Results */}
+        {data && (
+          <div className="space-y-4">
+
+            {/* Stat strip */}
+            <div className="flex items-center gap-3 bg-[#F9F6F1] rounded-xl px-4 py-3 flex-wrap">
+              <div className="text-center">
+                <div className="text-xl font-bold text-[#1B3A2D]">{fmtSecs(data.total_seconds)}</div>
+                <div className="text-[10px] text-[#6B6B6B] uppercase tracking-wide">Total logged</div>
+              </div>
+              <div className="w-px h-8 bg-[#E8E3DB] flex-shrink-0" />
+              <div className="text-center">
+                <div className="text-xl font-bold text-[#2D7A6B]">{data.tickets_completed}</div>
+                <div className="text-[10px] text-[#6B6B6B] uppercase tracking-wide">Done</div>
+              </div>
+              <div className="w-px h-8 bg-[#E8E3DB] flex-shrink-0" />
+              <div className="text-center">
+                <div className="text-xl font-bold text-[#E8C334]">{data.tickets_in_progress}</div>
+                <div className="text-[10px] text-[#6B6B6B] uppercase tracking-wide">In progress</div>
+              </div>
+              {data.tickets_blocked > 0 && (
+                <>
+                  <div className="w-px h-8 bg-[#E8E3DB] flex-shrink-0" />
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-amber-500">{data.tickets_blocked}</div>
+                    <div className="text-[10px] text-[#6B6B6B] uppercase tracking-wide">Blocked</div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* AI narrative */}
+            {data.ai_narrative && (
+              <div className="bg-[#1B3A2D]/5 border border-[#1B3A2D]/10 rounded-xl p-4 max-h-52 overflow-y-auto">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#1B3A2D]/60 mb-2">AI Summary</p>
+                <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap leading-relaxed">{data.ai_narrative}</p>
+              </div>
+            )}
+
+            {/* Completed tickets */}
+            {data.completed_tickets.length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#6B6B6B] mb-2">
+                  ✓ Completed ({data.completed_tickets.length})
+                </p>
+                <div className="space-y-1.5">
+                  {data.completed_tickets.map((t, i) => (
+                    <div key={i} className="flex items-center gap-2 py-1.5 px-2.5 bg-[#F9F6F1] rounded-xl">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md text-white flex-shrink-0"
+                        style={{ backgroundColor: TYPE_COLORS[t.type] || '#6B6B6B' }}>
+                        {t.type.toUpperCase()}
+                      </span>
+                      <span className="flex-1 text-sm text-[#1A1A1A] truncate">{t.title}</span>
+                      {t.ticket_ref && <span className="text-[10px] text-[#b5a08a] flex-shrink-0">{t.ticket_ref}</span>}
+                      <span className="text-xs font-semibold text-[#2D7A6B] flex-shrink-0 tabular-nums">{fmtSecs(t.logged_seconds)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* In progress */}
+            {data.in_progress_tickets.length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#6B6B6B] mb-2">
+                  ⟳ In Progress ({data.in_progress_tickets.length})
+                </p>
+                <div className="space-y-1.5">
+                  {data.in_progress_tickets.map((t, i) => (
+                    <div key={i} className="flex items-center gap-2 py-1.5 px-2.5 bg-[#F9F6F1] rounded-xl">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md text-white flex-shrink-0"
+                        style={{ backgroundColor: TYPE_COLORS[t.type] || '#6B6B6B' }}>
+                        {t.type.toUpperCase()}
+                      </span>
+                      <span className="flex-1 text-sm text-[#1A1A1A] truncate">{t.title}</span>
+                      {t.ticket_ref && <span className="text-[10px] text-[#b5a08a] flex-shrink-0">{t.ticket_ref}</span>}
+                      <span className="text-xs font-medium text-[#6B6B6B] flex-shrink-0 tabular-nums">{fmtSecs(t.logged_seconds)} logged</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Blocked */}
+            {data.blocked_tickets.length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 mb-2">
+                  ⚠ Blocked ({data.blocked_tickets.length})
+                </p>
+                <div className="space-y-1.5">
+                  {data.blocked_tickets.map((t, i) => (
+                    <div key={i} className="flex items-center gap-2 py-1.5 px-2.5 bg-amber-50 border border-amber-100 rounded-xl">
+                      <span className="flex-1 text-sm text-[#1A1A1A] truncate">{t.title}</span>
+                      {t.ticket_ref && <span className="text-[10px] text-[#b5a08a]">{t.ticket_ref}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Time by type bars */}
+            {Object.keys(data.by_type).length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#6B6B6B] mb-2">Time by Type</p>
+                <div className="space-y-2">
+                  {Object.entries(data.by_type)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([type, secs]) => (
+                      <div key={type} className="flex items-center gap-2">
+                        <span className="text-xs text-[#6B6B6B] w-16 flex-shrink-0 capitalize">{type}</span>
+                        <div className="flex-1 bg-[#E8E3DB] rounded-full h-2 overflow-hidden">
+                          <div className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${Math.round((secs / maxTypeSecs) * 100)}%`,
+                              backgroundColor: TYPE_COLORS[type] || '#6B6B6B',
+                            }} />
+                        </div>
+                        <span className="text-xs font-semibold text-[#1A1A1A] w-10 text-right tabular-nums">{fmtSecs(secs)}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Copy button */}
+            <button onClick={copyMarkdown}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-[#E8E3DB] text-sm font-medium text-[#6B6B6B] hover:border-[#2D7A6B] hover:text-[#2D7A6B] transition-colors">
+              {copied ? '✓ Copied to clipboard!' : '📋 Copy as Markdown'}
+            </button>
+          </div>
+        )}
+
+        {!data && !generating && (
+          <p className="text-center text-sm text-[#b5a08a] py-2">
+            Select a company and week, then click Generate.
+          </p>
+        )}
+      </div>
+    </Modal>
+  )
+}
+
 // ─── AI Panel ─────────────────────────────────────────────────────────────────
 
 function AIPanel({ onClose }) {
@@ -994,6 +1271,7 @@ export default function WorkPage() {
   const [showCompany, setShowCompany] = useState(false)
   const [editCompany, setEditCompany] = useState(null)
   const [showAI, setShowAI] = useState(false)
+  const [showWeeklyReport, setShowWeeklyReport] = useState(false)
 
   async function load() {
     try {
@@ -1100,6 +1378,10 @@ export default function WorkPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={() => setShowWeeklyReport(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#E8E3DB] text-[#1A1A1A] bg-white text-sm font-medium hover:border-[#2D7A6B] hover:text-[#2D7A6B] transition-colors">
+            📋 Weekly Report
+          </button>
           <button onClick={() => setShowAI(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-violet-200 text-violet-700 bg-violet-50 text-sm font-medium hover:bg-violet-100 transition-colors">
             ✨ AI
@@ -1343,6 +1625,13 @@ export default function WorkPage() {
         />
       )}
       {showAI && <AIPanel onClose={() => setShowAI(false)} />}
+      {showWeeklyReport && (
+        <WeeklyReportModal
+          companies={companies}
+          defaultCompanyId={filterCompany}
+          onClose={() => setShowWeeklyReport(false)}
+        />
+      )}
     </div>
   )
 }
