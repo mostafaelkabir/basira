@@ -46,7 +46,13 @@ def get_analytics(db: Session = Depends(get_db)):
             "score_pct": s.score_pct,
             "task_score": s.task_score or 0.0,
             "habit_score": s.habit_score or 0.0,
-            "perfect": s.score_pct >= 95,
+            "work_seconds": getattr(s, 'work_seconds', 0) or 0,
+            # work_only = active in Work module but didn't use task/habit planning
+            "is_work_only": (
+                (s.tasks_done == 0) and (s.habits_done == 0) and
+                ((getattr(s, 'work_seconds', 0) or 0) > 0)
+            ),
+            "perfect": s.score_pct is not None and s.score_pct >= 95,
         }
         for s in snapshots
     ]
@@ -79,14 +85,21 @@ def get_analytics(db: Session = Depends(get_db)):
     snaps_30 = [s for s in snap_list if s["date"] >= day30_ago and s["date"] < today_iso]
     snaps_7  = [s for s in snap_list if s["date"] >= day7_ago  and s["date"] < today_iso]
 
-    perfect_days_30 = sum(1 for s in snaps_30 if s["perfect"])
-    perfect_days_7  = sum(1 for s in snaps_7  if s["perfect"])
-    avg_score_30       = round(sum(s["score_pct"]   for s in snaps_30) / len(snaps_30), 1) if snaps_30 else 0
-    avg_score_7        = round(sum(s["score_pct"]   for s in snaps_7)  / len(snaps_7),  1) if snaps_7  else 0
-    avg_task_score_30  = round(sum(s["task_score"]  for s in snaps_30) / len(snaps_30), 1) if snaps_30 else 0
-    avg_task_score_7   = round(sum(s["task_score"]  for s in snaps_7)  / len(snaps_7),  1) if snaps_7  else 0
-    avg_habit_score_30 = round(sum(s["habit_score"] for s in snaps_30) / len(snaps_30), 1) if snaps_30 else 0
-    avg_habit_score_7  = round(sum(s["habit_score"] for s in snaps_7)  / len(snaps_7),  1) if snaps_7  else 0
+    # Exclude work-only days (score_pct = None) from averages — they represent
+    # productive work days, not missed days, and shouldn't dilute the score.
+    scored_30 = [s for s in snaps_30 if s["score_pct"] is not None and not s["is_work_only"]]
+    scored_7  = [s for s in snaps_7  if s["score_pct"] is not None and not s["is_work_only"]]
+    work_only_days_30 = sum(1 for s in snaps_30 if s["is_work_only"])
+    work_only_days_7  = sum(1 for s in snaps_7  if s["is_work_only"])
+
+    perfect_days_30 = sum(1 for s in scored_30 if s["perfect"])
+    perfect_days_7  = sum(1 for s in scored_7  if s["perfect"])
+    avg_score_30       = round(sum(s["score_pct"]   for s in scored_30) / len(scored_30), 1) if scored_30 else 0
+    avg_score_7        = round(sum(s["score_pct"]   for s in scored_7)  / len(scored_7),  1) if scored_7  else 0
+    avg_task_score_30  = round(sum(s["task_score"]  for s in scored_30) / len(scored_30), 1) if scored_30 else 0
+    avg_task_score_7   = round(sum(s["task_score"]  for s in scored_7)  / len(scored_7),  1) if scored_7  else 0
+    avg_habit_score_30 = round(sum(s["habit_score"] for s in scored_30) / len(scored_30), 1) if scored_30 else 0
+    avg_habit_score_7  = round(sum(s["habit_score"] for s in scored_7)  / len(scored_7),  1) if scored_7  else 0
 
     # ── Task lifecycle stats ────────────────────────────────────────────────────
     # Tasks added in last 30 days
@@ -171,6 +184,8 @@ def get_analytics(db: Session = Depends(get_db)):
             "avg_per_active_day_30d": avg_per_active_day_30,
             "perfect_days_7d": perfect_days_7,
             "perfect_days_30d": perfect_days_30,
+            "work_only_days_7d": work_only_days_7,
+            "work_only_days_30d": work_only_days_30,
             "avg_score_7d": avg_score_7,
             "avg_score_30d": avg_score_30,
             "avg_task_score_7d": avg_task_score_7,

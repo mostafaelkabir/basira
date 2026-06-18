@@ -209,6 +209,8 @@ def run_migrations():
         "ALTER TABLE execution_logs ADD COLUMN task_feeling TEXT",
         "ALTER TABLE defer_logs ADD COLUMN defer_reason TEXT",
         "ALTER TABLE work_sessions ADD COLUMN focus_quality INTEGER",
+        # Work-day awareness: track work seconds on snapshots so work-only days aren't scored as zero
+        "ALTER TABLE daily_snapshots ADD COLUMN work_seconds INTEGER DEFAULT 0",
         # Self-knowledge engine: new tables
         """CREATE TABLE IF NOT EXISTS afternoon_checkins (
             id TEXT PRIMARY KEY,
