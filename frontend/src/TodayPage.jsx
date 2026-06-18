@@ -1146,71 +1146,159 @@ function FocusSection({ focus, daily, projects, today, onComplete, onUnpin, onPi
         <FocusPicker
           daily={daily} projects={projects} focusIds={focusIds} today={today}
           onSelect={async (id) => { await onPinTask(id); setShowPicker(false) }}
+          onCreateAndPin={async (title, goalId) => {
+            const task = await createTask({ title, goal_id: goalId, requires_proof: false })
+            await onPinTask(task.id)
+            onRefresh()
+          }}
           onClose={() => setShowPicker(false)} />
       )}
     </div>
   )
 }
 
-function FocusPicker({ daily, projects, focusIds, today, onSelect, onClose }) {
+function FocusPicker({ daily, projects, focusIds, today, onSelect, onCreateAndPin, onClose }) {
   const suggestions = getSuggestions(daily, projects, today, focusIds)
   const dailyAvail  = daily.filter(t => !focusIds.has(t.id))
   const projectGroups = projects.map(p => ({
     label: p.goal_title,
+    goalId: p.goal_id,
     tasks: p.tasks.filter(t => !focusIds.has(t.id))
   })).filter(g => g.tasks.length > 0)
 
+  // Build goal options from available data (no extra fetch needed)
+  const goalOptions = [
+    ...Object.values(
+      daily.reduce((acc, t) => {
+        if (t.goal_id) acc[t.goal_id] = { id: t.goal_id, title: t.goal_title || 'Daily' }
+        return acc
+      }, {})
+    ),
+    ...projects.map(p => ({ id: p.goal_id, title: p.goal_title })),
+  ]
+
+  const [showCreate, setShowCreate] = useState(false)
+  const [newTitle, setNewTitle] = useState('')
+  const [newGoalId, setNewGoalId] = useState(goalOptions[0]?.id || '')
+  const [creating, setCreating] = useState(false)
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    if (showCreate) setTimeout(() => inputRef.current?.focus(), 50)
+  }, [showCreate])
+
+  async function handleCreate(e) {
+    e.preventDefault()
+    if (!newTitle.trim() || !newGoalId) return
+    setCreating(true)
+    try {
+      await onCreateAndPin(newTitle.trim(), newGoalId)
+      onClose()
+    } catch (err) { alert(err.message) }
+    finally { setCreating(false) }
+  }
+
+  const hasExisting = suggestions.length > 0 || dailyAvail.length > 0 || projectGroups.length > 0
+
   return (
-    <Modal title="What to focus on?" onClose={onClose}>
-      <div className="space-y-4 max-h-80 overflow-y-auto -mx-1 px-1">
-        {suggestions.length > 0 && (
-          <div>
-            <p className="text-xs font-semibold text-[#E8C334] uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
-              <span>✦</span> Suggested
-            </p>
-            <div className="space-y-0.5">
-              {suggestions.map(({ task, source }) => (
-                <button key={task.id} onClick={() => onSelect(task.id)}
-                  className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#E8C334]/10 text-sm text-[#1A1A1A] hover:text-[#1A1A1A] transition-colors flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#E8C334] flex-shrink-0" />
-                  <span className="flex-1">{task.title}</span>
-                  <span className="text-[10px] text-[#6B6B6B] flex-shrink-0">{source}</span>
-                </button>
-              ))}
+    <Modal title="Add to Focus" onClose={onClose}>
+      <div className="space-y-3">
+
+        {/* ── Create new task form ── */}
+        {showCreate ? (
+          <form onSubmit={handleCreate} className="space-y-3 bg-[#F9F6F1] rounded-2xl p-4 border border-[#E8E3DB]">
+            <p className="text-xs font-semibold text-[#1B3A2D] uppercase tracking-wide">New task</p>
+            <input
+              ref={inputRef}
+              value={newTitle}
+              onChange={e => setNewTitle(e.target.value)}
+              placeholder="What needs to be done?"
+              className="w-full border border-[#E8E3DB] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] bg-white placeholder:text-[#b5a08a]"
+            />
+            {goalOptions.length > 1 && (
+              <select
+                value={newGoalId}
+                onChange={e => setNewGoalId(e.target.value)}
+                className="w-full border border-[#E8E3DB] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] bg-white text-[#1A1A1A]">
+                {goalOptions.map(g => (
+                  <option key={g.id} value={g.id}>{g.title}</option>
+                ))}
+              </select>
+            )}
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setShowCreate(false)}
+                className="flex-1 py-2 rounded-xl border border-[#E8E3DB] text-sm text-[#6B6B6B] hover:bg-white transition-colors">
+                Back
+              </button>
+              <button type="submit" disabled={creating || !newTitle.trim() || !newGoalId}
+                className="flex-1 py-2 rounded-xl bg-[#1B3A2D] text-white text-sm font-semibold hover:bg-[#2a5240] disabled:opacity-40 transition-colors">
+                {creating ? 'Adding…' : 'Add to Focus'}
+              </button>
             </div>
-            {(dailyAvail.length > 0 || projectGroups.length > 0) && <div className="border-t border-[#E8E3DB] mt-2 pt-1" />}
+          </form>
+        ) : (
+          <button
+            onClick={() => setShowCreate(true)}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#1B3A2D] text-white text-sm font-semibold hover:bg-[#2a5240] transition-colors">
+            <span className="text-base leading-none">+</span>
+            Create new task
+          </button>
+        )}
+
+        {/* ── Pick from existing ── */}
+        {!showCreate && hasExisting && (
+          <div className="space-y-4 max-h-72 overflow-y-auto -mx-1 px-1">
+            {suggestions.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-[#E8C334] uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+                  <span>✦</span> Suggested
+                </p>
+                <div className="space-y-0.5">
+                  {suggestions.map(({ task, source }) => (
+                    <button key={task.id} onClick={() => onSelect(task.id)}
+                      className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#E8C334]/10 text-sm text-[#1A1A1A] transition-colors flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#E8C334] flex-shrink-0" />
+                      <span className="flex-1">{task.title}</span>
+                      <span className="text-[10px] text-[#6B6B6B] flex-shrink-0">{source}</span>
+                    </button>
+                  ))}
+                </div>
+                {(dailyAvail.length > 0 || projectGroups.length > 0) && <div className="border-t border-[#E8E3DB] mt-2 pt-1" />}
+              </div>
+            )}
+            {dailyAvail.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide mb-1.5">Todos</p>
+                <div className="space-y-0.5">
+                  {dailyAvail.map(task => (
+                    <button key={task.id} onClick={() => onSelect(task.id)}
+                      className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#2D7A6B]/10 text-sm text-[#1A1A1A] hover:text-[#1B3A2D] transition-colors flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#E8E3DB] flex-shrink-0" />
+                      {task.title}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {projectGroups.map(group => (
+              <div key={group.label}>
+                <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide mb-1.5">{group.label}</p>
+                <div className="space-y-0.5">
+                  {group.tasks.map(task => (
+                    <button key={task.id} onClick={() => onSelect(task.id)}
+                      className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#2D7A6B]/10 text-sm text-[#1A1A1A] hover:text-[#1B3A2D] transition-colors flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#E8E3DB] flex-shrink-0" />
+                      {task.title}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
-        {dailyAvail.length > 0 && (
-          <div>
-            <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide mb-1.5">Todos</p>
-            <div className="space-y-0.5">
-              {dailyAvail.map(task => (
-                <button key={task.id} onClick={() => onSelect(task.id)}
-                  className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#2D7A6B]/10 text-sm text-[#1A1A1A] hover:text-[#1B3A2D] transition-colors flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#E8E3DB] flex-shrink-0" />
-                  {task.title}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        {projectGroups.map(group => (
-          <div key={group.label}>
-            <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide mb-1.5">{group.label}</p>
-            <div className="space-y-0.5">
-              {group.tasks.map(task => (
-                <button key={task.id} onClick={() => onSelect(task.id)}
-                  className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#2D7A6B]/10 text-sm text-[#1A1A1A] hover:text-[#1B3A2D] transition-colors flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#E8E3DB] flex-shrink-0" />
-                  {task.title}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-        {suggestions.length === 0 && dailyAvail.length === 0 && projectGroups.length === 0 && (
-          <p className="text-sm text-[#6B6B6B] italic py-4 text-center">No tasks available</p>
+
+        {!showCreate && !hasExisting && (
+          <p className="text-sm text-[#6B6B6B] italic py-2 text-center">No existing tasks available — create one above.</p>
         )}
       </div>
     </Modal>
