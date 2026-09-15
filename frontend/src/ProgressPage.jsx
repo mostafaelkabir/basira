@@ -246,8 +246,7 @@ export default function ProgressPage({ onGoToGoal }) {
                     key={ri}
                     className="h-3 rounded-[2px]"
                     style={{ backgroundColor: heatmapColor(cell), outline: cell.isToday ? '2px solid #E8C334' : 'none' }}
-                      title={cell.isWorkOnly ? 'Work day' : cell.checkinCount > 0 ? `${cell.checkinCount} habit${cell.checkinCount > 1 ? 's' : ''}` : ''}
-                    title={`${cell.iso}: ${cell.checkinCount} habits`}
+                    title={cell.isWorkOnly ? `${cell.iso}: Work day` : `${cell.iso}: ${cell.checkinCount} habit${cell.checkinCount !== 1 ? 's' : ''}`}
                   />
                 ))}
               </div>

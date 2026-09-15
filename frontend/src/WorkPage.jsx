@@ -12,6 +12,7 @@ import Modal from './components/Modal'
 import MicButton from './components/MicButton'
 import AIPolishButton from './components/AIPolishButton'
 import SavedTextToggle from './components/SavedTextToggle'
+import WorkReports from './WorkReports'
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -701,6 +702,13 @@ function TicketCard({ ticket, onClick, onStatusChange }) {
           <span className="text-[11px] text-[#2D7A6B] font-medium">Timer running</span>
         </div>
       )}
+
+      {/* Completed date for done tickets */}
+      {isDone && ticket.completed_at && (
+        <p className="text-[10px] text-[#6B6B6B] mt-2">
+          Completed {fmtDate(ticket.completed_at.split(/[T ]/)[0])} · {fmtMins(ticket.logged_minutes)} total
+        </p>
+      )}
     </div>
   )
 }
@@ -1255,7 +1263,7 @@ function AIPanel({ onClose }) {
 // ─── Main Work Page ───────────────────────────────────────────────────────────
 
 export default function WorkPage() {
-  const [view, setView] = useState('tickets')   // 'tickets' | 'log'
+  const [view, setView] = useState('tickets')   // 'tickets' | 'log' | 'reports'
   const [companies, setCompanies] = useState([])
   const [tickets, setTickets] = useState([])
   const [logs, setLogs] = useState([])
@@ -1271,7 +1279,7 @@ export default function WorkPage() {
   const [showCompany, setShowCompany] = useState(false)
   const [editCompany, setEditCompany] = useState(null)
   const [showAI, setShowAI] = useState(false)
-  const [showWeeklyReport, setShowWeeklyReport] = useState(false)
+  const [sortBy, setSortBy] = useState('created')  // 'created' | 'priority' | 'time' | 'status'
 
   async function load() {
     try {
@@ -1364,12 +1372,26 @@ export default function WorkPage() {
     return Object.values(map).sort((a, b) => b.week_minutes - a.week_minutes)
   })()
 
+  const PRIORITY_RANK = { urgent: 0, high: 1, medium: 2, low: 3 }
+  const STATUS_RANK = Object.fromEntries(STATUS_ORDER.map((s, i) => [s, i]))
+  const sortedTickets = [...tickets].sort((a, b) => {
+    if (sortBy === 'priority') return (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9)
+    if (sortBy === 'time') return (b.logged_seconds || 0) - (a.logged_seconds || 0)
+    if (sortBy === 'status') return (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9)
+    return 0
+  })
+
+  const doneStats = filterStatus === 'done' ? {
+    count: tickets.length,
+    totalMins: tickets.reduce((s, t) => s + (t.logged_minutes || 0), 0),
+  } : null
+
   if (loading) return <div className="flex items-center justify-center h-64 text-[#6B6B6B]">Loading…</div>
 
   return (
     <div>
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex items-start justify-between flex-wrap gap-3 mb-6">
         <div>
           <p className="text-[11px] font-bold text-[#6B6B6B] uppercase tracking-widest mb-1">Work Tracker</p>
           <h1 className="text-3xl font-bold text-[#1A1A1A]">Work</h1>
@@ -1377,11 +1399,7 @@ export default function WorkPage() {
             {companies.length} {companies.length === 1 ? 'client' : 'clients'} · {fmtMins(thisWeekMins)} this week
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setShowWeeklyReport(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#E8E3DB] text-[#1A1A1A] bg-white text-sm font-medium hover:border-[#2D7A6B] hover:text-[#2D7A6B] transition-colors">
-            📋 Weekly Report
-          </button>
+        <div className="flex items-center gap-2 flex-wrap">
           <button onClick={() => setShowAI(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-violet-200 text-violet-700 bg-violet-50 text-sm font-medium hover:bg-violet-100 transition-colors">
             ✨ AI
@@ -1391,12 +1409,12 @@ export default function WorkPage() {
               className="bg-[#1B3A2D] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#2a5240] disabled:opacity-40 transition-colors shadow-sm">
               + New Ticket
             </button>
-          ) : (
+          ) : view === 'log' ? (
             <button onClick={() => setShowNewLog(true)} disabled={companies.length === 0}
               className="bg-[#1B3A2D] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#2a5240] disabled:opacity-40 transition-colors shadow-sm">
               + Log Work
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -1415,7 +1433,7 @@ export default function WorkPage() {
       ) : (
         <div className="space-y-5">
           {/* Time breakdown */}
-          <div className="bg-white border border-[#E8E3DB] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.07)] overflow-hidden">
+          {view !== 'reports' && <div className="bg-white border border-[#E8E3DB] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.07)] overflow-hidden">
             {/* Totals header */}
             <div className="grid grid-cols-3 border-b border-[#E8E3DB]">
               <div className="px-4 py-3">
@@ -1451,7 +1469,7 @@ export default function WorkPage() {
             {companyTimeRows.length === 0 && (
               <div className="px-4 py-5 text-center text-xs text-[#b5a08a]">No time logged this week</div>
             )}
-          </div>
+          </div>}
 
           {/* Company filters */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -1484,8 +1502,8 @@ export default function WorkPage() {
           </div>
 
           {/* View tabs */}
-          <div className="flex gap-1 bg-[#F2EDE4] rounded-xl p-1 w-fit">
-            {[['tickets', '🎫 Tickets'], ['log', '📋 Work Log']].map(([v, label]) => (
+          <div className="flex flex-wrap gap-1 bg-[#F2EDE4] rounded-xl p-1 w-fit">
+            {[['tickets', '🎫 Tickets'], ['log', '📋 Work Log'], ['reports', 'Time & Reports']].map(([v, label]) => (
               <button key={v} onClick={() => setView(v)}
                 className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
                   view === v ? 'bg-white text-[#1A1A1A] shadow-sm' : 'text-[#6B6B6B] hover:text-[#1A1A1A]'
@@ -1493,28 +1511,56 @@ export default function WorkPage() {
             ))}
           </div>
 
+          {view === 'reports' && <WorkReports companyId={filterCompany} />}
+
           {/* ── Tickets view ── */}
           {view === 'tickets' && (
             <div className="space-y-4">
-              {/* Status filter */}
-              <div className="flex gap-2">
-                {[['active', 'Active'], ['done', 'Done'], ['all', 'All']].map(([v, label]) => (
-                  <button key={v} onClick={() => setFilterStatus(v)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
-                      filterStatus === v ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]' : 'bg-white border-[#E8E3DB] text-[#6B6B6B] hover:border-[#2D7A6B]/40'
-                    }`}>{label}</button>
-                ))}
+              {/* Status filter + sort */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex gap-2">
+                  {[['active', 'Active'], ['done', 'Done'], ['all', 'All']].map(([v, label]) => (
+                    <button key={v} onClick={() => setFilterStatus(v)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+                        filterStatus === v ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]' : 'bg-white border-[#E8E3DB] text-[#6B6B6B] hover:border-[#2D7A6B]/40'
+                      }`}>{label}</button>
+                  ))}
+                </div>
+                {tickets.length > 1 && (
+                  <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+                    className="ml-auto text-[11px] px-2 py-1.5 rounded-lg border border-[#E8E3DB] bg-white text-[#6B6B6B] cursor-pointer">
+                    <option value="created">Newest first</option>
+                    <option value="priority">Priority</option>
+                    <option value="time">Most time logged</option>
+                    <option value="status">Status</option>
+                  </select>
+                )}
               </div>
+
+              {/* Done summary banner */}
+              {doneStats && doneStats.count > 0 && (
+                <div className="flex items-center gap-4 bg-[#2D7A6B]/5 border border-[#2D7A6B]/15 rounded-xl px-4 py-3">
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-[#2D7A6B]">{doneStats.count}</div>
+                    <div className="text-[10px] text-[#6B6B6B] uppercase tracking-wide">Completed</div>
+                  </div>
+                  <div className="w-px h-8 bg-[#2D7A6B]/15" />
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-[#1B3A2D]">{fmtMins(doneStats.totalMins)}</div>
+                    <div className="text-[10px] text-[#6B6B6B] uppercase tracking-wide">Total time</div>
+                  </div>
+                </div>
+              )}
 
               {tickets.length === 0 ? (
                 <div className="text-center py-16 text-[#6B6B6B]">
                   <div className="text-3xl mb-3">🎫</div>
-                  <p className="font-medium">No tickets yet</p>
-                  <p className="text-sm mt-1">Create a ticket to track a piece of work from start to finish.</p>
+                  <p className="font-medium">{filterStatus === 'done' ? 'No completed tickets' : 'No tickets yet'}</p>
+                  <p className="text-sm mt-1">{filterStatus === 'done' ? 'Completed tickets will appear here.' : 'Create a ticket to track a piece of work from start to finish.'}</p>
                 </div>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {tickets.map(ticket => (
+                  {sortedTickets.map(ticket => (
                     <TicketCard key={ticket.id}
                       ticket={ticket}
                       onClick={async () => {
@@ -1625,13 +1671,6 @@ export default function WorkPage() {
         />
       )}
       {showAI && <AIPanel onClose={() => setShowAI(false)} />}
-      {showWeeklyReport && (
-        <WeeklyReportModal
-          companies={companies}
-          defaultCompanyId={filterCompany}
-          onClose={() => setShowWeeklyReport(false)}
-        />
-      )}
     </div>
   )
 }

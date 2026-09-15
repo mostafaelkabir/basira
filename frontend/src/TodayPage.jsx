@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  addDailyTask, addProof, checkinHabit, completeTask, createTask,
+  addProof, checkinHabit, completeTask, createTask,
   deleteTask, deferTask, getToday, getTimerToday, logManualTime,
   pinTask, planTask, reorderTasks, uncheckinHabit, unpinTask, unplanTask,
   uploadProofFile, uploadProofImage, updateTask,
@@ -14,46 +14,13 @@ import PostTaskFeedback from './components/PostTaskFeedback'
 import { ProofForm, TaskTags } from './GoalPage'
 import { useTimer } from './TimerContext'
 import PlannerView from './PlannerView'
+import DailySchedule from './DailySchedule'
 import Modal from './components/Modal'
 import { ActivityComments } from './components/ActivityComposer'
 import TimeLogModal from './components/TimeLogModal'
 import { getDueDateMeta, sortByDueDate } from './utils'
-import {
-  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
-} from '@dnd-kit/core'
-import {
-  SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-
-function SortableItem({ id, children }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    position: 'relative',
-    zIndex: isDragging ? 50 : 'auto',
-  }
-  return (
-    <div ref={setNodeRef} style={style} {...attributes}>
-      {children(listeners)}
-    </div>
-  )
-}
-
-function DragHandle({ listeners }) {
-  return (
-    <button
-      {...listeners}
-      type="button"
-      className="cursor-grab active:cursor-grabbing text-sand-200 hover:text-sand-400 flex-shrink-0 px-1 touch-none select-none"
-      title="Drag to reorder"
-    >
-      ⠿
-    </button>
-  )
-}
+import { PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { arrayMove } from '@dnd-kit/sortable'
 
 const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -73,15 +40,6 @@ function parseFreq(f = 'daily') {
   const wm = f.match(/^(\d+)x_week$/)
   if (wm) return { perDay: 1, label: wm[1] === '1' ? 'Weekly' : `${wm[1]}× week` }
   return { perDay: 1, label: null }
-}
-function SectionLabel({ children, right }) {
-  return (
-    <div className="flex items-center gap-3 mb-3">
-      <p className="text-[11px] font-bold text-[#1A1A1A] uppercase tracking-widest whitespace-nowrap">{children}</p>
-      <span className="flex-1 border-t border-[#E8E3DB]" />
-      {right && <span className="text-[11px] text-[#6B6B6B] flex-shrink-0">{right}</span>}
-    </div>
-  )
 }
 
 const DEFER_REASONS = [
@@ -112,19 +70,14 @@ function DeferReasonPicker({ onSelect, onDismiss }) {
   )
 }
 
-function getSuggestions(daily, projects, today, focusIds) {
+function getSuggestions(planItems, today, focusIds) {
   const candidates = []
-  for (const task of daily) {
+  for (const task of planItems) {
     if (focusIds.has(task.id)) continue
-    const score = task.due_date && task.due_date < today ? 100 : task.due_date === today ? 50 : 10
-    candidates.push({ task, score, source: 'Todos' })
-  }
-  for (const p of projects) {
-    for (const task of p.tasks) {
-      if (focusIds.has(task.id)) continue
-      const score = task.due_date && task.due_date < today ? 100 : task.due_date === today ? 50 : 5
-      candidates.push({ task, score, source: p.goal_title })
-    }
+    if (task._type === 'habit') continue   // habits aren't focusable tasks
+    const source = task._type === 'daily' ? 'Todos' : (task._goalTitle || task.goal_title || 'Project')
+    const score = task.due_date && task.due_date < today ? 100 : task.due_date === today ? 50 : (task._type === 'daily' ? 10 : 5)
+    candidates.push({ task, score, source })
   }
   return candidates.sort((a, b) => b.score - a.score).slice(0, 3)
 }
@@ -334,16 +287,12 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   const [data, setData]   = useState(null)
   const [loading, setLoading] = useState(true)
   const focusOrderRef = useRef([])
-  const [quickAdd, setQuickAdd] = useState('')
-  const [addingSubtaskFor, setAddingSubtaskFor] = useState(null) // parent task id
-  const [subtaskTitle, setSubtaskTitle] = useState('')
   const [todaySeconds, setTodaySeconds]     = useState({})   // taskId → seconds logged today
   const [timeLogFor, setTimeLogFor]         = useState(null) // task waiting for manual time entry
   const [proofFor, setProofFor]             = useState(null) // task needing proof to complete
   const [habitProofFor, setHabitProofFor]   = useState(null) // habit needing proof to check in
   const [proofForm, setProofForm]           = useState({ type: 'text', content: '', imageFile: null, imagePreview: null })
   const [submitting, setSubmitting]         = useState(false)
-  const quickAddRef = useRef(null)
   const [planItems, setPlanItems]           = useState(null) // null = derive from data
   const [viewMode, setViewMode]             = useState('list') // 'list' | 'planner'
   const [feedbackTask, setFeedbackTask]     = useState(null)  // task awaiting feeling feedback
@@ -351,7 +300,6 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   const [afternoonCheckin, setAfternoonCheckin] = useState(null)
   const [afternoonForm, setAfternoonForm]   = useState({ energy: null, working_on: '' })
   const [afternoonSaving, setAfternoonSaving] = useState(false)
-  const planSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
   function resetProofForm() { setProofForm({ type: 'text', content: '', imageFile: null, imagePreview: null }) }
   function handleImageSelect(e) {
@@ -397,24 +345,6 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
     return () => window.removeEventListener('basira:task-updated', onTaskUpdated)
   }, [])
 
-  async function handlePlanDragEnd(event, currentItems) {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-    const oldIdx = currentItems.findIndex(t => t.id === active.id)
-    const newIdx = currentItems.findIndex(t => t.id === over.id)
-    const reordered = arrayMove(currentItems, oldIdx, newIdx)
-    setPlanItems(reordered)
-    try {
-      await reorderTasks(reordered.map((item, i) => ({ id: item.id, sort_order: i * 10 })))
-    } catch { /* silently fail — local order already applied */ }
-  }
-
-  async function handleQuickAdd(e) {
-    e.preventDefault()
-    if (!quickAdd.trim()) return
-    try { await addDailyTask(quickAdd.trim()); setQuickAdd(''); load() }
-    catch (err) { alert(err.message) }
-  }
   async function handleToggleHabit(habit) {
     if (!habit.checked_today && habit.requires_proof && !habit.has_proof_today) {
       setHabitProofFor(habit); return
@@ -493,18 +423,6 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
     try { await unpinTask(taskId); load() }
     catch (err) { alert(err.message) }
   }
-  async function handleCreateSubtask(e, parentTask) {
-    e.preventDefault()
-    if (!subtaskTitle.trim()) return
-    try {
-      await createTask({ title: subtaskTitle.trim(), goal_id: parentTask.goal_id, requires_proof: false, parent_task_id: parentTask.id })
-      setAddingSubtaskFor(null); setSubtaskTitle(''); load()
-    } catch (err) { alert(err.message) }
-  }
-  async function handleCompleteSubtask(taskId) {
-    try { await completeTask(taskId); load() }
-    catch (err) { alert(err.message) }
-  }
   // Note: FocusSection manages its own subtask state internally
   async function uploadProofContent() {
     if (proofForm.type === 'image') {
@@ -565,22 +483,12 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
     ? planItems.map(item => rawPlanItems.find(r => r.id === item.id) ?? item).filter(Boolean)
     : rawPlanItems
 
-  const pendingPlanCount = allPlanItems.filter(item =>
-    item._type === 'habit' ? !item.checked_today : item.status !== 'done'
-  ).length
-
   // Progress bar calculation
   const totalItems = focus.length + allPlanItems.length
   const doneItems =
     focus.filter(t => t.status === 'done').length +
     allPlanItems.filter(item => item._type === 'habit' ? item.checked_today : item.status === 'done').length
   const pct = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0
-
-  // Items available to add to Plan (not already planned)
-  const unplandHabits = habits.filter(h => h.plan_date !== data.date)
-  const unplannedProjects = projects
-    .map(p => ({ ...p, tasks: p.tasks.filter(t => t.plan_date !== data.date) }))
-    .filter(p => p.tasks.length > 0)
 
   return (
     <div className="space-y-6">
@@ -712,79 +620,15 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
           <span className="text-sm text-[#6B6B6B]">{focus.length} Tasks</span>
         </div>
         <FocusSection
-          focus={focus} daily={daily} projects={projects} today={data.date}
+          focus={focus} planItems={allPlanItems} today={data.date}
           onComplete={handleComplete} onUnpin={handleUnpin} onPinTask={handlePin}
           onRefresh={load}
           onStartTimer={(task) => startTimer(task.id, task.title, task.goal_title || '')}
         />
       </section>
 
-      {/* ── Plan ── */}
-      <section>
-        <SectionLabel right={pendingPlanCount > 0 ? `${pendingPlanCount} to do` : '✦ All done'}>
-          Plan
-        </SectionLabel>
-
-        <DndContext
-          sensors={planSensors}
-          collisionDetection={closestCenter}
-          onDragEnd={e => handlePlanDragEnd(e, allPlanItems)}
-        >
-          <SortableContext items={allPlanItems.map(t => t.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-1.5">
-              {allPlanItems.map(item => (
-                <SortableItem key={item.id} id={item.id}>
-                  {(listeners) => (
-                    <PlanRow
-                      task={item}
-                      planType={item._type}
-                      today={data.date}
-                      canPin={focus.length < 3}
-                      dragListeners={listeners}
-                      onComplete={() => item._type === 'habit' ? handleToggleHabit(item) : handleComplete(item)}
-                      onDelete={item._type === 'daily' ? () => handleDelete(item.id) : undefined}
-                      onDefer={item._type !== 'habit' ? () => handleDefer(item.id) : undefined}
-                      onPin={item._type !== 'habit' ? () => handlePin(item.id) : undefined}
-                      onUnplan={item._type !== 'daily' ? () => handleUnplan(item.id) : undefined}
-                      onRefresh={load}
-                      addingSubtask={addingSubtaskFor === item.id}
-                      subtaskTitle={subtaskTitle}
-                      onAddSubtask={item._type !== 'habit' ? () => { setAddingSubtaskFor(item.id); setSubtaskTitle('') } : undefined}
-                      onSubtaskTitleChange={setSubtaskTitle}
-                      onSubtaskSubmit={e => handleCreateSubtask(e, item)}
-                      onSubtaskCancel={() => { setAddingSubtaskFor(null); setSubtaskTitle('') }}
-                      onCompleteSubtask={handleCompleteSubtask}
-                      onStartTimer={() => startTimer(item.id, item.title, item._goalTitle || item.goal_title || '')}
-                    />
-                  )}
-                </SortableItem>
-              ))}
-              {allPlanItems.length === 0 && (
-                <p className="text-sm text-sand-400 italic py-1">Nothing planned yet — add a todo or pick from habits &amp; projects below</p>
-              )}
-            </div>
-          </SortableContext>
-        </DndContext>
-
-        {/* Quick-add + Plan picker */}
-        <div className="mt-3 space-y-2">
-          <form onSubmit={handleQuickAdd} className="flex items-center gap-2">
-            <input ref={quickAddRef} value={quickAdd} onChange={e => setQuickAdd(e.target.value)}
-              placeholder="Add a todo…"
-              className="flex-1 text-sm border border-[#E8E3DB] rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] bg-white placeholder:text-[#b5a08a]" />
-            <button type="submit" disabled={!quickAdd.trim()}
-              className="text-sm bg-[#1B3A2D] text-white px-3 py-2 rounded-xl hover:bg-[#2a5240] disabled:opacity-30 transition-colors">
-              Add
-            </button>
-          </form>
-
-          {(unplandHabits.length > 0 || unplannedProjects.length > 0) && (
-            <PlanPicker
-              habits={unplandHabits} projects={unplannedProjects} today={data.date}
-              onAdd={handlePlan} />
-          )}
-        </div>
-      </section>
+      {/* ── Daily Schedule ── */}
+      <DailySchedule />
 
       {/* Time-log modal */}
       {timeLogFor && (
@@ -816,219 +660,9 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   )
 }
 
-// ─── Plan Row ─────────────────────────────────────────────────────────────────
-// planType: 'daily' | 'habit' | 'project'
-
-function PlanRow({ task, planType, today, canPin, onComplete, onDelete, onDefer, onPin, onUnplan, onRefresh,
-  addingSubtask, subtaskTitle, onAddSubtask, onSubtaskTitleChange, onSubtaskSubmit, onSubtaskCancel, onCompleteSubtask,
-  dragListeners, onStartTimer }) {
-  const [expanded, setExpanded] = useState(false)
-  const isDone = planType === 'habit' ? task.checked_today : task.status === 'done'
-  const hasSubtasks = planType !== 'habit' && (task.sub_tasks?.length > 0 || addingSubtask)
-  const subDone = task.sub_tasks?.filter(s => s.status === 'done').length ?? 0
-  const subTotal = task.sub_tasks?.length ?? 0
-  const dueMeta = getDueDateMeta(task.due_date)
-  const activityCount = (task.proofs?.length ?? 0) + (task.comments?.length ?? 0)
-
-  const sourceLabel = planType === 'habit'
-    ? task.goal_title
-    : planType === 'project'
-    ? task._goalTitle
-    : null
-
-  const accentBorder = !isDone && planType !== 'habit' && (task.is_urgent || task.is_important)
-    ? task.is_urgent ? 'border-l-[3px] border-l-terra-400' : 'border-l-[3px] border-l-gold-400'
-    : ''
-
-  return (
-    <div className={`bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden transition-all ${isDone ? 'border border-sage-100 opacity-60' : `border border-[#E8E3DB] ${accentBorder}`}`}>
-      <div className="flex items-center gap-3 px-3 py-2.5 group">
-        {/* Drag handle */}
-        {dragListeners && <DragHandle listeners={dragListeners} />}
-        {/* Check circle */}
-        {planType === 'habit' ? (
-          <button onClick={onComplete}
-            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-              task.checked_today ? 'bg-[#2D7A6B] border-[#2D7A6B] text-white' : 'border-[#E8E3DB] hover:border-[#2D7A6B]'
-            }`}>
-            {task.checked_today && <span className="text-[10px] leading-none">✓</span>}
-          </button>
-        ) : (
-          <button onClick={onComplete}
-            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-              isDone ? 'bg-sage-400 border-sage-400 text-white' : 'border-[#E8E3DB] hover:border-[#2D7A6B] hover:bg-[#2D7A6B]/10'
-            }`}>
-            {isDone && <span className="text-[10px] leading-none">✓</span>}
-          </button>
-        )}
-
-        {/* Title + label */}
-        <div className="flex-1 min-w-0">
-          <span className={`text-sm ${isDone ? 'line-through text-[#b5a08a]' : 'text-[#1A1A1A]'}`}>{task.title}</span>
-          {sourceLabel && <span className="ml-2 text-[10px] text-[#6B6B6B]">{sourceLabel}</span>}
-        </div>
-
-        {/* Tags */}
-        {!isDone && planType !== 'habit' && <TaskTags urgent={task.is_urgent} important={task.is_important} />}
-
-        {/* Due date badge */}
-        {dueMeta && !isDone && (
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium flex-shrink-0 ${dueMeta.cls}`}>{dueMeta.label}</span>
-        )}
-
-        {/* Habit freq */}
-        {planType === 'habit' && task.habit_frequency && task.habit_frequency !== 'daily' && (
-          <span className="text-[10px] text-[#2D7A6B] font-medium flex-shrink-0">{parseFreq(task.habit_frequency).label}</span>
-        )}
-
-        {/* Streak */}
-        {planType === 'habit' && task.streak > 0 && !isDone && (
-          <span className="text-[10px] text-[#E8C334] font-semibold flex-shrink-0">✦{task.streak}</span>
-        )}
-
-        {/* Activity toggle */}
-        {(task.proofs || task.comments) && (
-          <button onClick={() => setExpanded(v => !v)}
-            className={`text-xs w-5 h-5 flex items-center justify-center rounded-lg transition-colors flex-shrink-0 ${expanded ? 'text-[#2D7A6B] bg-[#2D7A6B]/10' : 'text-[#b5a08a] hover:text-[#6B6B6B]'}`}>
-            {activityCount > 0 && !expanded
-              ? <span className="font-semibold text-[10px] text-[#2D7A6B]">{activityCount}</span>
-              : <span className="text-[9px]">{expanded ? '▴' : '▾'}</span>}
-          </button>
-        )}
-
-        {/* Hover actions */}
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          {!isDone && onStartTimer && (
-            <button onClick={onStartTimer} title="Start timer"
-              className="text-[#b5a08a] hover:text-[#2D7A6B] transition-colors text-xs px-1 py-0.5 rounded hover:bg-[#2D7A6B]/10">▶</button>
-          )}
-          {canPin && planType !== 'habit' && (
-            <button onClick={onPin} title="Add to focus"
-              className="text-[#b5a08a] hover:text-[#E8C334] transition-colors text-xs px-1 py-0.5 rounded hover:bg-[#E8C334]/10">✦</button>
-          )}
-          {planType !== 'habit' && onDefer && (
-            <button onClick={onDefer} title="Defer to tomorrow"
-              className="text-[#b5a08a] hover:text-[#2D7A6B] transition-colors text-xs px-1 py-0.5 rounded hover:bg-[#2D7A6B]/10">→tmr</button>
-          )}
-          {onUnplan && (
-            <button onClick={onUnplan} title="Remove from plan"
-              className="text-[#b5a08a] hover:text-terra-400 transition-colors text-xs px-1 py-0.5 rounded">✕</button>
-          )}
-          {onDelete && planType === 'daily' && (
-            <button onClick={onDelete} title="Delete task"
-              className="text-[#b5a08a] hover:text-terra-400 transition-colors text-xs px-1 py-0.5 rounded">✕</button>
-          )}
-        </div>
-      </div>
-      {expanded && task.id && (
-        <div className="border-t border-sand-100 px-3 pt-2 pb-3">
-          <ActivityComments task={task} onRefresh={onRefresh} />
-        </div>
-      )}
-
-      {/* Sub-tasks */}
-      {hasSubtasks && (
-        <div className="border-t border-sand-100 px-3 py-2 space-y-0.5">
-          {task.sub_tasks?.map(st => (
-            <div key={st.id} className={`flex items-center gap-2 py-0.5 group rounded-lg hover:bg-sand-50 px-1 -mx-1 ${st.status === 'done' ? 'opacity-50' : ''}`}>
-              {st.status !== 'done' && onCompleteSubtask ? (
-                <button onClick={() => onCompleteSubtask(st.id)}
-                  className="w-4 h-4 rounded-full border border-sand-300 hover:border-teal-500 hover:bg-teal-50 flex-shrink-0 transition-all" />
-              ) : (
-                <span className="w-1.5 h-1.5 rounded-full bg-sage-400 flex-shrink-0 ml-0.5" />
-              )}
-              <span className={`text-xs flex-1 ${st.status === 'done' ? 'line-through text-sand-400' : 'text-sand-700'}`}>{st.title}</span>
-              {st.status !== 'done' && (
-                <button
-                  onClick={async () => { await pinTask(st.id, new Date().toISOString().split('T')[0]); onRefresh() }}
-                  title="Pin to focus"
-                  className={`opacity-0 group-hover:opacity-100 text-xs w-5 h-5 flex items-center justify-center rounded transition-all flex-shrink-0 ${st.pinned_date ? 'text-gold-400' : 'text-sand-300 hover:text-gold-400'}`}>
-                  ✦
-                </button>
-              )}
-            </div>
-          ))}
-          {addingSubtask && (
-            <form onSubmit={onSubtaskSubmit} className="flex items-center gap-2 pt-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-sand-200 flex-shrink-0 ml-0.5" />
-              <input autoFocus value={subtaskTitle} onChange={e => onSubtaskTitleChange(e.target.value)}
-                placeholder="Subtask title…"
-                className="flex-1 text-xs border-b border-sand-200 focus:border-teal-400 focus:outline-none bg-transparent py-0.5 placeholder:text-sand-300" />
-              <button type="submit" disabled={!subtaskTitle?.trim()}
-                className="text-xs text-teal-600 font-medium disabled:opacity-40 flex-shrink-0">Add</button>
-              <button type="button" onClick={onSubtaskCancel} className="text-xs text-sand-400 flex-shrink-0">✕</button>
-            </form>
-          )}
-        </div>
-      )}
-      {planType !== 'habit' && !isDone && onAddSubtask && !addingSubtask && (
-        <div className="px-3 pb-2">
-          <button onClick={onAddSubtask}
-            className="text-[11px] text-sand-400 hover:text-teal-600 transition-colors flex items-center gap-1">
-            <span>+</span> subtask
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─── Plan Picker ──────────────────────────────────────────────────────────────
-
-function PlanPicker({ habits, projects, today, onAdd }) {
-  const [open, setOpen] = useState(false)
-  const total = habits.length + projects.reduce((s, p) => s + p.tasks.length, 0)
-  if (total === 0) return null
-
-  return (
-    <div>
-      <button onClick={() => setOpen(v => !v)}
-        className="text-sm text-[#6B6B6B] hover:text-[#1B3A2D] transition-colors flex items-center gap-1.5">
-        <span className="text-xs">+</span> Add from habits & projects
-        <span className="text-[10px]">{open ? '▴' : '▾'}</span>
-      </button>
-
-      {open && (
-        <div className="mt-2 bg-white border border-[#E8E3DB] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
-          {habits.length > 0 && (
-            <div className="border-b border-[#E8E3DB]">
-              <p className="text-[10px] font-semibold text-[#6B6B6B] uppercase tracking-widest px-4 pt-3 pb-1">Habits</p>
-              {habits.map(h => (
-                <button key={h.id} onClick={() => { onAdd(h.id); }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#2D7A6B]/10 transition-colors text-left group">
-                  <span className="text-xs text-[#b5a08a] group-hover:text-[#2D7A6B] transition-colors">+</span>
-                  <span className="flex-1 text-sm text-[#1A1A1A]">{h.title}</span>
-                  <span className="text-[10px] text-[#6B6B6B]">{h.goal_title}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          {projects.map(p => (
-            <div key={p.goal_id} className="border-b border-[#E8E3DB] last:border-b-0">
-              <p className="text-[10px] font-semibold text-[#6B6B6B] uppercase tracking-widest px-4 pt-3 pb-1">{p.goal_title}</p>
-              {sortByDueDate(p.tasks).map(task => (
-                <button key={task.id} onClick={() => { onAdd(task.id); }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#2D7A6B]/10 transition-colors text-left group">
-                  <span className="text-xs text-[#b5a08a] group-hover:text-[#2D7A6B] transition-colors">+</span>
-                  <span className="flex-1 text-sm text-[#1A1A1A]">{task.title}</span>
-                  {task.due_date && (
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${getDueDateMeta(task.due_date)?.cls || 'text-[#6B6B6B]'}`}>
-                      {getDueDateMeta(task.due_date)?.label}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ─── Focus Section ────────────────────────────────────────────────────────────
 
-function FocusSection({ focus, daily, projects, today, onComplete, onUnpin, onPinTask, onRefresh, onStartTimer }) {
+function FocusSection({ focus, planItems, today, onComplete, onUnpin, onPinTask, onRefresh, onStartTimer }) {
   const [showPicker, setShowPicker] = useState(false)
   const [expandedIds, setExpandedIds] = useState(new Set())
   const [addingSubtaskFor, setAddingSubtaskFor] = useState(null)
@@ -1144,10 +778,11 @@ function FocusSection({ focus, daily, projects, today, onComplete, onUnpin, onPi
 
       {showPicker && (
         <FocusPicker
-          daily={daily} projects={projects} focusIds={focusIds} today={today}
+          planItems={planItems} focusIds={focusIds} today={today}
           onSelect={async (id) => { await onPinTask(id); setShowPicker(false) }}
           onCreateAndPin={async (title, goalId) => {
             const task = await createTask({ title, goal_id: goalId, requires_proof: false })
+            await planTask(task.id, today)
             await onPinTask(task.id)
             onRefresh()
           }}
@@ -1157,25 +792,32 @@ function FocusSection({ focus, daily, projects, today, onComplete, onUnpin, onPi
   )
 }
 
-function FocusPicker({ daily, projects, focusIds, today, onSelect, onCreateAndPin, onClose }) {
-  const suggestions = getSuggestions(daily, projects, today, focusIds)
-  const dailyAvail  = daily.filter(t => !focusIds.has(t.id))
-  const projectGroups = projects.map(p => ({
-    label: p.goal_title,
-    goalId: p.goal_id,
-    tasks: p.tasks.filter(t => !focusIds.has(t.id))
-  })).filter(g => g.tasks.length > 0)
+function FocusPicker({ planItems, focusIds, today, onSelect, onCreateAndPin, onClose }) {
+  // Only today's already-planned tasks are choosable — habits aren't focusable tasks
+  const available = planItems.filter(t => t._type !== 'habit' && !focusIds.has(t.id))
+  const suggestions = getSuggestions(planItems, today, focusIds)
+  const suggestedIds = new Set(suggestions.map(s => s.task.id))
 
-  // Build goal options from available data (no extra fetch needed)
-  const goalOptions = [
-    ...Object.values(
-      daily.reduce((acc, t) => {
-        if (t.goal_id) acc[t.goal_id] = { id: t.goal_id, title: t.goal_title || 'Daily' }
+  const dailyAvail = available.filter(t => t._type === 'daily' && !suggestedIds.has(t.id))
+  const projectGroups = Object.values(
+    available
+      .filter(t => t._type === 'project' && !suggestedIds.has(t.id))
+      .reduce((acc, t) => {
+        const label = t._goalTitle || t.goal_title || 'Project'
+        if (!acc[label]) acc[label] = { label, tasks: [] }
+        acc[label].tasks.push(t)
         return acc
       }, {})
-    ),
-    ...projects.map(p => ({ id: p.goal_id, title: p.goal_title })),
-  ]
+  )
+
+  // Build goal options for the create-new-task form from today's plan (no extra fetch needed)
+  const goalOptions = Object.values(
+    planItems.reduce((acc, t) => {
+      const goalId = t.goal_id
+      if (goalId && !acc[goalId]) acc[goalId] = { id: goalId, title: t._goalTitle || t.goal_title || 'Daily' }
+      return acc
+    }, {})
+  )
 
   const [showCreate, setShowCreate] = useState(false)
   const [newTitle, setNewTitle] = useState('')

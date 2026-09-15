@@ -19,6 +19,10 @@ export default defineConfig({
       '/comments': API,
       '/analytics': API,
       '/timer':     API,
+      '/work-reports': API,
+      '/work-tickets': API,
+      '/work-logs': API,
+      '/companies': API,
     },
   },
 })
