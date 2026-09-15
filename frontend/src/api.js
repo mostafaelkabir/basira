@@ -8,6 +8,12 @@ async function request(url, options = {}) {
   return res.json()
 }
 
+export const getWorkReport = (dateFrom, dateTo, companyId) => {
+  const params = new URLSearchParams({ date_from: dateFrom, date_to: dateTo })
+  if (companyId) params.set('company_id', companyId)
+  return request(`/work-reports?${params}`)
+}
+
 export const getGoals = (archived = false) => request(`/goals${archived ? '?archived=true' : ''}`)
 export const getGoal = (id) => request(`/goals/${id}`)
 export const createGoal = (data) =>
@@ -234,3 +240,18 @@ export const generateWeeklyReport = (companyId, dateFrom, dateTo) =>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ company_id: companyId || null, date_from: dateFrom, date_to: dateTo }),
   })
+
+// ── Daily Schedule ───────────────────────────────────────────────────────────
+export const getDailySchedule = () => request('/today/schedule')
+export const addToSchedule = (kind, id) =>
+  request('/today/schedule/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, id }) })
+export const removeFromSchedule = (kind, id) =>
+  request('/today/schedule/remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, id }) })
+export const createScheduleItem = (data) =>
+  request('/today/schedule/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+export const completeScheduleItem = (kind, id, done = true) =>
+  request('/today/schedule/complete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, id, done }) })
+export const reorderSchedule = (items) =>
+  request('/today/schedule/reorder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(items) })
+export const setScheduleTime = (kind, id, time) =>
+  request('/today/schedule/time', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, id, time }) })

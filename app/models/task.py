@@ -24,6 +24,7 @@ class Task(Base):
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=True)
     created_at: Mapped[str | None] = mapped_column(String, nullable=True)  # YYYY-MM-DD
     estimated_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    scheduled_time: Mapped[str | None] = mapped_column(String, nullable=True)  # HH:MM, Daily Schedule time-of-day
 
     goal: Mapped["Goal"] = relationship("Goal", back_populates="tasks")
     proofs: Mapped[list["Proof"]] = relationship("Proof", back_populates="task", cascade="all, delete-orphan")

@@ -27,6 +27,10 @@ class WorkLog(Base):
     duration_minutes: Mapped[int] = mapped_column(Integer, default=0)  # total logged minutes (manual + timer)
     logged_at: Mapped[str] = mapped_column(String, nullable=False)      # YYYY-MM-DD
 
+    plan_date: Mapped[str | None] = mapped_column(String, nullable=True)        # YYYY-MM-DD scheduled for a day
+    schedule_order: Mapped[int] = mapped_column(Integer, default=0)             # order within Daily Schedule
+    scheduled_time: Mapped[str | None] = mapped_column(String, nullable=True)   # HH:MM, Daily Schedule time-of-day
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     company: Mapped["Company"] = relationship("Company", back_populates="work_logs")

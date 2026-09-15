@@ -13,6 +13,8 @@ from app.models.goal import Goal
 from app.models.habit_log import HabitLog
 from app.models.proof import Proof
 from app.models.task import Task
+from app.models.work_log import WorkLog
+from app.models.work_ticket import WorkTimeEntry
 from app.schemas.comment import CommentRead
 from app.schemas.proof import ProofRead
 from app.schemas.task import TaskRead, TaskWithProofs
@@ -121,18 +123,36 @@ def _upsert_snapshot(target_date: str, db: Session) -> None:
         Task.status == "todo",
     ).count()
 
+    # ── Work activity ───────────────────────────────────────────────────────────
+    # Sum seconds from work time entries + work log minutes for this date.
+    # This lets us identify "work-only" days where the user was productive
+    # in the Work module but didn't plan tasks/habits through the app.
+    work_entry_secs = db.query(WorkTimeEntry).filter(
+        WorkTimeEntry.logged_at == target_date
+    ).all()
+    work_secs = sum(e.duration_seconds or 0 for e in work_entry_secs)
+
+    work_logs_day = db.query(WorkLog).filter(WorkLog.logged_at == target_date).all()
+    work_secs += sum((l.duration_minutes or 0) * 60 for l in work_logs_day)
+
     # ── Scores ─────────────────────────────────────────────────────────────────
     task_score  = round((tasks_done  / tasks_total)  * 100, 1) if tasks_total  > 0 else 0.0
     habit_score = round((habits_done / habits_total) * 100, 1) if habits_total > 0 else 0.0
 
     # Combined score: tasks weighted 70%, habits 30%
-    # (tasks are the primary commitment; habits are bonus consistency)
     if tasks_total > 0 and habits_total > 0:
         score_pct = round(task_score * 0.7 + habit_score * 0.3, 1)
     elif tasks_total > 0:
         score_pct = task_score
-    else:
+    elif habits_total > 0:
         score_pct = habit_score
+    elif work_secs > 0:
+        # Work-only day: user was active in Work module — don't score as zero.
+        # Use None so analytics can exclude it from task/habit averages rather
+        # than dragging down the score with a false 0%.
+        score_pct = None
+    else:
+        score_pct = 0.0
 
     snap = db.query(DailySnapshot).filter(DailySnapshot.date == target_date).first()
     if snap:
@@ -143,6 +163,7 @@ def _upsert_snapshot(target_date: str, db: Session) -> None:
         snap.task_score   = task_score
         snap.habit_score  = habit_score
         snap.score_pct    = score_pct
+        snap.work_seconds = work_secs
     else:
         db.add(DailySnapshot(
             date=target_date,
@@ -150,6 +171,7 @@ def _upsert_snapshot(target_date: str, db: Session) -> None:
             habits_total=habits_total, habits_done=habits_done,
             task_score=task_score, habit_score=habit_score,
             score_pct=score_pct,
+            work_seconds=work_secs,
         ))
     db.commit()
 

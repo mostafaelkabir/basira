@@ -32,6 +32,8 @@ from app.routes.ai_tools import router as ai_tools_router
 from app.routes.insights import router as insights_router
 from app.routes.reflections import router as reflections_router
 from app.routes.plans import router as plans_router
+from app.routes.schedule import router as schedule_router
+from app.routes.work_reports import router as work_reports_router
 from app.scheduler import start_scheduler
 
 
@@ -209,6 +211,17 @@ def run_migrations():
         "ALTER TABLE execution_logs ADD COLUMN task_feeling TEXT",
         "ALTER TABLE defer_logs ADD COLUMN defer_reason TEXT",
         "ALTER TABLE work_sessions ADD COLUMN focus_quality INTEGER",
+        # Work-day awareness: track work seconds on snapshots so work-only days aren't scored as zero
+        "ALTER TABLE daily_snapshots ADD COLUMN work_seconds INTEGER DEFAULT 0",
+        # Daily Schedule: let work tickets/logs be scheduled into a specific day, like tasks already can
+        "ALTER TABLE work_tickets ADD COLUMN plan_date VARCHAR",
+        "ALTER TABLE work_tickets ADD COLUMN schedule_order INTEGER DEFAULT 0",
+        "ALTER TABLE work_logs ADD COLUMN plan_date VARCHAR",
+        "ALTER TABLE work_logs ADD COLUMN schedule_order INTEGER DEFAULT 0",
+        # Daily Schedule: optional time-of-day per item, single unified ordering
+        "ALTER TABLE tasks ADD COLUMN scheduled_time VARCHAR",
+        "ALTER TABLE work_tickets ADD COLUMN scheduled_time VARCHAR",
+        "ALTER TABLE work_logs ADD COLUMN scheduled_time VARCHAR",
         # Self-knowledge engine: new tables
         """CREATE TABLE IF NOT EXISTS afternoon_checkins (
             id TEXT PRIMARY KEY,
@@ -283,6 +296,8 @@ app.include_router(ai_tools_router)
 app.include_router(insights_router)
 app.include_router(reflections_router)
 app.include_router(plans_router)
+app.include_router(schedule_router)
+app.include_router(work_reports_router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

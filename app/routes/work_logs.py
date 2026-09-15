@@ -295,78 +295,33 @@ def weekly_stats(
 ):
     """Returns hours per company per week — for payment reports."""
     from datetime import date
+    from app.services.work_reports import summarize_work, work_entries
+
     today = date.today()
-    # Default: current week Mon–Sun
-    if not date_from:
-        monday = today - timedelta(days=today.weekday())
-        date_from = monday.isoformat()
-    if not date_to:
-        date_to = today.isoformat()
+    try:
+        start = date.fromisoformat(date_from) if date_from else today - timedelta(days=today.weekday())
+        end = date.fromisoformat(date_to) if date_to else today
+    except ValueError:
+        raise HTTPException(400, "Dates must be YYYY-MM-DD")
+    if end < start or (end - start).days > 365:
+        raise HTTPException(400, "Choose a valid range of up to 366 days")
 
-    today_str = today.isoformat()
+    def summary(start, end):
+        return summarize_work(work_entries(db, start.isoformat(), end.isoformat()), start, end)
 
-    def _company_meta(db, cid):
-        c = db.get(Company, cid)
-        return c.name if c else cid, c.color if c else "#2D7A6B"
+    week = summary(start, end)
+    daily = summary(today, today)
 
-    def aggregate(date_from_s, date_to_s):
-        by: dict[str, dict] = {}
-        total = 0
-
-        # Work logs
-        logs = db.query(WorkLog).filter(
-            WorkLog.logged_at >= date_from_s,
-            WorkLog.logged_at <= date_to_s,
-        ).all()
-        for log in logs:
-            cid = log.company_id
-            if cid not in by:
-                name, color = _company_meta(db, cid)
-                by[cid] = {"company_id": cid, "company_name": name, "company_color": color, "minutes": 0, "seconds": 0}
-            mins = log.duration_minutes or 0
-            by[cid]["minutes"] += mins
-            by[cid]["seconds"] += mins * 60
-            total += mins
-
-        # Ticket time entries
-        entries = (
-            db.query(WorkTimeEntry, WorkTicket.company_id)
-            .join(WorkTicket, WorkTimeEntry.ticket_id == WorkTicket.id)
-            .filter(WorkTimeEntry.logged_at >= date_from_s, WorkTimeEntry.logged_at <= date_to_s)
-            .all()
-        )
-        for entry, cid in entries:
-            if cid not in by:
-                name, color = _company_meta(db, cid)
-                by[cid] = {"company_id": cid, "company_name": name, "company_color": color, "minutes": 0, "seconds": 0}
-            secs = entry.duration_seconds or 0
-            by[cid]["seconds"] += secs
-            by[cid]["minutes"] = by[cid]["seconds"] // 60
-            total = sum(v["minutes"] for v in by.values())
-
-        return list(by.values()), total
-
-    week_by_company, total_minutes = aggregate(date_from, date_to)
-    today_by_company, today_total = aggregate(today_str, today_str)
-
-    # Daily breakdown (work logs only, for chart)
-    logs_all = db.query(WorkLog).filter(
-        WorkLog.logged_at >= date_from,
-        WorkLog.logged_at <= date_to,
-    ).all()
-    by_day: dict[str, int] = {}
-    for log in logs_all:
-        d = log.logged_at
-        by_day[d] = by_day.get(d, 0) + (log.duration_minutes or 0)
+    def company_rows(data):
+        return [{**c, "minutes": c["seconds"] // 60} for c in data["by_company"]]
 
     return {
-        "date_from": date_from,
-        "date_to": date_to,
-        "total_minutes": total_minutes,
-        "today_total_minutes": today_total,
-        "by_company": week_by_company,
-        "today_by_company": today_by_company,
-        "by_day": [{"date": d, "minutes": m} for d, m in sorted(by_day.items())],
+        "date_from": start.isoformat(), "date_to": end.isoformat(),
+        "total_minutes": week["total_seconds"] // 60,
+        "today_total_minutes": daily["total_seconds"] // 60,
+        "by_company": company_rows(week), "today_by_company": company_rows(daily),
+        "by_day": [{"date": d["date"], "minutes": d["seconds"] // 60,
+                    "seconds": d["seconds"]} for d in week["by_day"]],
     }
 
 

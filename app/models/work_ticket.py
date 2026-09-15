@@ -37,6 +37,10 @@ class WorkTicket(Base):
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
+    plan_date: Mapped[str | None] = mapped_column(String, nullable=True)        # YYYY-MM-DD scheduled for a day
+    schedule_order: Mapped[int] = mapped_column(Integer, default=0)             # order within Daily Schedule
+    scheduled_time: Mapped[str | None] = mapped_column(String, nullable=True)   # HH:MM, Daily Schedule time-of-day
+
     company: Mapped["Company"] = relationship("Company")
     time_entries: Mapped[list["WorkTimeEntry"]] = relationship(
         "WorkTimeEntry", back_populates="ticket", cascade="all, delete-orphan",

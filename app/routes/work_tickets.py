@@ -473,7 +473,8 @@ def weekly_report(body: WeeklyReportBody, db: Session = Depends(get_db)):
     type_seconds: dict[str, int] = {}
 
     for t in relevant_tickets:
-        secs = ticket_seconds.get(t.id, t.logged_seconds or 0)
+        # Only count seconds actually logged within this week's range
+        secs = ticket_seconds.get(t.id, 0)
         entry = {
             "id": t.id,
             "title": t.title,
@@ -500,7 +501,7 @@ def weekly_report(body: WeeklyReportBody, db: Session = Depends(get_db)):
         type_seconds[l.type] = type_seconds.get(l.type, 0) + secs
         log_seconds_total += secs
 
-    total_ticket_secs = sum(ticket_seconds.get(t.id, t.logged_seconds or 0) for t in relevant_tickets)
+    total_ticket_secs = sum(ticket_seconds.get(t.id, 0) for t in relevant_tickets)
     total_seconds = total_ticket_secs + log_seconds_total
 
     def fmt_hours(secs: int) -> str:

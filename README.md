@@ -172,6 +172,29 @@ basira/
 
 ## Development
 
+### Work time and manager reports
+
+Open **Work → Time & Reports**. Select a company (or All), then a month,
+Monday–Sunday week, or custom range of up to 366 days. Current weeks/months
+show time to date. Expand a week and a day to inspect the underlying entries.
+The editable manager report supports a concise update or detailed timesheet,
+with plain-text and Markdown copy options. Draft edits affect only the report;
+changing the period or refreshing totals starts a fresh draft.
+
+Reporting reads saved ticket time entries and standalone work-log totals once,
+using their saved dates. It does not add timer sessions again or include running
+timers before they are stopped. Standalone logs retain their original recorded
+date; historical hours are not redistributed. Legacy entries with only minutes
+are interpreted on read. No reporting migrations or updates to logged data are
+required. Ticket statuses are not used to infer historical accomplishments.
+
+Run the isolated reporting checks (no production database access):
+
+```bash
+venv/bin/python -m unittest discover -s tests -v
+node --test frontend/src/workReportUtils.test.js
+```
+
 ```bash
 # Backend with hot-reload
 venv/bin/uvicorn app.main:app --port 8001 --reload

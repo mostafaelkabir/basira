@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getTimerToday, updateTask } from './api'
+import { getTimerToday, updateTask, getDailySchedule } from './api'
 import { formatDuration } from './components/EstimatedTimePicker'
 import { useTimer } from './TimerContext'
 
@@ -29,13 +29,27 @@ function fmtAbs(absMin) {           // absolute minutes from midnight → "9:30 
 function loadCal(date)        { try { return JSON.parse(localStorage.getItem(`basira_cal_${date}`) || '{}') } catch { return {} } }
 function saveCal(date, sched) { localStorage.setItem(`basira_cal_${date}`, JSON.stringify(sched)) }
 
-function buildInitialSchedule(items, existing) {
+// Work items (tickets/logs) get a per-day session duration stored locally —
+// never the ticket's overall estimated_minutes, which reflects total project
+// scope and shouldn't be overwritten just because today's session was 20 min.
+const WORK_DEFAULT_MIN = 30
+function loadWorkDurs(date)        { try { return JSON.parse(localStorage.getItem(`basira_cal_workdurs_${date}`) || '{}') } catch { return {} } }
+function saveWorkDurs(date, durs)  { localStorage.setItem(`basira_cal_workdurs_${date}`, JSON.stringify(durs)) }
+
+function durationFor(item, workDurs) {
+  if (item._kind === 'ticket' || item._kind === 'worklog') {
+    return workDurs[item.id] ?? WORK_DEFAULT_MIN
+  }
+  return item.estimated_minutes || 30
+}
+
+function buildInitialSchedule(items, existing, workDurs) {
   const out = { ...existing }
   let cursor = DAY_START * 60
   for (const t of items) {
     if (!(t.id in out)) {
       out[t.id] = cursor
-      cursor += (t.estimated_minutes || 30)
+      cursor += durationFor(t, workDurs)
     }
   }
   return out
@@ -66,14 +80,15 @@ function NowLine() {
 
 // ── Task block ────────────────────────────────────────────────────────────────
 function TaskBlock({ task, startMin, duration, isDragging, isTop, actualMin, onMouseDownMove, onMouseDownResize, onStartTimer }) {
-  const isDone   = task.status === 'done' || task.checked_today
+  const isDone   = task.status === 'done' || task.checked_today || task.done
   const isFocus  = task._section === 'focus'
+  const isWork   = task._kind === 'ticket' || task._kind === 'worklog'
   const top      = minToPx(startMin - DAY_START * 60)
   const height   = Math.max(minToPx(duration), minToPx(MIN_DUR))
   const pct      = duration > 0 ? Math.min(100, Math.round((actualMin / duration) * 100)) : 0
   const endMin   = startMin + duration
 
-  const accentColor = isDone ? '#9cad9c' : isFocus ? '#c5983a' : '#0d9488'
+  const accentColor = isDone ? '#9cad9c' : isFocus ? '#c5983a' : isWork ? '#2D7A6B' : '#0d9488'
   const zIndex   = isDragging ? 200 : isTop ? 10 : 2
 
   return (
@@ -90,6 +105,8 @@ function TaskBlock({ task, startMin, duration, isDragging, isTop, actualMin, onM
             ? 'bg-sage-50 border-sage-200'
             : isFocus
             ? 'bg-gold-50 border-gold-200'
+            : isWork
+            ? 'bg-[#2D7A6B]/5 border-[#2D7A6B]/20'
             : 'bg-white border-sand-200'
         }`}
         style={{ borderLeft: `3px solid ${accentColor}` }}
@@ -102,13 +119,21 @@ function TaskBlock({ task, startMin, duration, isDragging, isTop, actualMin, onM
         )}
 
         <div className="px-2 py-1.5 flex flex-col gap-0.5 overflow-hidden h-full">
-          <p className={`text-[11px] font-semibold leading-tight truncate ${isDone ? 'line-through text-sand-400' : 'text-sand-800'}`}>
-            {task.title}
-          </p>
+          <div className="flex items-center gap-1">
+            {isWork && (
+              <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-[#2D7A6B] text-white flex-shrink-0 leading-none">
+                WORK
+              </span>
+            )}
+            <p className={`text-[11px] font-semibold leading-tight truncate ${isDone ? 'line-through text-sand-400' : 'text-sand-800'}`}>
+              {task.title}
+            </p>
+          </div>
           {height >= minToPx(24) && (
             <p className="text-[10px] text-sand-400 leading-none truncate">
               {fmtAbs(startMin)}–{fmtAbs(endMin)}
               {duration ? ` · ${formatDuration(duration)}` : ''}
+              {isWork && task.company_name ? ` · ${task.company_name}` : ''}
             </p>
           )}
           {height >= minToPx(40) && actualMin > 0 && (
@@ -116,7 +141,7 @@ function TaskBlock({ task, startMin, duration, isDragging, isTop, actualMin, onM
               {formatDuration(actualMin)} spent
             </p>
           )}
-          {!isDone && height >= minToPx(45) && (
+          {!isDone && !isWork && height >= minToPx(45) && (
             <button
               onMouseDown={e => e.stopPropagation()}
               onClick={e => { e.stopPropagation(); onStartTimer() }}
@@ -156,21 +181,38 @@ export default function PlannerView({ items: rawItems, focusItems, date }) {
   const durationsRef = useRef({})
   const dragRef      = useRef(null) // { taskId, mode, startY, origMin, origDur }
 
-  // ── Merge focus + plan ──
+  const [workItems, setWorkItems] = useState([])
+
+  // ── Fetch Daily Schedule work items (tickets/logs) ──
+  useEffect(() => {
+    getDailySchedule()
+      .then(scheduled => {
+        setWorkItems(
+          scheduled
+            .filter(i => i.kind === 'ticket' || i.kind === 'worklog')
+            .map(i => ({ ...i, _kind: i.kind, _section: 'work', status: i.done ? 'done' : 'todo' }))
+        )
+      })
+      .catch(() => {})
+  }, [date])
+
+  // ── Merge focus + plan + work ──
   useEffect(() => {
     const focusIds = new Set((focusItems || []).map(t => t.id))
     setItems([
-      ...(focusItems || []).map(t => ({ ...t, _section: 'focus' })),
-      ...rawItems.filter(t => !focusIds.has(t.id)).map(t => ({ ...t, _section: 'plan' })),
+      ...(focusItems || []).map(t => ({ ...t, _kind: 'task', _section: 'focus' })),
+      ...rawItems.filter(t => !focusIds.has(t.id)).map(t => ({ ...t, _kind: 'task', _section: 'plan' })),
+      ...workItems,
     ])
-  }, [rawItems, focusItems])
+  }, [rawItems, focusItems, workItems])
 
   // ── Initialize schedule ──
   useEffect(() => {
     if (!items.length) return
     const existing = loadCal(date)
-    const init = buildInitialSchedule(items, existing)
-    const durs = Object.fromEntries(items.map(t => [t.id, t.estimated_minutes || 30]))
+    const existingWorkDurs = loadWorkDurs(date)
+    const init = buildInitialSchedule(items, existing, existingWorkDurs)
+    const durs = Object.fromEntries(items.map(t => [t.id, durationFor(t, existingWorkDurs)]))
     setSchedule(init)
     setDurations(durs)
     scheduleRef.current  = init
@@ -222,10 +264,20 @@ export default function PlannerView({ items: rawItems, focusItems, date }) {
       saveCal(date, scheduleRef.current)
     } else {
       const newDur = durationsRef.current[drag.taskId]
-      setItems(prev => prev.map(t => t.id === drag.taskId ? { ...t, estimated_minutes: newDur } : t))
-      try { await updateTask(drag.taskId, { estimated_minutes: newDur }) } catch {}
+      const target = items.find(t => t.id === drag.taskId)
+      const isWorkItem = target?._kind === 'ticket' || target?._kind === 'worklog'
+
+      if (isWorkItem) {
+        // Work items: today's planned session length is local-only and never
+        // touches the ticket's overall estimated_minutes (total project scope).
+        const workDurs = { ...loadWorkDurs(date), [drag.taskId]: newDur }
+        saveWorkDurs(date, workDurs)
+      } else {
+        setItems(prev => prev.map(t => t.id === drag.taskId ? { ...t, estimated_minutes: newDur } : t))
+        try { await updateTask(drag.taskId, { estimated_minutes: newDur }) } catch {}
+      }
     }
-  }, [date])
+  }, [date, items])
 
   useEffect(() => {
     window.addEventListener('mousemove', onMouseMove)

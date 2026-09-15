@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { checkinHabit, getOverview, getToday, uncheckinHabit } from './api'
+import { checkinHabit, getAnalytics, getOverview, getToday, uncheckinHabit } from './api'
 import { GoalIcon } from './GoalsPage'
 
 const MONTHS    = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -78,6 +78,7 @@ function SectionLabel({ children, right }) {
 export default function ProgressPage({ onGoToGoal }) {
   const [overview, setOverview] = useState([])
   const [habits, setHabits]     = useState([])
+  const [snapshots, setSnapshots] = useState([])
   const [loading, setLoading]   = useState(true)
   const [expandedHabits, setExpandedHabits] = useState(new Set())
   const monthGrid = getMonthGrid()
@@ -85,9 +86,10 @@ export default function ProgressPage({ onGoToGoal }) {
 
   async function load() {
     try {
-      const [todayData, ov] = await Promise.all([getToday(), getOverview()])
+      const [todayData, ov, analytics] = await Promise.all([getToday(), getOverview(), getAnalytics()])
       setHabits(todayData.habits)
       setOverview(ov)
+      setSnapshots(analytics.snapshots || [])
     } catch (err) { alert(err.message) }
     finally { setLoading(false) }
   }
@@ -134,9 +136,13 @@ export default function ProgressPage({ onGoToGoal }) {
   })
   const maxVelocity = Math.max(...velocityDays.map(d => d.count), 1)
 
+  // Build snapshot lookup for fast access in heatmap
+  const snapshotByDate = Object.fromEntries(snapshots.map(s => [s.date, s]))
+
   // 90-day heatmap: generate grid (13 cols × 7 rows)
   const heatmapCells = (() => {
     const today = new Date(); today.setHours(0,0,0,0)
+    const todayIso = today.toISOString().split('T')[0]
     const cells = []
     for (let col = 12; col >= 0; col--) {
       const week = []
@@ -144,19 +150,21 @@ export default function ProgressPage({ onGoToGoal }) {
         const d = new Date(today)
         d.setDate(d.getDate() - (col * 7 + (6 - dow)))
         const iso = d.toISOString().split('T')[0]
-        // Activity level: check if any habit had check-in on this day
         const checkinCount = habits.filter(h => h.monthly_checkins && h.monthly_checkins.includes(iso)).length
-        week.push({ iso, checkinCount, isToday: iso === today.toISOString().split('T')[0] })
+        const snap = snapshotByDate[iso]
+        const isWorkOnly = snap?.is_work_only === true
+        week.push({ iso, checkinCount, isToday: iso === todayIso, isWorkOnly })
       }
       cells.push(week)
     }
     return cells
   })()
 
-  function heatmapColor(count) {
-    if (count === 0) return '#E8E3DB'
-    if (count === 1) return '#a8d5c8'
-    if (count <= 3) return '#2D7A6B'
+  function heatmapColor(cell) {
+    if (cell.isWorkOnly) return '#2D7A6B'   // teal — work day, not a miss
+    if (cell.checkinCount === 0) return '#E8E3DB'
+    if (cell.checkinCount === 1) return '#a8d5c8'
+    if (cell.checkinCount <= 3) return '#2D7A6B'
     return '#1B3A2D'
   }
 
@@ -237,8 +245,8 @@ export default function ProgressPage({ onGoToGoal }) {
                   <div
                     key={ri}
                     className="h-3 rounded-[2px]"
-                    style={{ backgroundColor: heatmapColor(cell.checkinCount), outline: cell.isToday ? '1px solid #2D7A6B' : 'none' }}
-                    title={`${cell.iso}: ${cell.checkinCount} habits`}
+                    style={{ backgroundColor: heatmapColor(cell), outline: cell.isToday ? '2px solid #E8C334' : 'none' }}
+                    title={cell.isWorkOnly ? `${cell.iso}: Work day` : `${cell.iso}: ${cell.checkinCount} habit${cell.checkinCount !== 1 ? 's' : ''}`}
                   />
                 ))}
               </div>
