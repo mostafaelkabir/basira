@@ -48,7 +48,7 @@ export default function EstimatedTimePicker({ value, onChange }) {
             const v = parseInt(e.target.value)
             onChange(isNaN(v) || v <= 0 ? null : v)
           }}
-          className="w-24 px-2 py-1.5 rounded-xl text-xs border border-sand-200 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white text-sand-700 placeholder:text-sand-300"
+          className="w-24 px-2 py-1.5 rounded-xl text-xs border border-sand-200 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-surface text-sand-700 placeholder:text-sand-300"
         />
       </div>
       {value && (

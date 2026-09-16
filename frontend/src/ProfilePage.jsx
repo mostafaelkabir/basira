@@ -1,3 +1,4 @@
+import { notify } from './components/Notice'
 import { useEffect, useState } from 'react'
 import { getInsightsProfile, getProfileNarrative, getReflections } from './api'
 
@@ -54,18 +55,18 @@ function RadarChart({ scores }) {
     <svg width={size} height={size} className="overflow-visible">
       {/* Grid rings */}
       {rings.map((pts, i) => (
-        <polygon key={i} points={pts} fill="none" stroke="#E8E3DB" strokeWidth="1" />
+        <polygon key={i} points={pts} fill="none" style={{ stroke: 'rgb(var(--border-strong))' }} strokeWidth="1" />
       ))}
       {/* Axis lines */}
       {axes.map((ax, i) => (
         <line key={i} x1={cx} y1={cy} x2={ax.outer.x} y2={ax.outer.y}
-          stroke="#E8E3DB" strokeWidth="1" />
+          style={{ stroke: 'rgb(var(--border-strong))' }} strokeWidth="1" />
       ))}
       {/* Data polygon */}
-      <path d={dataPath} fill="#1B3A2D" fillOpacity="0.25" stroke="#2D7A6B" strokeWidth="2" />
+      <path d={dataPath} style={{ fill: 'rgb(var(--accent) / .22)', stroke: 'rgb(var(--glow))', filter: 'drop-shadow(0 0 6px rgb(var(--glow) / .6))' }} strokeWidth="2" />
       {/* Data dots */}
       {dataPoints.map((p, i) => (
-        <circle key={i} cx={p.x} cy={p.y} r="4" fill="#2D7A6B" />
+        <circle key={i} cx={p.x} cy={p.y} r="4" style={{ fill: 'rgb(var(--glow))' }} />
       ))}
       {/* Labels */}
       {axes.map((ax, i) => {
@@ -73,7 +74,7 @@ function RadarChart({ scores }) {
         return (
           <text key={i} x={ax.label.x} y={ax.label.y}
             textAnchor="middle" dominantBaseline="middle"
-            fontSize="9" fontWeight="600" fill="#1A1A1A"
+            fontSize="9" fontWeight="600" style={{ fill: 'rgb(var(--ink))' }}
             className="select-none">
             {RADAR_DIMS[i].label}
             {score != null ? ` ${score}` : ' —'}
@@ -91,11 +92,11 @@ function HourlyHeatmap({ peakHours, bestHour }) {
 
   function color(h) {
     const val = (h.completions + h.focus_seconds / 1800) / maxVal
-    if (val < 0.1) return '#F2EDE4'
-    if (val < 0.3) return '#c8dcd6'
-    if (val < 0.55) return '#8bbdb4'
-    if (val < 0.8) return '#4d9e93'
-    return '#1B3A2D'
+    if (val < 0.1) return 'rgb(var(--heat-0))'
+    if (val < 0.3) return 'rgb(var(--heat-1))'
+    if (val < 0.55) return 'rgb(var(--heat-2))'
+    if (val < 0.8) return 'rgb(var(--heat-3))'
+    return 'rgb(var(--heat-4))'
   }
 
   return (
@@ -108,7 +109,7 @@ function HourlyHeatmap({ peakHours, bestHour }) {
               style={{
                 backgroundColor: color(h),
                 height: `${Math.max(6, ((h.completions + h.focus_seconds / 1800) / maxVal) * 48)}px`,
-                outline: h.hour === bestHour ? '2px solid #E8C334' : 'none',
+                outline: h.hour === bestHour ? '2px solid rgb(var(--gold))' : 'none',
               }}
               title={`${h.hour}:00 — ${h.completions} completions, ${Math.round(h.focus_seconds / 60)}min focus`}
             />
@@ -117,11 +118,11 @@ function HourlyHeatmap({ peakHours, bestHour }) {
       </div>
       <div className="flex justify-between mt-1">
         {[0, 6, 12, 18, 23].map(h => (
-          <span key={h} className="text-[9px] text-[#b5a08a]">{h}:00</span>
+          <span key={h} className="text-[9px] text-muted">{h}:00</span>
         ))}
       </div>
-      <p className="text-[11px] text-[#6B6B6B] mt-1">
-        Peak: <span className="font-bold text-[#1B3A2D]">{bestHour}:00</span>
+      <p className="text-[11px] text-muted mt-1">
+        Peak: <span className="font-bold text-accent">{bestHour}:00</span>
       </p>
     </div>
   )
@@ -138,12 +139,12 @@ function DayBars({ peakDays, bestDay }) {
           <div
             className="w-full rounded-sm transition-all"
             style={{
-              backgroundColor: d.day === bestDay ? '#1B3A2D' : '#c8dcd6',
+              backgroundColor: d.day === bestDay ? 'rgb(var(--glow))' : 'rgb(var(--heat-1))',
               height: `${Math.max(4, (d.completions / maxVal) * 40)}px`,
             }}
             title={`${d.day}: ${d.completions} completions`}
           />
-          <span className={`text-[9px] font-medium ${d.day === bestDay ? 'text-[#1B3A2D]' : 'text-[#b5a08a]'}`}>
+          <span className={`text-[9px] font-medium ${d.day === bestDay ? 'text-accent' : 'text-muted'}`}>
             {d.day}
           </span>
         </div>
@@ -160,15 +161,15 @@ function ReflectionStrip({ reflections }) {
   return (
     <div className="space-y-2">
       {reflections.slice(0, 4).map(r => (
-        <div key={r.id} className="flex items-start gap-3 py-2.5 px-3 bg-[#F9F6F1] rounded-xl border border-[#E8E3DB]">
+        <div key={r.id} className="flex items-start gap-3 py-2.5 px-3 bg-canvas rounded-xl border border-border">
           <div className="flex flex-col items-center gap-1 flex-shrink-0">
-            <span className={`w-2.5 h-2.5 rounded-full ${r.energy_rating ? ENERGY_DOT[r.energy_rating] : 'bg-[#E8E3DB]'}`} title={`Energy: ${r.energy_rating}/5`} />
-            <span className={`w-2.5 h-2.5 rounded-full ${r.values_alignment ? ENERGY_DOT[r.values_alignment] : 'bg-[#E8E3DB]'}`} title={`Values: ${r.values_alignment}/5`} />
+            <span className={`w-2.5 h-2.5 rounded-full ${r.energy_rating ? ENERGY_DOT[r.energy_rating] : 'bg-border'}`} title={`Energy: ${r.energy_rating}/5`} />
+            <span className={`w-2.5 h-2.5 rounded-full ${r.values_alignment ? ENERGY_DOT[r.values_alignment] : 'bg-border'}`} title={`Values: ${r.values_alignment}/5`} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] text-[#b5a08a] font-medium mb-0.5">{r.period_start} · {r.period_type}</p>
+            <p className="text-[10px] text-muted font-medium mb-0.5">{r.period_start} · {r.period_type}</p>
             {r.do_differently && (
-              <p className="text-xs text-[#1A1A1A] truncate">"{r.do_differently}"</p>
+              <p className="text-xs text-ink truncate">"{r.do_differently}"</p>
             )}
           </div>
         </div>
@@ -199,11 +200,11 @@ export default function ProfilePage() {
     try {
       const { narrative: n } = await getProfileNarrative(profile)
       setNarrative(n)
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setNarrativeLoading(false) }
   }
 
-  if (loading) return <div className="flex items-center justify-center h-64 text-[#6B6B6B]">Analyzing your patterns…</div>
+  if (loading) return <div className="flex items-center justify-center h-64 text-muted">Analyzing your patterns…</div>
 
   const scores = profile?.dimension_scores || {}
   const peakHours = profile?.peak_hours || []
@@ -218,7 +219,7 @@ export default function ProfilePage() {
     q1: 'bg-amber-50 border-amber-200 text-amber-700',
     q2: 'bg-emerald-50 border-emerald-200 text-emerald-700',
     q3: 'bg-red-50 border-red-200 text-red-600',
-    q4: 'bg-[#F9F6F1] border-[#E8E3DB] text-[#6B6B6B]',
+    q4: 'bg-canvas border-border text-muted',
   }
   const QUAD_LABELS = {
     q1: 'Urgent + Important',
@@ -227,16 +228,16 @@ export default function ProfilePage() {
     q4: 'Low Priority',
   }
 
-  const FEELING_COLOR = { loved: '#E8C334', flow: '#2D7A6B', grind: '#b5a08a', unrated: '#E8E3DB' }
+  const FEELING_COLOR = { loved: 'rgb(var(--gold))', flow: 'rgb(var(--accent))', grind: 'rgb(var(--faint))', unrated: 'rgb(var(--border-strong))' }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-[11px] font-bold text-[#6B6B6B] uppercase tracking-widest mb-1">بَصِيرَة</p>
-          <h1 className="text-3xl font-bold text-[#1A1A1A]">Your Profile</h1>
-          <p className="text-sm text-[#6B6B6B] mt-0.5">Based on {profile?.data_window_days || 90} days of behavior</p>
+          <p className="text-[11px] font-bold text-muted uppercase tracking-widest mb-1">بَصِيرَة</p>
+          <h1 className="text-3xl font-bold text-ink">Your Profile</h1>
+          <p className="text-sm text-muted mt-0.5">Based on {profile?.data_window_days || 90} days of behavior</p>
         </div>
         <button onClick={handleNarrative} disabled={narrativeLoading}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-violet-200 text-violet-700 bg-violet-50 text-sm font-medium hover:bg-violet-100 transition-colors disabled:opacity-50">
@@ -263,16 +264,16 @@ export default function ProfilePage() {
       {/* Row 1: Radar + Performance Window */}
       <div className="grid grid-cols-2 gap-4">
         {/* Radar */}
-        <div className="bg-white border border-[#E8E3DB] rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-          <p className="text-[11px] font-bold text-[#6B6B6B] uppercase tracking-widest mb-4">Performance Signature</p>
+        <div className="bg-surface border border-border rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+          <p className="text-[11px] font-bold text-muted uppercase tracking-widest mb-4">Performance Signature</p>
           <div className="flex justify-center">
             <RadarChart scores={scores} />
           </div>
           <div className="grid grid-cols-3 gap-1.5 mt-3">
             {RADAR_DIMS.map(d => (
               <div key={d.key} className="text-center">
-                <p className="text-[9px] text-[#b5a08a] uppercase tracking-wide">{d.label}</p>
-                <p className="text-sm font-bold text-[#1A1A1A]">
+                <p className="text-[9px] text-muted uppercase tracking-wide">{d.label}</p>
+                <p className="text-sm font-bold text-ink">
                   {scores[d.key] != null ? `${scores[d.key]}%` : '—'}
                 </p>
               </div>
@@ -281,19 +282,19 @@ export default function ProfilePage() {
         </div>
 
         {/* Performance Window */}
-        <div className="bg-white border border-[#E8E3DB] rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)] space-y-5">
+        <div className="bg-surface border border-border rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)] space-y-5">
           <div>
-            <p className="text-[11px] font-bold text-[#6B6B6B] uppercase tracking-widest mb-3">Peak Hours</p>
+            <p className="text-[11px] font-bold text-muted uppercase tracking-widest mb-3">Peak Hours</p>
             {peakHours.length > 0
               ? <HourlyHeatmap peakHours={peakHours} bestHour={bestHour} />
-              : <p className="text-xs text-[#b5a08a]">Complete tasks to unlock your peak hour map.</p>
+              : <p className="text-xs text-muted">Complete tasks to unlock your peak hour map.</p>
             }
           </div>
           <div>
-            <p className="text-[11px] font-bold text-[#6B6B6B] uppercase tracking-widest mb-3">Best Day of Week</p>
+            <p className="text-[11px] font-bold text-muted uppercase tracking-widest mb-3">Best Day of Week</p>
             {peakDays.length > 0
               ? <DayBars peakDays={peakDays} bestDay={bestDay} />
-              : <p className="text-xs text-[#b5a08a]">More data needed.</p>
+              : <p className="text-xs text-muted">More data needed.</p>
             }
           </div>
         </div>
@@ -302,52 +303,52 @@ export default function ProfilePage() {
       {/* Row 2: Strength Signals + Friction Zones */}
       <div className="grid grid-cols-2 gap-4">
         {/* Strength Signals */}
-        <div className="bg-white border border-[#E8E3DB] rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-          <p className="text-[11px] font-bold text-[#6B6B6B] uppercase tracking-widest mb-3">Strength Signals</p>
+        <div className="bg-surface border border-border rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+          <p className="text-[11px] font-bold text-muted uppercase tracking-widest mb-3">Strength Signals</p>
           {affinity.length > 0 ? (
             <div className="space-y-2">
               {affinity.slice(0, 3).map((a, i) => (
                 <div key={i} className="flex items-center gap-3 py-2 px-3 rounded-xl"
-                  style={{ backgroundColor: a.feeling_label === 'loved' ? '#FFFBEB' : a.feeling_label === 'flow' ? '#f0faf8' : '#F9F6F1' }}>
+                  style={{ backgroundColor: a.feeling_label === 'loved' ? 'rgb(var(--gold-soft))' : a.feeling_label === 'flow' ? 'rgb(var(--accent-soft))' : 'rgb(var(--raised))' }}>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[#1A1A1A] capitalize">{a.goal_type || 'Tasks'}</p>
-                    <p className="text-[11px] text-[#6B6B6B]">{a.completions} completions</p>
+                    <p className="text-sm font-semibold text-ink capitalize">{a.goal_type || 'Tasks'}</p>
+                    <p className="text-[11px] text-muted">{a.completions} completions</p>
                   </div>
                   <span
                     className="text-[10px] px-2 py-0.5 rounded-lg font-bold uppercase tracking-wide border"
-                    style={{ color: FEELING_COLOR[a.feeling_label] || '#b5a08a', borderColor: FEELING_COLOR[a.feeling_label] || '#E8E3DB', backgroundColor: 'transparent' }}>
+                    style={{ color: FEELING_COLOR[a.feeling_label] || 'rgb(var(--faint))', borderColor: FEELING_COLOR[a.feeling_label] || 'rgb(var(--border-strong))', backgroundColor: 'transparent' }}>
                     {a.feeling_label}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-xs text-[#b5a08a]">Complete tasks and rate your feelings to see strength signals.</p>
+            <p className="text-xs text-muted">Complete tasks and rate your feelings to see strength signals.</p>
           )}
         </div>
 
         {/* Friction Zones */}
-        <div className="bg-white border border-[#E8E3DB] rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-          <p className="text-[11px] font-bold text-[#6B6B6B] uppercase tracking-widest mb-3">Friction Zones</p>
+        <div className="bg-surface border border-border rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+          <p className="text-[11px] font-bold text-muted uppercase tracking-widest mb-3">Friction Zones</p>
           {procrastination.reason_distribution?.length > 0 ? (
             <div className="space-y-2">
               {procrastination.reason_distribution.slice(0, 3).map((r, i) => (
                 <div key={i} className="space-y-0.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-[#1A1A1A] capitalize">{r.reason?.replace(/_/g, ' ')}</span>
-                    <span className="text-[11px] text-[#6B6B6B]">{r.pct}%</span>
+                    <span className="text-xs font-medium text-ink capitalize">{r.reason?.replace(/_/g, ' ')}</span>
+                    <span className="text-[11px] text-muted">{r.pct}%</span>
                   </div>
-                  <div className="h-1.5 bg-[#F2EDE4] rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-raised rounded-full overflow-hidden">
                     <div className="h-full rounded-full bg-amber-400 transition-all" style={{ width: `${r.pct}%` }} />
                   </div>
                 </div>
               ))}
               {procrastination.most_deferred_tasks?.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-[#F2EDE4]">
-                  <p className="text-[10px] font-bold text-[#b5a08a] uppercase tracking-wide mb-1.5">Most Deferred</p>
+                <div className="mt-3 pt-3 border-t border-raised">
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-wide mb-1.5">Most Deferred</p>
                   {procrastination.most_deferred_tasks.slice(0, 3).map((t, i) => (
                     <div key={i} className="flex items-center justify-between py-0.5">
-                      <span className="text-xs text-[#1A1A1A] truncate flex-1 mr-2">{t.title}</span>
+                      <span className="text-xs text-ink truncate flex-1 mr-2">{t.title}</span>
                       <span className="text-[10px] text-amber-500 font-bold flex-shrink-0">{t.defer_count}×</span>
                     </div>
                   ))}
@@ -355,14 +356,14 @@ export default function ProfilePage() {
               )}
             </div>
           ) : (
-            <p className="text-xs text-[#b5a08a]">Defer tasks and give a reason to unlock your procrastination pattern.</p>
+            <p className="text-xs text-muted">Defer tasks and give a reason to unlock your procrastination pattern.</p>
           )}
         </div>
       </div>
 
       {/* Eisenhower Quadrant */}
-      <div className="bg-white border border-[#E8E3DB] rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-        <p className="text-[11px] font-bold text-[#6B6B6B] uppercase tracking-widest mb-4">How You Spend Your Energy (Last 30 Days)</p>
+      <div className="bg-surface border border-border rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+        <p className="text-[11px] font-bold text-muted uppercase tracking-widest mb-4">How You Spend Your Energy (Last 30 Days)</p>
         {Object.keys(eisenhower).filter(k => k !== 'labels').length > 0 ? (
           <div className="grid grid-cols-2 gap-2 max-w-sm mx-auto">
             {['q1', 'q2', 'q3', 'q4'].map(q => (
@@ -374,9 +375,9 @@ export default function ProfilePage() {
             ))}
           </div>
         ) : (
-          <p className="text-xs text-[#b5a08a] text-center py-4">Tag tasks as urgent/important to see your Eisenhower breakdown.</p>
+          <p className="text-xs text-muted text-center py-4">Tag tasks as urgent/important to see your Eisenhower breakdown.</p>
         )}
-        <p className="text-[11px] text-[#6B6B6B] text-center mt-3">
+        <p className="text-[11px] text-muted text-center mt-3">
           ✦ Deep Work (Q2) is the most valuable quadrant — important but not urgent.
         </p>
       </div>
@@ -385,8 +386,8 @@ export default function ProfilePage() {
       {reflections.length > 0 && (
         <div>
           <div className="flex items-center gap-3 mb-3">
-            <p className="text-[11px] font-bold text-[#1A1A1A] uppercase tracking-widest whitespace-nowrap">Recent Reflections</p>
-            <span className="flex-1 border-t border-[#E8E3DB]" />
+            <p className="text-[11px] font-bold text-ink uppercase tracking-widest whitespace-nowrap">Recent Reflections</p>
+            <span className="flex-1 border-t border-border" />
           </div>
           <ReflectionStrip reflections={reflections} />
         </div>

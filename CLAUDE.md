@@ -209,26 +209,28 @@ All migrations run automatically in `app/main.py` → `run_migrations()`. Schema
 
 ---
 
-## Design System (Tailwind tokens)
+## Design System (Basira tokens)
 
-All UI uses hardcoded hex values matching these tokens. **Never use default Tailwind colors for UI chrome** — always use these.
+The UI is themed entirely through CSS variables in `frontend/src/styles/tokens.css` (light + `:root[data-theme="dark"]`), mapped into Tailwind by `frontend/tailwind.config.js`. **Never hardcode hex for UI chrome** — use semantic classes or `rgb(var(--token))` in inline styles/SVG.
 
-| Token | Hex | Usage |
-|-------|-----|-------|
-| `#F2EDE4` | cream | Page background, card backgrounds |
-| `#1B3A2D` | forest | Primary buttons, nav, bold accents |
-| `#2D7A6B` | accent | Links, secondary buttons, active states |
-| `#E8C334` | gold | Active nav item pill, highlights |
-| `#1A1A1A` | text-primary | Headlines, primary text |
-| `#6B6B6B` | text-secondary | Labels, meta text |
-| `#E8E3DB` | border | Card borders, dividers |
-| `#F9F6F1` | subtle bg | Input backgrounds, code blocks |
-| `#b5a08a` | muted | Placeholder text, disabled states |
-| violet | AI features | Comments AI tab, AI panels use violet-50/100/200 |
+| Class / token | Role |
+|---|---|
+| `bg-canvas` `bg-surface` `bg-raised` `bg-overlay` | Page, card, input, dialog surfaces |
+| `text-ink` `text-muted` `text-faint` | Primary, secondary, placeholder text |
+| `border-border` `border-border-strong` | Dividers and card edges |
+| `bg-accent text-on-accent` / `text-accent` / `bg-accent-soft` | Emerald brand accent (light green in dark mode) |
+| `bg-forest text-white` | Primary buttons — stays dark green in both themes, gets a luminous glow in dark |
+| `text-gold` `bg-gold-50` / `bg-highlight text-on-gold` | Editorial highlight; never as active-nav fill |
+| `red-*` `amber-*` `emerald-*` `blue-*` `violet-*` | Theme-aware status scales (danger / warning / success / info / AI). 50–100 soft fill, 200–300 tinted line, 400+ solid |
+| `--chart-1..5`, `--heat-0..4` | Chart and heatmap colours (inline `rgb(var(--heat-2))`) |
+| `shadow-card` `shadow-float` `shadow-glow` | Card, dialog, and focus glows |
+| `font-sans` (Inter) · `font-mono` (JetBrains Mono) · `font-arabic` (Noto Sans Arabic) | Bundled via `@fontsource-variable`, imported in `main.jsx` |
 
-**Layout:** Fixed 160px left sidebar + content area. No top nav. Cards use `rounded-2xl`, buttons `rounded-xl`.
+Theme preference: `frontend/src/theme.js` (`system | light | dark`, stored in `localStorage.basira_theme`, default system). Settings modal has the selector; the topbar button toggles light/dark.
 
----
+**Look and feel:** deep-ink glass shell (sidebar + sticky topbar with backdrop blur), faint dot grid + aurora canvas, mono uppercase eyebrows/labels, tabular mono stat numbers, luminous emerald progress bars and primary buttons, glowing focus card (`.focus-primary.live` when its timer runs). Cards `rounded-2xl`, controls `rounded-xl`. Shared shell classes live in `frontend/src/index.css`; `Icon.jsx` is the only icon source for chrome.
+
+**Layout:** 236px fixed sidebar (200px under 1100px, bottom nav under 768px). Content max 1280px (`reading-width` = 960px for Journal/Profile). Hash routes: `#/today`, `#/goals/:id`, … (see `navigation.js`). ⌘K opens the command palette.
 
 ## Key Architectural Patterns
 
@@ -396,11 +398,11 @@ Requires `playwright`: `venv/bin/pip install playwright && venv/bin/playwright i
 6. `npm run build`
 
 **Change UI styles:**
-- Use the hex values from the Design System section above
-- All cards: `bg-white border border-[#E8E3DB] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.08)]`
-- All primary buttons: `bg-[#1B3A2D] text-white rounded-xl hover:bg-[#2a5240]`
-- Active/accent: `bg-[#2D7A6B]` or `text-[#2D7A6B]`
-- AI sections: `bg-violet-50 border-violet-100 text-violet-700`
+- Use the semantic classes from the Design System section above (check both themes)
+- All cards: `bg-surface border border-border rounded-2xl`
+- All primary buttons: `bg-forest text-white rounded-xl hover:bg-forest-hover`
+- Active/accent: `bg-accent text-on-accent` or `text-accent`
+- AI sections: `bg-violet-50 border-violet-100 text-violet-700` (theme-aware)
 
 **Debug backend errors:**
 ```bash
