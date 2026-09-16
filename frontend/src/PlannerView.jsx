@@ -88,7 +88,7 @@ function TaskBlock({ task, startMin, duration, isDragging, isTop, actualMin, onM
   const pct      = duration > 0 ? Math.min(100, Math.round((actualMin / duration) * 100)) : 0
   const endMin   = startMin + duration
 
-  const accentColor = isDone ? '#9cad9c' : isFocus ? '#c5983a' : isWork ? '#2D7A6B' : '#0d9488'
+  const accentColor = isDone ? 'rgb(var(--faint))' : isFocus ? 'rgb(var(--gold))' : isWork ? 'rgb(var(--info))' : 'rgb(var(--accent))'
   const zIndex   = isDragging ? 200 : isTop ? 10 : 2
 
   return (
@@ -106,8 +106,8 @@ function TaskBlock({ task, startMin, duration, isDragging, isTop, actualMin, onM
             : isFocus
             ? 'bg-gold-50 border-gold-200'
             : isWork
-            ? 'bg-[#2D7A6B]/5 border-[#2D7A6B]/20'
-            : 'bg-white border-sand-200'
+            ? 'bg-brand/5 border-accent/20'
+            : 'bg-surface border-sand-200'
         }`}
         style={{ borderLeft: `3px solid ${accentColor}` }}
       >
@@ -121,7 +121,7 @@ function TaskBlock({ task, startMin, duration, isDragging, isTop, actualMin, onM
         <div className="px-2 py-1.5 flex flex-col gap-0.5 overflow-hidden h-full">
           <div className="flex items-center gap-1">
             {isWork && (
-              <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-[#2D7A6B] text-white flex-shrink-0 leading-none">
+              <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-brand text-white flex-shrink-0 leading-none">
                 WORK
               </span>
             )}
@@ -318,7 +318,7 @@ export default function PlannerView({ items: rawItems, focusItems, date }) {
           <div className="flex">
 
             {/* ── Time labels ── */}
-            <div className="flex-shrink-0 w-14 relative bg-white border-r border-sand-100" style={{ height: TOTAL_H }}>
+            <div className="flex-shrink-0 w-14 relative bg-surface border-r border-sand-100" style={{ height: TOTAL_H }}>
               {Array.from({ length: DAY_END - DAY_START + 1 }, (_, i) => {
                 const absH = DAY_START + i
                 return (
@@ -333,7 +333,7 @@ export default function PlannerView({ items: rawItems, focusItems, date }) {
 
             {/* ── Grid + tasks ── */}
             <div
-              className="flex-1 relative bg-white"
+              className="flex-1 relative bg-surface"
               style={{ height: TOTAL_H, userSelect: draggingId ? 'none' : undefined }}
             >
               {/* Hour lines */}

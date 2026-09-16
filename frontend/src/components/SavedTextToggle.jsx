@@ -74,7 +74,7 @@ export default function SavedTextToggle({ text, original, onPolish, onRestore, c
           <button
             onClick={handleRestore}
             disabled={busy}
-            className="text-[10px] px-2 py-0.5 rounded-md border border-[#E8E3DB] text-[#b5a08a] hover:text-red-400 hover:border-red-200 transition-colors disabled:opacity-40"
+            className="text-[10px] px-2 py-0.5 rounded-md border border-border text-muted hover:text-red-400 hover:border-red-200 transition-colors disabled:opacity-40"
             title="Restore original and discard polish">
             {busy ? '…' : 'Discard polish'}
           </button>

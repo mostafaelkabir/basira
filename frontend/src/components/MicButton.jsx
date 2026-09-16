@@ -68,7 +68,7 @@ export default function MicButton({ value, onChange, className = '', lang = 'en-
       className={`flex items-center justify-center rounded-xl transition-all flex-shrink-0 ${
         listening
           ? 'bg-red-50 text-red-500 border border-red-200 animate-pulse shadow-sm'
-          : 'text-[#b5a08a] hover:text-[#2D7A6B] hover:bg-[#F2EDE4] border border-transparent'
+          : 'text-muted hover:text-accent hover:bg-raised border border-transparent'
       } ${className}`}
     >
       {listening ? (

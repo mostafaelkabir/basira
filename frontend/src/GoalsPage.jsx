@@ -1,3 +1,4 @@
+import { notify } from './components/Notice'
 import { useEffect, useRef, useState } from 'react'
 import { archiveGoal, createGoal, deleteGoal, getGoals, unarchiveGoal, updateGoal, uploadGoalIcon } from './api'
 import Modal from './components/Modal'
@@ -9,7 +10,7 @@ const TYPE_META = {
 }
 const TYPE_BADGE = {
   resolution: 'bg-gold-50 text-gold-600 border border-gold-200',
-  project:    'bg-teal-50 text-[#1B3A2D] border border-teal-100',
+  project:    'bg-teal-50 text-accent border border-teal-100',
   daily:      'bg-sage-50 text-sage-600 border border-sage-100',
 }
 const EMPTY_FORM = { title: '', description: '', type: null, icon: '', cover: false, parent_id: null }
@@ -62,7 +63,7 @@ export default function GoalsPage({ onSelectGoal }) {
       const [active, arch] = await Promise.all([getGoals(false), getGoals(true)])
       setGoals(active)
       setArchived(arch)
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setLoading(false) }
   }
 
@@ -86,7 +87,7 @@ export default function GoalsPage({ onSelectGoal }) {
       const { url } = await uploadGoalIcon(file)
       setForm(f => ({ ...f, icon: url }))
       setIconPreview(url)
-    } catch (err) { alert(err.message); setIconPreview(null) }
+    } catch (err) { notify(err.message); setIconPreview(null) }
     finally { setIconUploading(false) }
   }
 
@@ -103,7 +104,7 @@ export default function GoalsPage({ onSelectGoal }) {
               : await createGoal({ ...form, icon: form.icon || null, parent_id: form.parent_id || null })
       closeModal()
       load()
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setSubmitting(false) }
   }
 
@@ -111,22 +112,22 @@ export default function GoalsPage({ onSelectGoal }) {
     e.stopPropagation()
     if (!confirm('Archive this goal? You can unarchive it anytime.')) return
     try { await archiveGoal(goalId); load() }
-    catch (err) { alert(err.message) }
+    catch (err) { notify(err.message) }
   }
 
   async function handleUnarchive(goalId) {
     try { await unarchiveGoal(goalId); load() }
-    catch (err) { alert(err.message) }
+    catch (err) { notify(err.message) }
   }
 
   async function handleDelete(e, goalId) {
     e.stopPropagation()
     if (!confirm('Permanently delete this goal and all its tasks?')) return
     try { await deleteGoal(goalId); load() }
-    catch (err) { alert(err.message) }
+    catch (err) { notify(err.message) }
   }
 
-  if (loading) return <p className="text-[#6B6B6B] text-sm">Loading…</p>
+  if (loading) return <p className="text-muted text-sm">Loading…</p>
 
   // Build project hierarchy: top-level projects + sub-projects grouped by parent
   const topLevelProjects = goals.filter(g => g.type === 'project' && !g.parent_id)
@@ -147,17 +148,17 @@ export default function GoalsPage({ onSelectGoal }) {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-[#1A1A1A]">Goals</h1>
-          <p className="text-xs text-[#6B6B6B] mt-0.5">{goals.length} active</p>
+          <h1 className="text-2xl font-bold text-ink">Goals</h1>
+          <p className="text-xs text-muted mt-0.5">{goals.length} active</p>
         </div>
-        <button onClick={openCreate} className="bg-[#1B3A2D] text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-[#2a5240] transition-colors">
+        <button onClick={openCreate} className="bg-forest text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-forest-hover transition-colors">
           + New Goal
         </button>
       </div>
 
       {goals.length === 0 && archived.length === 0 ? (
-        <div className="text-center py-24 text-[#6B6B6B]">
-          <div className="text-4xl mb-3 text-[#E8C334]">✦</div>
+        <div className="text-center py-24 text-muted">
+          <div className="text-4xl mb-3 text-highlight">✦</div>
           <p className="font-medium">No goals yet</p>
           <p className="text-sm mt-1">Create your first goal to get started.</p>
         </div>
@@ -169,7 +170,7 @@ export default function GoalsPage({ onSelectGoal }) {
             const meta = TYPE_META[type]
             return (
               <div key={type}>
-                <h2 className="text-[11px] font-semibold text-[#b5a08a] uppercase tracking-widest mb-3">
+                <h2 className="text-[11px] font-semibold text-muted uppercase tracking-widest mb-3">
                   {meta ? `${meta.label}s` : 'Unclassified'}
                 </h2>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -204,14 +205,14 @@ export default function GoalsPage({ onSelectGoal }) {
           {archived.length > 0 && (
             <div>
               <button onClick={() => setShowArchived(v => !v)}
-                className="text-sm text-[#6B6B6B] hover:text-[#1A1A1A] flex items-center gap-1.5 transition-colors">
+                className="text-sm text-muted hover:text-ink flex items-center gap-1.5 transition-colors">
                 <span>{showArchived ? '▾' : '▸'}</span>
                 {showArchived ? 'Hide' : 'Show'} archived ({archived.length})
               </button>
               {showArchived && (
                 <div className="grid gap-3 sm:grid-cols-2 mt-3">
                   {archived.map(goal => (
-                    <div key={goal.id} className="bg-[#F2EDE4] border border-[#E8E3DB] rounded-2xl p-5 opacity-60">
+                    <div key={goal.id} className="bg-raised border border-border rounded-2xl p-5 opacity-60">
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-2.5">
                           <GoalIcon icon={goal.icon} size="sm" />
@@ -221,17 +222,17 @@ export default function GoalsPage({ onSelectGoal }) {
                                 {TYPE_META[goal.type].icon} {TYPE_META[goal.type].label}
                               </span>
                             )}
-                            <p className="font-medium text-[#6B6B6B] text-sm">{goal.title}</p>
+                            <p className="font-medium text-muted text-sm">{goal.title}</p>
                             <p className="text-xs text-sand-400 mt-0.5">{goal.done_count}/{goal.task_count} tasks done</p>
                           </div>
                         </div>
                         <div className="flex gap-1">
                           <button onClick={() => handleUnarchive(goal.id)}
-                            className="text-xs text-teal-600 border border-[#2D7A6B]/30 px-2 py-1 rounded-lg hover:bg-[#2D7A6B]/10 transition-colors">
+                            className="text-xs text-teal-600 border border-accent/30 px-2 py-1 rounded-lg hover:bg-brand/10 transition-colors">
                             Unarchive
                           </button>
                           <button onClick={(e) => handleDelete(e, goal.id)}
-                            className="text-xs text-[#b5a08a] hover:text-terra-400 px-2 py-1 rounded-lg transition-colors">
+                            className="text-xs text-muted hover:text-terra-400 px-2 py-1 rounded-lg transition-colors">
                             Delete
                           </button>
                         </div>
@@ -250,33 +251,33 @@ export default function GoalsPage({ onSelectGoal }) {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Type picker */}
             <div>
-              <label className="text-sm font-medium text-[#1A1A1A]">Type</label>
+              <label className="text-sm font-medium text-ink">Type</label>
               <div className="grid grid-cols-3 gap-2 mt-1.5">
                 {Object.entries(TYPE_META).map(([key, meta]) => (
                   <button key={key} type="button" onClick={() => setForm({ ...form, type: key })}
-                    className={`p-3 rounded-xl border text-left transition-all ${form.type === key ? 'border-[#2D7A6B] bg-[#2D7A6B]/10' : 'border-[#E8E3DB] hover:border-[#E8E3DB]'}`}>
-                    <div className="text-lg text-[#6B6B6B]">{meta.icon}</div>
-                    <div className={`text-xs font-semibold mt-1 ${form.type === key ? 'text-[#1B3A2D]' : 'text-[#1A1A1A]'}`}>{meta.label}</div>
+                    className={`p-3 rounded-xl border text-left transition-all ${form.type === key ? 'border-accent bg-brand/10' : 'border-border hover:border-border'}`}>
+                    <div className="text-lg text-muted">{meta.icon}</div>
+                    <div className={`text-xs font-semibold mt-1 ${form.type === key ? 'text-accent' : 'text-ink'}`}>{meta.label}</div>
                     <div className="text-xs text-sand-400 mt-0.5 leading-tight">{meta.desc}</div>
                   </button>
                 ))}
               </div>
               {form.type && (
                 <button type="button" onClick={() => setForm({ ...form, type: null, parent_id: null })}
-                  className="text-xs text-[#6B6B6B] hover:text-[#1A1A1A] mt-1.5">Clear type</button>
+                  className="text-xs text-muted hover:text-ink mt-1.5">Clear type</button>
               )}
             </div>
 
             {/* Parent project picker — only for project type */}
             {form.type === 'project' && topLevelProjects.filter(p => !editing || p.id !== editing.id).length > 0 && (
               <div>
-                <label className="text-sm font-medium text-[#1A1A1A]">
-                  Part of a project <span className="text-[#6B6B6B] font-normal">(optional)</span>
+                <label className="text-sm font-medium text-ink">
+                  Part of a project <span className="text-muted font-normal">(optional)</span>
                 </label>
                 <select
                   value={form.parent_id || ''}
                   onChange={e => setForm({ ...form, parent_id: e.target.value || null })}
-                  className="mt-1.5 w-full border border-[#E8E3DB] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] bg-white text-[#1A1A1A]">
+                  className="mt-1.5 w-full border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent bg-surface text-ink">
                   <option value="">None — standalone project</option>
                   {topLevelProjects
                     .filter(p => !editing || p.id !== editing.id)
@@ -289,13 +290,13 @@ export default function GoalsPage({ onSelectGoal }) {
 
             {/* Icon picker */}
             <div>
-              <label className="text-sm font-medium text-[#1A1A1A]">Icon / Logo <span className="text-[#6B6B6B] font-normal">(optional)</span></label>
+              <label className="text-sm font-medium text-ink">Icon / Logo <span className="text-muted font-normal">(optional)</span></label>
 
               {/* Tab switcher */}
               <div className="flex gap-1 mt-1.5 bg-sand-50 rounded-xl p-1 w-fit border border-sand-200">
                 {['emoji', 'image'].map(tab => (
                   <button key={tab} type="button" onClick={() => setIconTab(tab)}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-all capitalize ${iconTab === tab ? 'bg-white text-sand-800 shadow-sm' : 'text-[#6B6B6B] hover:text-[#1A1A1A]'}`}>
+                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-all capitalize ${iconTab === tab ? 'bg-surface text-sand-800 shadow-sm' : 'text-muted hover:text-ink'}`}>
                     {tab === 'emoji' ? '😊 Emoji' : '🖼 Image'}
                   </button>
                 ))}
@@ -306,7 +307,7 @@ export default function GoalsPage({ onSelectGoal }) {
                 <div className="flex items-center gap-2 mt-2">
                   <GoalIcon icon={form.icon} size="lg" />
                   <button type="button" onClick={() => { setForm(f => ({ ...f, icon: '' })); setIconPreview(null) }}
-                    className="text-xs text-[#b5a08a] hover:text-terra-400 transition-colors">
+                    className="text-xs text-muted hover:text-terra-400 transition-colors">
                     Remove
                   </button>
                 </div>
@@ -317,11 +318,11 @@ export default function GoalsPage({ onSelectGoal }) {
                   <input value={isImageUrl(form.icon) ? '' : form.icon}
                     onChange={e => setForm({ ...form, icon: e.target.value })}
                     placeholder="Paste or type any emoji…"
-                    className="w-full border border-sand-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] bg-white placeholder:text-[#b5a08a]" />
+                    className="w-full border border-sand-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent bg-surface placeholder:text-muted" />
                   <div className="flex flex-wrap gap-1.5">
                     {EMOJI_PRESETS.map(e => (
                       <button key={e} type="button" onClick={() => setForm(f => ({ ...f, icon: e }))}
-                        className={`w-8 h-8 rounded-lg text-lg hover:bg-sand-100 transition-colors flex items-center justify-center ${form.icon === e ? 'bg-teal-50 ring-2 ring-[#2D7A6B]' : ''}`}>
+                        className={`w-8 h-8 rounded-lg text-lg hover:bg-sand-100 transition-colors flex items-center justify-center ${form.icon === e ? 'bg-teal-50 ring-2 ring-accent' : ''}`}>
                         {e}
                       </button>
                     ))}
@@ -334,7 +335,7 @@ export default function GoalsPage({ onSelectGoal }) {
                   <input ref={fileInputRef} type="file" accept="image/*" onChange={handleIconFileInput} className="hidden" />
                   <button type="button" onClick={() => fileInputRef.current?.click()}
                     disabled={iconUploading}
-                    className="w-full border-2 border-dashed border-sand-200 rounded-xl py-6 flex flex-col items-center gap-2 hover:border-[#2D7A6B] hover:bg-[#2D7A6B]/10 transition-all text-sand-400 hover:text-[#2D7A6B] disabled:opacity-50">
+                    className="w-full border-2 border-dashed border-sand-200 rounded-xl py-6 flex flex-col items-center gap-2 hover:border-accent hover:bg-brand/10 transition-all text-sand-400 hover:text-accent disabled:opacity-50">
                     {iconUploading ? (
                       <span className="text-sm">Uploading…</span>
                     ) : iconPreview ? (
@@ -353,14 +354,14 @@ export default function GoalsPage({ onSelectGoal }) {
 
                   {isImageUrl(form.icon) && (
                     <div className="flex items-center gap-3 bg-sand-50 rounded-xl px-3 py-2.5 border border-sand-200">
-                      <span className="text-sm text-[#6B6B6B] flex-1">Display as</span>
-                      <div className="flex gap-1 bg-white rounded-lg p-0.5 border border-sand-200">
+                      <span className="text-sm text-muted flex-1">Display as</span>
+                      <div className="flex gap-1 bg-surface rounded-lg p-0.5 border border-sand-200">
                         <button type="button" onClick={() => setForm(f => ({ ...f, cover: false }))}
-                          className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${!form.cover ? 'bg-teal-600 text-white shadow-sm' : 'text-[#6B6B6B] hover:text-[#1A1A1A]'}`}>
+                          className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${!form.cover ? 'bg-teal-600 text-white shadow-sm' : 'text-muted hover:text-ink'}`}>
                           Logo
                         </button>
                         <button type="button" onClick={() => setForm(f => ({ ...f, cover: true }))}
-                          className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${form.cover ? 'bg-teal-600 text-white shadow-sm' : 'text-[#6B6B6B] hover:text-[#1A1A1A]'}`}>
+                          className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${form.cover ? 'bg-teal-600 text-white shadow-sm' : 'text-muted hover:text-ink'}`}>
                           Background
                         </button>
                       </div>
@@ -372,22 +373,22 @@ export default function GoalsPage({ onSelectGoal }) {
 
             {/* Title */}
             <div>
-              <label className="text-sm font-medium text-[#1A1A1A]">Title</label>
+              <label className="text-sm font-medium text-ink">Title</label>
               <input autoFocus value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
                 placeholder="e.g. Learn Spanish"
-                className="mt-1.5 w-full border border-sand-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] focus:border-transparent bg-white placeholder:text-[#b5a08a]" />
+                className="mt-1.5 w-full border border-sand-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent bg-surface placeholder:text-muted" />
             </div>
 
             {/* Description */}
             <div>
-              <label className="text-sm font-medium text-[#1A1A1A]">Description <span className="text-[#6B6B6B] font-normal">(optional)</span></label>
+              <label className="text-sm font-medium text-ink">Description <span className="text-muted font-normal">(optional)</span></label>
               <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
                 placeholder="What does success look like?" rows={2}
-                className="mt-1.5 w-full border border-sand-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent resize-none bg-white placeholder:text-sand-300" />
+                className="mt-1.5 w-full border border-sand-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent resize-none bg-surface placeholder:text-sand-300" />
             </div>
 
             <div className="flex justify-end gap-2 pt-1">
-              <button type="button" onClick={closeModal} className="px-4 py-2 text-sm text-[#6B6B6B] hover:text-[#1A1A1A]">Cancel</button>
+              <button type="button" onClick={closeModal} className="px-4 py-2 text-sm text-muted hover:text-ink">Cancel</button>
               <button type="submit" disabled={submitting || !form.title.trim() || iconUploading}
                 className="bg-teal-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-teal-700 disabled:opacity-40 transition-colors">
                 {editing ? 'Save Changes' : 'Create Goal'}
@@ -449,39 +450,39 @@ function GoalCard({ goal, onClick, onEdit, onArchive, onDelete, isSub = false })
   }
 
   return (
-    <div onClick={onClick} className={`bg-white border border-[#E8E3DB] rounded-2xl cursor-pointer hover:shadow-md hover:border-[#2D7A6B]/30 transition-all group shadow-[0_1px_3px_rgba(0,0,0,0.04)] ${isSub ? 'p-4' : 'px-5 py-4'}`}>
+    <div onClick={onClick} className={`bg-surface border border-border rounded-2xl cursor-pointer hover:shadow-md hover:border-accent/30 transition-all group shadow-[0_1px_3px_rgba(0,0,0,0.04)] ${isSub ? 'p-4' : 'px-5 py-4'}`}>
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0 mt-0.5">
           {goal.icon
             ? <GoalIcon icon={goal.icon} size={isSub ? 'sm' : 'md'} />
-            : <div className={`${isSub ? 'w-7 h-7 text-sm' : 'w-9 h-9 text-base'} rounded-xl bg-[#F2EDE4] text-[#6B6B6B] flex items-center justify-center`}>
+            : <div className={`${isSub ? 'w-7 h-7 text-sm' : 'w-9 h-9 text-base'} rounded-xl bg-raised text-muted flex items-center justify-center`}>
                 {meta?.icon || '◈'}
               </div>
           }
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start gap-2 mb-0.5">
-            <h2 className={`font-semibold text-[#1A1A1A] group-hover:text-[#1B3A2D] transition-colors leading-snug ${isSub ? 'text-sm' : ''}`}>{goal.title}</h2>
+            <h2 className={`font-semibold text-ink group-hover:text-accent transition-colors leading-snug ${isSub ? 'text-sm' : ''}`}>{goal.title}</h2>
             {meta && !isSub && (
-              <span className="text-[10px] font-medium text-[#b5a08a] flex-shrink-0 uppercase tracking-wide mt-1">{meta.label}</span>
+              <span className="text-[10px] font-medium text-muted flex-shrink-0 uppercase tracking-wide mt-1">{meta.label}</span>
             )}
           </div>
-          {goal.description && <p className="text-xs text-[#6B6B6B] line-clamp-1">{goal.description}</p>}
+          {goal.description && <p className="text-xs text-muted line-clamp-1">{goal.description}</p>}
           {goal.task_count > 0 && (
             <div className="mt-2.5 flex items-center gap-3">
-              <div className="flex-1 bg-[#E8E3DB] rounded-full h-1">
-                <div className={`h-1 rounded-full transition-all ${allDone ? 'bg-[#2D7A6B]' : 'bg-[#2D7A6B]'}`} style={{ width: `${pct}%` }} />
+              <div className="flex-1 bg-border rounded-full h-1">
+                <div className={`h-1 rounded-full transition-all ${allDone ? 'bg-brand' : 'bg-brand'}`} style={{ width: `${pct}%` }} />
               </div>
-              <span className={`text-[11px] font-medium flex-shrink-0 ${allDone ? 'text-[#2D7A6B]' : 'text-[#6B6B6B]'}`}>
+              <span className={`text-[11px] font-medium flex-shrink-0 ${allDone ? 'text-accent' : 'text-muted'}`}>
                 {allDone ? '✓' : `${goal.done_count}/${goal.task_count}`}
               </span>
             </div>
           )}
         </div>
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-          <button onClick={onEdit} className="text-[#b5a08a] hover:text-[#2D7A6B] w-6 h-6 flex items-center justify-center transition-colors" title="Edit">✎</button>
-          <button onClick={onArchive} className="text-[#b5a08a] hover:text-[#E8C334] w-6 h-6 flex items-center justify-center text-sm transition-colors" title="Archive">◫</button>
-          <button onClick={onDelete} className="text-[#b5a08a] hover:text-terra-400 w-6 h-6 flex items-center justify-center text-sm transition-colors" title="Delete">✕</button>
+          <button onClick={onEdit} className="text-muted hover:text-accent w-6 h-6 flex items-center justify-center transition-colors" title="Edit">✎</button>
+          <button onClick={onArchive} className="text-muted hover:text-highlight w-6 h-6 flex items-center justify-center text-sm transition-colors" title="Archive">◫</button>
+          <button onClick={onDelete} className="text-muted hover:text-terra-400 w-6 h-6 flex items-center justify-center text-sm transition-colors" title="Delete">✕</button>
         </div>
       </div>
     </div>

@@ -1,3 +1,6 @@
+import Icon from './components/Icon'
+import CompleteTaskDialog from './features/tasks/CompleteTaskDialog'
+import { notify } from './components/Notice'
 import { useEffect, useRef, useState } from 'react'
 import {
   addProof, checkinHabit, completeTask, createTask,
@@ -53,17 +56,17 @@ const DEFER_REASONS = [
 
 function DeferReasonPicker({ onSelect, onDismiss }) {
   return (
-    <div className="bg-white border border-[#E8E3DB] rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.10)] p-3">
-      <p className="text-[11px] text-[#6B6B6B] font-medium mb-2 text-center">Why are you deferring?</p>
+    <div className="bg-surface border border-border rounded-2xl shadow-float p-3">
+      <p className="text-[11px] text-muted font-medium mb-2 text-center">Why are you deferring?</p>
       <div className="flex flex-wrap gap-1.5 justify-center">
         {DEFER_REASONS.map(r => (
           <button key={r.value} onClick={() => onSelect(r.value)}
-            className="px-3 py-1.5 text-xs font-medium rounded-xl bg-[#F2EDE4] text-[#1A1A1A] hover:bg-[#E8C334] transition-colors">
+            className="px-3 py-1.5 text-xs font-medium rounded-xl bg-raised text-ink hover:bg-highlight transition-colors">
             {r.label}
           </button>
         ))}
         <button onClick={() => onSelect(null)}
-          className="px-3 py-1.5 text-xs font-medium rounded-xl text-[#b5a08a] hover:text-[#1A1A1A] transition-colors">
+          className="px-3 py-1.5 text-xs font-medium rounded-xl text-muted hover:text-ink transition-colors">
           skip
         </button>
       </div>
@@ -129,7 +132,7 @@ function DailyCheckinCard({ onCheckinSaved }) {
       const updated = await saveMorningCheckin({ energy, intention })
       setCheckin(updated)
       onCheckinSaved?.(updated)
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setSaving(false) }
   }
 
@@ -140,14 +143,14 @@ function DailyCheckinCard({ onCheckinSaved }) {
       const updated = await saveEveningCheckin({ mood, rating, reflection })
       setCheckin(updated)
       onCheckinSaved?.(updated)
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setSaving(false) }
   }
 
   if (!isEvening) {
     // ── Morning check-in ──
     return (
-      <div className="bg-gradient-to-br from-[#1B3A2D] to-[#2D7A6B] rounded-2xl p-5 text-white shadow-md">
+      <div className="bg-gradient-to-br from-forest to-brand rounded-2xl p-5 text-white shadow-md">
         <div className="flex items-start justify-between mb-4">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-widest text-white/60 mb-0.5">Morning Check-in ☀️</p>
@@ -165,7 +168,7 @@ function DailyCheckinCard({ onCheckinSaved }) {
                 <button key={v} type="button" onClick={() => setEnergy(v)}
                   className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all border ${
                     energy === v
-                      ? 'bg-white text-[#1B3A2D] border-white shadow-sm'
+                      ? 'bg-surface text-accent border-white shadow-sm'
                       : 'bg-white/10 border-white/20 text-white/70 hover:bg-white/20'
                   }`}>
                   {v}
@@ -197,7 +200,7 @@ function DailyCheckinCard({ onCheckinSaved }) {
           </div>
 
           <button type="submit" disabled={saving}
-            className="w-full bg-white text-[#1B3A2D] font-bold py-2.5 rounded-xl text-sm hover:bg-white/90 transition-colors disabled:opacity-60">
+            className="w-full bg-surface text-accent font-bold py-2.5 rounded-xl text-sm hover:bg-white/90 transition-colors disabled:opacity-60">
             {saving ? 'Saving…' : 'Start My Day →'}
           </button>
         </form>
@@ -207,7 +210,7 @@ function DailyCheckinCard({ onCheckinSaved }) {
 
   // ── Evening check-in ──
   return (
-    <div className="bg-gradient-to-br from-[#1A1A2E] to-[#1B3A2D] rounded-2xl p-5 text-white shadow-md">
+    <div className="bg-gradient-to-br from-forest to-forest rounded-2xl p-5 text-white shadow-md">
       <div className="flex items-start justify-between mb-4">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-widest text-white/60 mb-0.5">Evening Reflection 🌙</p>
@@ -225,11 +228,11 @@ function DailyCheckinCard({ onCheckinSaved }) {
               <button key={o.val} type="button" onClick={() => setMood(o.val)}
                 className={`flex-1 flex flex-col items-center py-2 rounded-xl transition-all border ${
                   mood === o.val
-                    ? 'bg-white border-white shadow-sm'
+                    ? 'bg-surface border-white shadow-sm'
                     : 'bg-white/10 border-white/20 hover:bg-white/20'
                 }`}>
                 <span className="text-lg">{o.emoji}</span>
-                <span className={`text-[9px] font-semibold mt-0.5 ${mood === o.val ? 'text-[#1B3A2D]' : 'text-white/50'}`}>{o.label}</span>
+                <span className={`text-[9px] font-semibold mt-0.5 ${mood === o.val ? 'text-accent' : 'text-white/50'}`}>{o.label}</span>
               </button>
             ))}
           </div>
@@ -243,7 +246,7 @@ function DailyCheckinCard({ onCheckinSaved }) {
               <button key={v} type="button" onClick={() => setRating(v)}
                 className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all border ${
                   rating === v
-                    ? 'bg-[#E8C334] text-[#1A1A1A] border-[#E8C334] shadow-sm'
+                    ? 'bg-highlight text-on-gold border-highlight shadow-sm'
                     : 'bg-white/10 border-white/20 text-white/70 hover:bg-white/20'
                 }`}>
                 {v}
@@ -275,7 +278,7 @@ function DailyCheckinCard({ onCheckinSaved }) {
         </div>
 
         <button type="submit" disabled={saving}
-          className="w-full bg-[#E8C334] text-[#1A1A1A] font-bold py-2.5 rounded-xl text-sm hover:bg-[#d4b02e] transition-colors disabled:opacity-60">
+          className="w-full bg-highlight text-on-gold font-bold py-2.5 rounded-xl text-sm hover:bg-gold-300 transition-colors disabled:opacity-60">
           {saving ? 'Saving…' : 'Close the Day ✦'}
         </button>
       </form>
@@ -284,7 +287,7 @@ function DailyCheckinCard({ onCheckinSaved }) {
 }
 
 export default function TodayPage({ onGoToGoal, onOpenReview }) {
-  const { startTimer } = useTimer()
+  const { startTimer, timer, resumeTimer } = useTimer()
   const [data, setData]   = useState(null)
   const [loading, setLoading] = useState(true)
   const focusOrderRef = useRef([])
@@ -334,7 +337,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
       const secs = {}
       for (const e of (timerData.tasks || [])) secs[e.task_id] = e.seconds
       setTodaySeconds(secs)
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
@@ -353,9 +356,11 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
     try {
       habit.checked_today ? await uncheckinHabit(habit.id) : await checkinHabit(habit.id)
       load()
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
   }
-  async function handleComplete(task) {
+  function handleComplete(task) { setProofFor(task) }
+
+  async function legacyHandleComplete(task) {
     if (task.requires_proof && (!task.proofs || task.proofs.length === 0)) { setProofFor(task); return }
     // If no timer was logged for this task today, ask for time spent
     if (!todaySeconds[task.id]) { setTimeLogFor(task); return }
@@ -363,7 +368,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
       await completeTask(task.id)
       setFeedbackTask(task)   // show feeling popover
       load()
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
   }
 
   async function handleFeelingSelect(feeling) {
@@ -381,12 +386,12 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
       setFeedbackTask(task)   // show feeling popover
       setTimeLogFor(null)
       load()
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
   }
   async function handleDelete(taskId) {
     if (!confirm('Delete this task?')) return
     try { await deleteTask(taskId); load() }
-    catch (err) { alert(err.message) }
+    catch (err) { notify(err.message) }
   }
   function handleDefer(taskId) {
     setDeferPending({ taskId })
@@ -397,7 +402,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
     const { taskId } = deferPending
     setDeferPending(null)
     try { await deferTaskWithReason(taskId, tomorrow(), reason); load() }
-    catch (err) { alert(err.message) }
+    catch (err) { notify(err.message) }
   }
   async function handleAfternoonSubmit() {
     if (!afternoonForm.energy) return
@@ -405,24 +410,24 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
     try {
       const saved = await saveAfternoonCheckin({ energy: afternoonForm.energy, working_on: afternoonForm.working_on })
       setAfternoonCheckin(saved)
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setAfternoonSaving(false) }
   }
   async function handlePlan(taskId) {
     try { await planTask(taskId, data.date); load() }
-    catch (err) { alert(err.message) }
+    catch (err) { notify(err.message) }
   }
   async function handleUnplan(taskId) {
     try { await unplanTask(taskId); load() }
-    catch (err) { alert(err.message) }
+    catch (err) { notify(err.message) }
   }
   async function handlePin(taskId) {
     try { await pinTask(taskId, data.date); load() }
-    catch (err) { alert(err.message) }
+    catch (err) { notify(err.message) }
   }
   async function handleUnpin(taskId) {
     try { await unpinTask(taskId); load() }
-    catch (err) { alert(err.message) }
+    catch (err) { notify(err.message) }
   }
   // Note: FocusSection manages its own subtask state internally
   async function uploadProofContent() {
@@ -446,7 +451,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
       await addProof(proofFor.id, { type: proofForm.type, content })
       await completeTask(proofFor.id)
       setProofFor(null); resetProofForm(); load()
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setSubmitting(false) }
   }
   async function handleAddHabitProof(e) {
@@ -456,11 +461,12 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
       await addProof(habitProofFor.id, { type: proofForm.type, content, date: data.date })
       await checkinHabit(habitProofFor.id)
       setHabitProofFor(null); resetProofForm(); load()
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setSubmitting(false) }
   }
 
-  if (loading) return <p className="text-[#6B6B6B] text-sm">Loading…</p>
+  if (loading) return <p className="text-muted text-sm" role="status">Preparing your day…</p>
+  if (!data) return <div className="p-8 bg-surface rounded-2xl border border-border"><h1>Your day is still here.</h1><p className="page-subtitle">We couldn't load it. Check the connection and try again.</p><button className="secondary-button mt-4" onClick={load}>Try again</button></div>
 
   const { focus, daily, habits, projects } = data
   const focusIds = new Set(focus.map(t => t.id))
@@ -484,48 +490,38 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
     ? planItems.map(item => rawPlanItems.find(r => r.id === item.id) ?? item).filter(Boolean)
     : rawPlanItems
 
-  // Progress bar calculation
-  const totalItems = focus.length + allPlanItems.length
-  const doneItems =
-    focus.filter(t => t.status === 'done').length +
-    allPlanItems.filter(item => item._type === 'habit' ? item.checked_today : item.status === 'done').length
-  const pct = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0
+  const uniqueTasks = [...new Map([...focus, ...allPlanItems.filter(t => t._type !== 'habit')].map(t => [t.id, t])).values()]
+  const taskTotal = uniqueTasks.length
+  const taskDone = uniqueTasks.filter(t => t.status === 'done').length
+  const focusMinutes = Math.floor(Object.values(todaySeconds).reduce((sum, seconds) => sum + seconds, 0) / 60)
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-[#1A1A1A]">Today</h1>
-          <p className="text-xs text-[#6B6B6B] mt-0.5">{formatDate(data.date)}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-xl border border-[#E8E3DB] overflow-hidden text-xs">
-            <button onClick={() => setViewMode('list')}
-              className={`px-3 py-1.5 font-medium transition-colors ${viewMode === 'list' ? 'bg-[#1B3A2D] text-white' : 'text-[#6B6B6B] hover:text-[#1A1A1A] hover:bg-[#F2EDE4]'}`}>
-              List
-            </button>
-            <button onClick={() => setViewMode('planner')}
-              className={`px-3 py-1.5 font-medium transition-colors ${viewMode === 'planner' ? 'bg-[#1B3A2D] text-white' : 'text-[#6B6B6B] hover:text-[#1A1A1A] hover:bg-[#F2EDE4]'}`}>
-              Planner
-            </button>
-          </div>
-          <button onClick={onOpenReview}
-            className="text-xs text-[#6B6B6B] hover:text-[#1B3A2D] px-2 py-1.5 transition-colors font-medium">
-            Review →
-          </button>
-        </div>
+      <div className="page-heading">
+        <div><p className="eyebrow">A little intention goes a long way</p><h1>Make room for what matters.</h1><p className="page-subtitle">{formatDate(data.date)} <span className="mx-2">·</span> Your day, with a clearer direction.</p></div>
+        <button onClick={onOpenReview} className="secondary-button"><Icon name="review" size={16}/><span>Review</span></button>
       </div>
-
+      <div className="today-stats">
+        <div className="today-stat"><div className="today-stat-label"><Icon name="goals" size={14}/>Today's tasks</div><div className="today-stat-value">{taskDone}<small>/ {taskTotal} done</small></div></div>
+        <div className="today-stat"><div className="today-stat-label"><Icon name="clock" size={14}/>Task focus time</div><div className="today-stat-value">{focusMinutes >= 60 ? `${Math.floor(focusMinutes / 60)}h` : `${focusMinutes}m`}<small>{focusMinutes >= 60 ? `${focusMinutes % 60}m logged` : 'logged today'}</small></div></div>
+        <div className="today-stat"><div className="today-stat-label"><Icon name="check" size={14}/>Habit targets</div><div className="today-stat-value">{habits.filter(h => h.checked_today).length}<small>/ {habits.length} met</small></div></div>
+      </div>
+      <section>
+        <div className="section-heading"><h2>Your focus</h2><p>One thing at a time.</p></div>
+        <FocusSection focus={focus} planItems={allPlanItems} today={data.date}
+          onComplete={handleComplete} onUnpin={handleUnpin} onPinTask={handlePin} onRefresh={load}
+          timer={timer} onStartTimer={task => timer?.taskId === task.id ? (timer.running ? undefined : resumeTimer()) : startTimer(task.id, task.title, task.goal_title || '')}/>
+      </section>
       {/* ── Daily Check-in ── */}
-      <DailyCheckinCard />
+      <details className="checkin-disclosure"><summary>Pause & reflect <span className="float-right">Optional check-in</span></summary><DailyCheckinCard /></details>
 
+{new Date().getHours() >= 14 && new Date().getHours() < 20 && !afternoonCheckin?.energy && <>
       {/* ── Afternoon Pulse (14:00–20:00 only, if not yet submitted) ── */}
-      {(() => {
+      <details className="checkin-disclosure"><summary>Afternoon check-in</summary>{(() => {
         const h = new Date().getHours()
         if (h < 14 || h >= 20 || afternoonCheckin?.energy) return null
         return (
-          <div className="bg-gradient-to-br from-[#1B3A2D] to-[#2D7A6B] rounded-2xl p-4 text-white shadow-sm">
+          <div className="bg-gradient-to-br from-forest to-brand rounded-2xl p-4 text-white shadow-sm">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-lg">⚡</span>
               <p className="font-bold text-sm">Afternoon Pulse</p>
@@ -537,7 +533,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
                 <button key={o.v} onClick={() => setAfternoonForm(f => ({ ...f, energy: o.v }))}
                   className={`flex-1 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
                     afternoonForm.energy === o.v
-                      ? 'bg-white text-[#1B3A2D] border-white'
+                      ? 'bg-surface text-accent border-white'
                       : 'border-white/30 text-white/80 hover:bg-white/10'
                   }`}>
                   {o.label}
@@ -558,8 +554,9 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
             </div>
           </div>
         )
-      })()}
+      })()}</details>
 
+</>}
       {/* ── Post-task feeling popover ── */}
       {feedbackTask && (
         <div className="flex justify-center">
@@ -579,57 +576,9 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
         />
       )}
 
-      {/* ── Progress Bar ── */}
-      {totalItems > 0 && (
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-1.5 bg-[#E8E3DB] rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-[#2D7A6B]' : 'bg-[#2D7A6B]'}`}
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-          <span className="text-xs text-[#6B6B6B] font-medium flex-shrink-0">
-            {doneItems}/{totalItems} · {pct}%
-          </span>
-        </div>
-      )}
-
-      {/* ── Planner view ── */}
-      {viewMode === 'planner' && (
-        <PlannerView
-          items={allPlanItems}
-          focusItems={focus}
-          date={data.date}
-          onItemsReordered={setPlanItems}
-        />
-      )}
-
-      {/* ── List view ── */}
-      {viewMode === 'list' && <>
-
-      {/* ── Focus ── */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-[11px] font-semibold text-[#b5a08a] uppercase tracking-widest">Focus</h2>
-          <span className="text-[11px] text-[#b5a08a]">{focus.length} items</span>
-        </div>
-        <FocusSection
-          focus={focus} planItems={allPlanItems} today={data.date}
-          onComplete={handleComplete} onUnpin={handleUnpin} onPinTask={handlePin}
-          onRefresh={load}
-          onStartTimer={(task) => startTimer(task.id, task.title, task.goal_title || '')}
-        />
-      </section>
-
-      {/* ── Day Planner ── */}
-      <DayPlanner onItemsAdded={() => {
-        window.dispatchEvent(new CustomEvent('basira:schedule-updated'))
-        load()
-      }} />
-
-      {/* ── Daily Schedule ── */}
-      <DailySchedule />
-
+      <div className="section-heading"><div><h2>The rest of your day</h2><p className="mt-1">Give your intentions a time and a place.</p></div><div className="flex gap-1 bg-raised p-1 rounded-lg" role="group" aria-label="Plan view"><button className={`px-3 py-2 text-xs rounded-md ${viewMode === 'list' ? 'bg-surface text-ink shadow-sm' : 'text-muted'}`} aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')}>Schedule</button><button className={`px-3 py-2 text-xs rounded-md ${viewMode === 'planner' ? 'bg-surface text-ink shadow-sm' : 'text-muted'}`} aria-pressed={viewMode === 'planner'} onClick={() => setViewMode('planner')}>Timeline</button></div></div>
+      <DayPlanner onItemsAdded={() => { window.dispatchEvent(new CustomEvent('basira:schedule-updated')); load() }}/>
+      {viewMode === 'planner' ? <PlannerView items={allPlanItems} focusItems={focus} date={data.date} onItemsReordered={setPlanItems}/> : <DailySchedule/>}
       {/* Time-log modal */}
       {timeLogFor && (
         <TimeLogModal
@@ -640,13 +589,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
       )}
 
       {/* Proof modals */}
-      {proofFor && (
-        <Modal title={`Proof — ${proofFor.title}`} onClose={() => { setProofFor(null); resetProofForm() }}>
-          <ProofForm proofForm={proofForm} setProofForm={setProofForm} onSubmit={handleAddProof}
-            submitting={submitting} onCancel={() => { setProofFor(null); resetProofForm() }}
-            onImageSelect={handleImageSelect} onFileSelect={handleFileSelect} submitLabel="Submit & Complete" />
-        </Modal>
-      )}
+      {proofFor && <CompleteTaskDialog task={proofFor} onClose={() => setProofFor(null)} onComplete={() => { setFeedbackTask(proofFor); setProofFor(null); load() }}/>}
       {habitProofFor && (
         <Modal title={`Proof — ${habitProofFor.title}`} onClose={() => { setHabitProofFor(null); resetProofForm() }}>
           <ProofForm proofForm={proofForm} setProofForm={setProofForm} onSubmit={handleAddHabitProof}
@@ -655,138 +598,41 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
         </Modal>
       )}
 
-      </> /* end list view */}
+
     </div>
   )
 }
 
 // ─── Focus Section ────────────────────────────────────────────────────────────
 
-function FocusSection({ focus, planItems, today, onComplete, onUnpin, onPinTask, onRefresh, onStartTimer }) {
+function FocusSection({ focus, planItems, today, onComplete, onUnpin, onPinTask, onRefresh, onStartTimer, timer }) {
   const [showPicker, setShowPicker] = useState(false)
-  const [expandedIds, setExpandedIds] = useState(new Set())
-  const [addingSubtaskFor, setAddingSubtaskFor] = useState(null)
-  const [subtaskTitle, setSubtaskTitle] = useState('')
-  const [localFocus, setLocalFocus] = useState(null)
-  const focusSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
   const focusIds = new Set(focus.map(t => t.id))
-  const slots = 3
-
-  const displayFocus = localFocus
-    ? localFocus.map(item => focus.find(t => t.id === item.id) ?? item).filter(Boolean)
-    : focus
-
-  function toggleExpand(id) {
-    setExpandedIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
-  }
-
-  async function handleFocusDragEnd(event) {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-    const oldIdx = displayFocus.findIndex(t => t.id === active.id)
-    const newIdx = displayFocus.findIndex(t => t.id === over.id)
-    const reordered = arrayMove(displayFocus, oldIdx, newIdx)
-    setLocalFocus(reordered)
-    try {
-      await reorderTasks(reordered.map((item, i) => ({ id: item.id, sort_order: i * 10 })))
-    } catch { /* silently fail */ }
-  }
-
-  async function handleAddSubtask(e, task) {
-    e.preventDefault()
-    if (!subtaskTitle.trim()) return
-    try {
-      await createTask({ title: subtaskTitle.trim(), goal_id: task.goal_id, requires_proof: false, parent_task_id: task.id })
-      setAddingSubtaskFor(null)
-      setSubtaskTitle('')
-      onRefresh()
-    } catch (err) { alert(err.message) }
-  }
-
-  async function handleCompleteSubtask(subtaskId) {
-    try { await completeTask(subtaskId); onRefresh() }
-    catch (err) { alert(err.message) }
-  }
-
-  return (
-    <div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {displayFocus.map((task) => {
-        const isDone = task.status === 'done'
-        const expanded = expandedIds.has(task.id)
-        const isAddingHere = addingSubtaskFor === task.id
-        return (
-          <div key={task.id}
-            className={`bg-white rounded-2xl border shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex flex-col overflow-hidden transition-all group ${
-              isDone ? 'border-[#E8E3DB]/60 opacity-60' : 'border-[#E8E3DB] hover:border-[#2D7A6B]/30'
-            }`}>
-            {/* Top: goal label */}
-            <div className="px-4 pt-3.5 pb-1">
-              {task.goal_title && (
-                <span className="text-[10px] font-medium text-[#b5a08a] uppercase tracking-wide">{task.goal_title}</span>
-              )}
-            </div>
-
-            {/* Middle: title */}
-            <div className="px-4 flex-1">
-              <p className={`text-sm font-semibold leading-snug ${isDone ? 'line-through text-[#b5a08a]' : 'text-[#1A1A1A]'}`}>
-                {task.title}
-              </p>
-              {!isDone && (task.is_urgent || task.is_important) && (
-                <div className="flex gap-1 mt-1.5">
-                  {task.is_urgent && <span className="text-[9px] font-semibold text-red-500">URGENT</span>}
-                  {task.is_important && <span className="text-[9px] font-semibold text-amber-500">IMPORTANT</span>}
-                </div>
-              )}
-            </div>
-
-            {/* Bottom: action buttons */}
-            <div className="px-4 pb-3.5 pt-3 flex items-center gap-2 mt-auto">
-              {!isDone && onStartTimer && (
-                <button onClick={() => onStartTimer(task)}
-                  className="flex-1 flex items-center justify-center gap-1.5 bg-[#1B3A2D] text-white text-xs font-medium rounded-xl px-3 py-2 hover:bg-[#2a5240] transition-colors">
-                  ▶ Start
-                </button>
-              )}
-              {!isDone && (
-                <button onClick={() => onComplete(task)}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl border border-[#E8E3DB] text-[#2D7A6B] hover:bg-[#2D7A6B] hover:text-white transition-colors text-sm font-bold flex-shrink-0">
-                  ✓
-                </button>
-              )}
-              {isDone && (
-                <span className="text-xs text-[#2D7A6B] font-medium">Done ✓</span>
-              )}
-              <button onClick={() => onUnpin(task.id)}
-                className="w-6 h-6 flex items-center justify-center text-[#E8E3DB] hover:text-red-400 transition-colors text-xs flex-shrink-0 opacity-0 group-hover:opacity-100">✕</button>
-            </div>
-          </div>
-        )
-      })}
-
-      {Array.from({ length: slots - displayFocus.length }).map((_, i) => (
-        <button key={`empty-${i}`} onClick={() => setShowPicker(true)}
-          className="flex items-center justify-center border border-dashed border-[#E8E3DB] rounded-2xl px-4 py-6 hover:border-[#2D7A6B]/40 hover:bg-[#2D7A6B]/5 transition-all min-h-[100px]">
-          <span className="text-xs text-[#b5a08a]">+ Add focus</span>
-        </button>
-      ))}
-
+  const pending = focus.filter(t => t.status !== 'done')
+  const primary = pending[0]
+  return <>
+    <div className="focus-layout">
+      <div className={`focus-primary ${timer?.taskId && timer.taskId === primary?.id && timer.running ? 'live' : ''}`}>
+        <p className="eyebrow"><span className={`status-dot ${timer?.taskId === primary?.id && timer.running ? 'live' : ''}`}/>{timer?.taskId === primary?.id ? 'Your active focus' : 'In your line of sight'}</p>
+        <h3>{primary?.title || 'What deserves your attention?'}</h3>
+        <p className="focus-goal">{primary?.goal_title || (primary ? 'Connected to your daily goals' : 'Choose one meaningful step. The rest can wait.')}</p>
+        <div className="focus-actions">{primary ? <><button className="focus-start" onClick={() => onStartTimer(primary)} disabled={timer?.taskId === primary.id && timer.running}><Icon name="play" size={15}/>{timer?.taskId === primary.id ? timer.running ? 'Focus in progress' : 'Resume focus' : 'Begin focus'}</button><button className="focus-proof" onClick={() => onComplete(primary)}><Icon name="check" size={15}/>Complete</button><button className="text-xs text-white/70 ml-auto p-2" aria-label={`Remove ${primary.title} from focus`} onClick={() => onUnpin(primary.id)}>Unpin</button></> : <button className="focus-start" onClick={() => setShowPicker(true)}><Icon name="plus" size={16}/>Choose your focus</button>}</div>
       </div>
-
+      <div className="focus-next"><p className="eyebrow">Up next</p>{pending.slice(1).map((task, i) => <div key={task.id} className="focus-next-row"><span className="focus-number">0{i + 2}</span><div className="flex-1 min-w-0"><p className="focus-next-title">{task.title}</p><p className="text-xs text-muted mt-1">{task.goal_title || 'Daily goal'}</p><div className="flex gap-3 mt-2"><button className="text-xs text-accent py-1" onClick={() => onStartTimer(task)}>Start</button><button className="text-xs text-muted py-1" onClick={() => onComplete(task)}>Complete</button><button className="text-xs text-muted py-1" aria-label={`Remove ${task.title} from focus`} onClick={() => onUnpin(task.id)}>Unpin</button></div></div></div>)}{pending.length < 2 && <p className="text-sm text-muted leading-relaxed">A little space is a good thing. Keep your priorities intentional.</p>}{focus.length < 3 && <button className="focus-empty mt-auto" onClick={() => setShowPicker(true)}><Icon name="plus" size={14}/>Add a priority</button>}{focus.some(t => t.status === 'done') && <div className="text-xs text-accent">{focus.filter(t => t.status === 'done').map(t => <div key={t.id} className="flex justify-between gap-2 py-2"><span>✓ {t.title}</span><button className="text-muted" onClick={() => onUnpin(t.id)} aria-label={`Clear completed focus ${t.title}`}>Clear</button></div>)}</div>}</div>
+    </div>
       {showPicker && (
         <FocusPicker
           planItems={planItems} focusIds={focusIds} today={today}
           onSelect={async (id) => { await onPinTask(id); setShowPicker(false) }}
           onCreateAndPin={async (title, goalId) => {
-            const task = await createTask({ title, goal_id: goalId, requires_proof: false })
+            const task = await createTask({ title, goal_id: goalId, requires_proof: true })
             await planTask(task.id, today)
             await onPinTask(task.id)
             onRefresh()
           }}
           onClose={() => setShowPicker(false)} />
       )}
-    </div>
-  )
+    </>
 }
 
 function FocusPicker({ planItems, focusIds, today, onSelect, onCreateAndPin, onClose }) {
@@ -833,7 +679,7 @@ function FocusPicker({ planItems, focusIds, today, onSelect, onCreateAndPin, onC
     try {
       await onCreateAndPin(newTitle.trim(), newGoalId)
       onClose()
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setCreating(false) }
   }
 
@@ -845,20 +691,20 @@ function FocusPicker({ planItems, focusIds, today, onSelect, onCreateAndPin, onC
 
         {/* ── Create new task form ── */}
         {showCreate ? (
-          <form onSubmit={handleCreate} className="space-y-3 bg-[#F9F6F1] rounded-2xl p-4 border border-[#E8E3DB]">
-            <p className="text-xs font-semibold text-[#1B3A2D] uppercase tracking-wide">New task</p>
+          <form onSubmit={handleCreate} className="space-y-3 bg-canvas rounded-2xl p-4 border border-border">
+            <p className="text-xs font-semibold text-accent uppercase tracking-wide">New task</p>
             <input
               ref={inputRef}
               value={newTitle}
               onChange={e => setNewTitle(e.target.value)}
               placeholder="What needs to be done?"
-              className="w-full border border-[#E8E3DB] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] bg-white placeholder:text-[#b5a08a]"
+              className="w-full border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent bg-surface placeholder:text-muted"
             />
             {goalOptions.length > 1 && (
               <select
                 value={newGoalId}
                 onChange={e => setNewGoalId(e.target.value)}
-                className="w-full border border-[#E8E3DB] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] bg-white text-[#1A1A1A]">
+                className="w-full border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent bg-surface text-ink">
                 {goalOptions.map(g => (
                   <option key={g.id} value={g.id}>{g.title}</option>
                 ))}
@@ -866,11 +712,11 @@ function FocusPicker({ planItems, focusIds, today, onSelect, onCreateAndPin, onC
             )}
             <div className="flex gap-2">
               <button type="button" onClick={() => setShowCreate(false)}
-                className="flex-1 py-2 rounded-xl border border-[#E8E3DB] text-sm text-[#6B6B6B] hover:bg-white transition-colors">
+                className="flex-1 py-2 rounded-xl border border-border text-sm text-muted hover:bg-surface transition-colors">
                 Back
               </button>
               <button type="submit" disabled={creating || !newTitle.trim() || !newGoalId}
-                className="flex-1 py-2 rounded-xl bg-[#1B3A2D] text-white text-sm font-semibold hover:bg-[#2a5240] disabled:opacity-40 transition-colors">
+                className="flex-1 py-2 rounded-xl bg-forest text-white text-sm font-semibold hover:bg-forest-hover disabled:opacity-40 transition-colors">
                 {creating ? 'Adding…' : 'Add to Focus'}
               </button>
             </div>
@@ -878,7 +724,7 @@ function FocusPicker({ planItems, focusIds, today, onSelect, onCreateAndPin, onC
         ) : (
           <button
             onClick={() => setShowCreate(true)}
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#1B3A2D] text-white text-sm font-semibold hover:bg-[#2a5240] transition-colors">
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-forest text-white text-sm font-semibold hover:bg-forest-hover transition-colors">
             <span className="text-base leading-none">+</span>
             Create new task
           </button>
@@ -889,30 +735,30 @@ function FocusPicker({ planItems, focusIds, today, onSelect, onCreateAndPin, onC
           <div className="space-y-4 max-h-72 overflow-y-auto -mx-1 px-1">
             {suggestions.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-[#E8C334] uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+                <p className="text-xs font-semibold text-highlight uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
                   <span>✦</span> Suggested
                 </p>
                 <div className="space-y-0.5">
                   {suggestions.map(({ task, source }) => (
                     <button key={task.id} onClick={() => onSelect(task.id)}
-                      className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#E8C334]/10 text-sm text-[#1A1A1A] transition-colors flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#E8C334] flex-shrink-0" />
+                      className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-highlight/10 text-sm text-ink transition-colors flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-highlight flex-shrink-0" />
                       <span className="flex-1">{task.title}</span>
-                      <span className="text-[10px] text-[#6B6B6B] flex-shrink-0">{source}</span>
+                      <span className="text-[10px] text-muted flex-shrink-0">{source}</span>
                     </button>
                   ))}
                 </div>
-                {(dailyAvail.length > 0 || projectGroups.length > 0) && <div className="border-t border-[#E8E3DB] mt-2 pt-1" />}
+                {(dailyAvail.length > 0 || projectGroups.length > 0) && <div className="border-t border-border mt-2 pt-1" />}
               </div>
             )}
             {dailyAvail.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide mb-1.5">Todos</p>
+                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">Todos</p>
                 <div className="space-y-0.5">
                   {dailyAvail.map(task => (
                     <button key={task.id} onClick={() => onSelect(task.id)}
-                      className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#2D7A6B]/10 text-sm text-[#1A1A1A] hover:text-[#1B3A2D] transition-colors flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#E8E3DB] flex-shrink-0" />
+                      className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-brand/10 text-sm text-ink hover:text-accent transition-colors flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-border flex-shrink-0" />
                       {task.title}
                     </button>
                   ))}
@@ -921,12 +767,12 @@ function FocusPicker({ planItems, focusIds, today, onSelect, onCreateAndPin, onC
             )}
             {projectGroups.map(group => (
               <div key={group.label}>
-                <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide mb-1.5">{group.label}</p>
+                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">{group.label}</p>
                 <div className="space-y-0.5">
                   {group.tasks.map(task => (
                     <button key={task.id} onClick={() => onSelect(task.id)}
-                      className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[#2D7A6B]/10 text-sm text-[#1A1A1A] hover:text-[#1B3A2D] transition-colors flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#E8E3DB] flex-shrink-0" />
+                      className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-brand/10 text-sm text-ink hover:text-accent transition-colors flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-border flex-shrink-0" />
                       {task.title}
                     </button>
                   ))}
@@ -937,7 +783,7 @@ function FocusPicker({ planItems, focusIds, today, onSelect, onCreateAndPin, onC
         )}
 
         {!showCreate && !hasExisting && (
-          <p className="text-sm text-[#6B6B6B] italic py-2 text-center">No existing tasks available — create one above.</p>
+          <p className="text-sm text-muted italic py-2 text-center">No existing tasks available — create one above.</p>
         )}
       </div>
     </Modal>

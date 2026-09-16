@@ -19,7 +19,7 @@ function FocusPrompt({ onSelect, onDismiss }) {
     <div
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
-      className="flex items-center gap-3 px-4 py-2.5 bg-[#1B3A2D] border-t border-white/10">
+      className="flex items-center gap-3 px-4 py-2.5 bg-forest border-t border-white/10">
       <span className="text-[11px] text-white/60 font-medium whitespace-nowrap">How focused were you?</span>
       <div className="flex gap-1">
         {FOCUS_STARS.map(n => (
@@ -93,7 +93,7 @@ export default function TimerWidget() {
   // Auto-expand when a new task starts
   useEffect(() => {
     if (timer && timer.taskId !== prevTaskId.current) {
-      setExpanded(true)
+      setExpanded(false)
       prevTaskId.current = timer.taskId
       setTaskData(null)
     }
@@ -127,18 +127,18 @@ export default function TimerWidget() {
   /* ── Minimized pill (bottom-center) ── */
   if (!expanded) {
     return (
-      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center gap-2">
+      <div className="timer-dock fixed bottom-5 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center gap-2">
         {showFocusPrompt && (
           <FocusPrompt
             onSelect={handleFocusSelect}
             onDismiss={() => setShowFocusPrompt(false)}
           />
         )}
-        <div className="pointer-events-auto bg-[#1B3A2D] text-white rounded-full shadow-2xl px-5 py-3 flex items-center gap-3 min-w-[300px] max-w-[90vw]">
+        <div className="pointer-events-auto bg-forest text-white rounded-full shadow-2xl px-5 py-3 flex items-center gap-3 min-w-[300px] max-w-[90vw]">
           {/* Pulse indicator */}
           <div className="relative flex-shrink-0 w-2.5 h-2.5">
-            <span className={`absolute inset-0 rounded-full ${isRunning ? 'bg-[#E8C334]' : 'bg-white/40'}`} />
-            {isRunning && <span className="absolute inset-0 rounded-full bg-[#E8C334] animate-ping opacity-50" />}
+            <span className={`absolute inset-0 rounded-full ${isRunning ? 'bg-highlight' : 'bg-white/40'}`} />
+            {isRunning && <span className="absolute inset-0 rounded-full bg-highlight animate-ping opacity-50" />}
           </div>
 
           {/* ACTIVE TIMER label + task name */}
@@ -150,7 +150,7 @@ export default function TimerWidget() {
           </div>
 
           {/* Elapsed */}
-          <span className="font-mono font-bold text-[#E8C334] text-base tabular-nums flex-shrink-0">
+          <span className="font-mono font-bold text-highlight text-base tabular-nums flex-shrink-0">
             {formatElapsed(elapsed)}
           </span>
 
@@ -187,16 +187,16 @@ export default function TimerWidget() {
         <div className="pointer-events-auto w-full max-w-sm flex flex-col rounded-2xl shadow-2xl overflow-hidden max-h-[88vh]">
 
           {/* Dark header */}
-          <div className={`flex-shrink-0 transition-colors duration-500 ${isRunning ? 'bg-[#1B3A2D]' : 'bg-[#2c2018]'}`}>
+          <div className={`flex-shrink-0 transition-colors duration-500 ${isRunning ? 'bg-forest' : 'bg-[#0c1c16]'}`}>
 
             {/* Top bar */}
             <div className="flex items-center justify-between px-5 pt-4 pb-1">
               <div className="flex items-center gap-2">
                 <div className="relative w-2 h-2 flex-shrink-0">
-                  <span className={`absolute inset-0 rounded-full ${isRunning ? 'bg-[#E8C334]' : 'bg-white/40'}`} />
-                  {isRunning && <span className="absolute inset-0 rounded-full bg-[#E8C334] animate-ping opacity-50" />}
+                  <span className={`absolute inset-0 rounded-full ${isRunning ? 'bg-highlight' : 'bg-white/40'}`} />
+                  {isRunning && <span className="absolute inset-0 rounded-full bg-highlight animate-ping opacity-50" />}
                 </div>
-                <span className={`text-[11px] font-bold uppercase tracking-widest ${isRunning ? 'text-[#E8C334]' : 'text-white/40'}`}>
+                <span className={`text-[11px] font-bold uppercase tracking-widest ${isRunning ? 'text-highlight' : 'text-white/40'}`}>
                   {isRunning ? 'In Focus' : 'Paused'}
                 </span>
               </div>
@@ -208,7 +208,7 @@ export default function TimerWidget() {
             {/* Task name */}
             <div className="px-5 pt-3 pb-1">
               {timer.goalTitle && (
-                <p className="text-xs font-medium mb-0.5 truncate text-[#E8C334]/70">{timer.goalTitle}</p>
+                <p className="text-xs font-medium mb-0.5 truncate text-highlight/70">{timer.goalTitle}</p>
               )}
               <p className="text-white text-lg font-bold leading-snug">{timer.taskTitle}</p>
             </div>
@@ -226,7 +226,7 @@ export default function TimerWidget() {
                 className={`flex-1 py-2.5 rounded-xl font-semibold text-sm transition-all ${
                   isRunning
                     ? 'bg-white/10 text-white hover:bg-white/20 border border-white/10'
-                    : 'bg-[#E8C334] text-[#1A1A1A] hover:bg-yellow-300'
+                    : 'bg-highlight text-on-gold hover:bg-gold-200'
                 }`}>
                 {isRunning ? '⏸  Pause' : '▶  Resume'}
               </button>
@@ -244,7 +244,7 @@ export default function TimerWidget() {
           </div>
 
           {/* Light panel: notes & comments */}
-          <div className="flex-1 bg-white overflow-y-auto min-h-0">
+          <div className="flex-1 bg-surface overflow-y-auto min-h-0">
             <div className="px-5 py-4">
               <p className="text-[10px] font-bold uppercase tracking-widest text-sand-400 mb-3">
                 Notes &amp; Comments
