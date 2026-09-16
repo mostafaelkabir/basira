@@ -255,28 +255,23 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
       )}
 
       <div className="mb-6">
-        <div className="flex items-start gap-4 mb-2">
-          {goal.icon && (
-            <div className="w-14 h-14 rounded-2xl bg-[#1B3A2D] flex items-center justify-center flex-shrink-0">
-              <GoalIcon icon={goal.icon} size="xl" />
-            </div>
-          )}
+        <div className="flex items-start gap-3">
+          {goal.icon && <GoalIcon icon={goal.icon} size="xl" className="mt-0.5" />}
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-[#1A1A1A]">{goal.title}</h1>
-            {goal.description && <p className="text-[#6B6B6B] mt-1 text-sm">{goal.description}</p>}
+            <h1 className="text-xl font-bold text-[#1A1A1A]">{goal.title}</h1>
+            {goal.description && <p className="text-[#6B6B6B] mt-0.5 text-sm">{goal.description}</p>}
+            {allTaskCount > 0 && (
+              <div className="mt-3 flex items-center gap-3">
+                <div className="flex-1 bg-[#E8E3DB] rounded-full h-1">
+                  <div className={`h-1 rounded-full transition-all ${pct === 100 ? 'bg-[#2D7A6B]' : 'bg-[#2D7A6B]'}`} style={{ width: `${pct}%` }} />
+                </div>
+                <span className="text-xs text-[#6B6B6B] font-medium flex-shrink-0">
+                  {allDoneCount}/{allTaskCount} · {pct}%
+                </span>
+              </div>
+            )}
           </div>
         </div>
-        {allTaskCount > 0 && (
-          <div className="mt-3">
-            <div className="flex justify-between text-xs text-[#6B6B6B] mb-1.5">
-              <span>{allDoneCount}/{allTaskCount} {isResolution ? 'habits' : 'tasks'}{isUmbrella ? ' total' : ''}</span>
-              <span className="font-medium text-[#1A1A1A]">{pct}%</span>
-            </div>
-            <div className="w-full bg-[#E8E3DB] rounded-full h-1.5">
-              <div className={`h-1.5 rounded-full transition-all ${pct === 100 ? 'bg-sage-400' : 'bg-[#2D7A6B]'}`} style={{ width: `${pct}%` }} />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Sub-projects section */}
@@ -323,16 +318,16 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="font-bold text-[#1A1A1A] uppercase tracking-wide text-sm">{isResolution ? 'Habits' : 'Tasks'}</h2>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-[11px] font-semibold text-[#b5a08a] uppercase tracking-widest">{isResolution ? 'Habits' : 'Tasks'}</h2>
         <button onClick={() => setShowNewTask(true)}
-          className="bg-[#1B3A2D] text-white px-3 py-1.5 rounded-xl text-sm font-medium hover:bg-[#2a5240] transition-colors shadow-sm">
+          className="bg-[#1B3A2D] text-white px-3 py-1.5 rounded-xl text-xs font-medium hover:bg-[#2a5240] transition-colors">
           + {isResolution ? 'Add Habit' : 'Add Task'}
         </button>
       </div>
 
       {isResolution && (
-        <p className="text-xs text-[#6B6B6B] mb-4">Check in on habits daily from the <strong>Today</strong> tab.</p>
+        <p className="text-xs text-[#6B6B6B] mb-3">Check in on habits daily from the <strong>Today</strong> tab.</p>
       )}
 
       {goal.tasks.length === 0 ? (
@@ -374,13 +369,15 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
             </SortableTaskItem>
           ))}
           {doneTasks.length > 0 && (
-            <div className="pt-2">
+            <div className="pt-3">
               {todoTasks.length > 0 && (
-                <p className="text-xs font-medium text-sand-400 uppercase tracking-wider mb-2 pt-2">Completed</p>
+                <p className="text-[11px] font-semibold text-[#b5a08a] uppercase tracking-widest mb-2">Completed</p>
               )}
+              <div className="space-y-1.5 opacity-60">
               {doneTasks.map((task) => (
                 <TaskCard key={task.id} task={task} onDelete={() => handleDeleteTask(task.id)} onCommentAdded={load} />
               ))}
+              </div>
             </div>
           )}
         </div>
@@ -771,77 +768,84 @@ function TaskCard({ task, onComplete, onDelete, onAddProof, onEdit, isHabit, onC
     : ''
 
   return (
-    <div className={`bg-white border rounded-2xl transition-all shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden ${isDone ? 'border-sage-100' : `border-[#E8E3DB] ${accentBorder}`}`}>
-      <div className="flex items-start justify-between gap-3 p-4">
+    <div className={`bg-white border rounded-2xl transition-all shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden group/card ${isDone ? 'border-[#E8E3DB]/60' : `border-[#E8E3DB] ${accentBorder}`}`}>
+      <div className="flex items-start gap-2.5 p-4">
         {dragListeners && !isDone && (
           <button
             {...dragListeners}
             type="button"
-            className="cursor-grab active:cursor-grabbing text-[#E8E3DB] hover:text-[#b5a08a] flex-shrink-0 mt-0.5 touch-none select-none text-base leading-none"
+            className="cursor-grab active:cursor-grabbing text-[#E8E3DB] hover:text-[#b5a08a] flex-shrink-0 mt-0.5 touch-none select-none text-sm leading-none"
             title="Drag to reorder"
           >⠿</button>
         )}
-        <div className="flex items-start gap-2.5 flex-1 min-w-0">
-          <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${isDone ? 'bg-sage-400' : 'bg-[#E8E3DB]'}`} />
-          <div className="flex-1 min-w-0">
-            <span className={`text-sm font-medium leading-snug ${isDone ? 'text-[#b5a08a] line-through' : 'text-[#1A1A1A]'}`}>
-              {task.title}
-            </span>
-            {dueMeta && !isDone && (
-              <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-md font-medium ${dueMeta.cls}`}>
-                {dueMeta.label}
-              </span>
-            )}
-            {!isDone && (task.is_urgent || task.is_important) && (
-              <div className="mt-1.5">
-                <TaskTags urgent={task.is_urgent} important={task.is_important} />
-              </div>
-            )}
-          </div>
-        </div>
 
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {!isDone && !isHabit && task.estimated_minutes && (
-            <span className="text-xs text-[#6B6B6B] font-medium flex-shrink-0">
-              ⏱ {formatDuration(task.estimated_minutes)}
-            </span>
-          )}
-          {isHabit && !isDone && (
-            <span className="text-xs text-[#2D7A6B] font-medium bg-[#2D7A6B]/10 px-2 py-0.5 rounded-full border border-[#2D7A6B]/20">
-              {freqLabel(task.habit_frequency)}
-            </span>
-          )}
-          {needsProof && !isHabit && (
-            <button onClick={onAddProof}
-              className="text-xs text-[#2D7A6B] border border-[#2D7A6B]/30 px-2.5 py-1 rounded-lg hover:bg-[#2D7A6B]/10 transition-colors font-medium">
-              + Proof
-            </button>
-          )}
-          {!isDone && !isHabit && onStartTimer && (
-            <button onClick={onStartTimer} title="Start timer"
-              className="text-xs px-2.5 py-1 rounded-lg border border-[#2D7A6B]/30 text-[#2D7A6B] hover:bg-[#2D7A6B]/10 transition-colors font-medium">
-              ▶
-            </button>
-          )}
-          {!isDone && onComplete && (
-            <button onClick={onComplete} disabled={!canComplete}
-              title={!canComplete ? 'Add proof first' : 'Mark as done'}
-              className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-colors ${canComplete ? 'bg-[#1B3A2D] text-white hover:bg-[#2a5240]' : 'border border-[#E8E3DB] text-[#b5a08a] cursor-not-allowed'}`}>
-              ✓ Done
-            </button>
-          )}
-          {isDone && <span className="text-xs text-sage-500 font-medium">✓</span>}
-          {!isDone && onEdit && (
-            <button onClick={onEdit} className="text-[#b5a08a] hover:text-[#2D7A6B] transition-colors text-sm w-6 h-6 flex items-center justify-center" title="Edit">✎</button>
-          )}
-          <button onClick={onDelete} className="text-[#E8E3DB] hover:text-terra-400 transition-colors text-sm w-6 h-6 flex items-center justify-center" title="Delete">✕</button>
-          <button onClick={() => setExpanded(v => !v)}
-            className={`text-xs w-6 h-6 flex items-center justify-center rounded-lg transition-colors ${expanded ? 'text-[#2D7A6B] bg-[#2D7A6B]/10' : 'text-[#b5a08a] hover:text-[#6B6B6B] hover:bg-[#F2EDE4]'}`}
-            title="Comments & proof">
-            {activityCount > 0 && !expanded
-              ? <span className="font-semibold text-[10px] text-[#2D7A6B]">{activityCount}</span>
-              : <span>{expanded ? '▴' : '▾'}</span>}
+        {/* Checkbox / done indicator */}
+        {!isDone && onComplete ? (
+          <button onClick={onComplete} disabled={!canComplete}
+            title={!canComplete ? 'Add proof first' : 'Mark as done'}
+            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${
+              canComplete ? 'border-[#2D7A6B] hover:bg-[#2D7A6B] hover:text-white text-transparent' : 'border-[#E8E3DB] text-transparent cursor-not-allowed'
+            }`}>
+            <span className="text-[10px] leading-none">✓</span>
           </button>
+        ) : isDone ? (
+          <span className="w-5 h-5 rounded-full bg-[#2D7A6B] flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span className="text-white text-[10px] leading-none">✓</span>
+          </span>
+        ) : null}
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <span className={`text-sm font-medium leading-snug ${isDone ? 'text-[#b5a08a] line-through' : 'text-[#1A1A1A]'}`}>
+                {task.title}
+              </span>
+              {dueMeta && !isDone && (
+                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded-md font-medium ${dueMeta.cls}`}>
+                  {dueMeta.label}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {!isDone && !isHabit && task.estimated_minutes && (
+                <span className="text-[11px] text-[#b5a08a] font-medium">
+                  {formatDuration(task.estimated_minutes)}
+                </span>
+              )}
+              {isHabit && !isDone && (
+                <span className="text-[11px] text-[#2D7A6B] font-medium bg-[#2D7A6B]/8 px-2 py-0.5 rounded-full">
+                  {freqLabel(task.habit_frequency)}
+                </span>
+              )}
+              {needsProof && !isHabit && (
+                <button onClick={onAddProof}
+                  className="text-[11px] text-[#2D7A6B] px-2 py-0.5 rounded-lg hover:bg-[#2D7A6B]/10 transition-colors font-medium">
+                  + Proof
+                </button>
+              )}
+              {!isDone && !isHabit && onStartTimer && (
+                <button onClick={onStartTimer} title="Start timer"
+                  className="text-[11px] px-2 py-0.5 rounded-lg text-[#b5a08a] hover:text-[#2D7A6B] hover:bg-[#2D7A6B]/10 transition-colors font-medium">
+                  ▶
+                </button>
+              )}
+              {!isDone && onEdit && (
+                <button onClick={onEdit} className="text-[#b5a08a] hover:text-[#2D7A6B] transition-colors w-5 h-5 flex items-center justify-center opacity-0 group-hover/card:opacity-100 text-xs" title="Edit">✎</button>
+              )}
+              <button onClick={onDelete} className="text-[#E8E3DB] hover:text-terra-400 transition-colors w-5 h-5 flex items-center justify-center opacity-0 group-hover/card:opacity-100 text-xs" title="Delete">✕</button>
+              <button onClick={() => setExpanded(v => !v)}
+                className={`text-xs w-5 h-5 flex items-center justify-center rounded-md transition-colors ${expanded ? 'text-[#2D7A6B] bg-[#2D7A6B]/10' : 'text-[#b5a08a] hover:text-[#6B6B6B]'}`}>
+                {activityCount > 0 && !expanded
+                  ? <span className="font-semibold text-[10px] text-[#2D7A6B]">{activityCount}</span>
+                  : <span className="text-[10px]">{expanded ? '▴' : '▾'}</span>}
+              </button>
+            </div>
+          </div>
+          {!isDone && (task.is_urgent || task.is_important) && (
+            <div className="mt-1.5">
+              <TaskTags urgent={task.is_urgent} important={task.is_important} small />
+            </div>
+          )}
         </div>
       </div>
 

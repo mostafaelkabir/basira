@@ -165,6 +165,11 @@ export default function DailySchedule() {
     finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
+  useEffect(() => {
+    function onScheduleUpdated() { load() }
+    window.addEventListener('basira:schedule-updated', onScheduleUpdated)
+    return () => window.removeEventListener('basira:schedule-updated', onScheduleUpdated)
+  }, [])
 
   async function handleQuickAdd(e) {
     e.preventDefault()

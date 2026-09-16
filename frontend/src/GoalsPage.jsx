@@ -147,11 +147,10 @@ export default function GoalsPage({ onSelectGoal }) {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <p className="text-[11px] font-bold text-[#6B6B6B] uppercase tracking-widest mb-1">Progress Overview</p>
-          <h1 className="text-3xl font-bold text-[#1A1A1A]">Your Goals</h1>
-          <p className="text-sm text-[#6B6B6B] mt-0.5">{goals.length} active</p>
+          <h1 className="text-2xl font-bold text-[#1A1A1A]">Goals</h1>
+          <p className="text-xs text-[#6B6B6B] mt-0.5">{goals.length} active</p>
         </div>
-        <button onClick={openCreate} className="bg-[#1B3A2D] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#2a5240] transition-colors shadow-sm">
+        <button onClick={openCreate} className="bg-[#1B3A2D] text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-[#2a5240] transition-colors">
           + New Goal
         </button>
       </div>
@@ -170,13 +169,9 @@ export default function GoalsPage({ onSelectGoal }) {
             const meta = TYPE_META[type]
             return (
               <div key={type}>
-                <div className="flex items-center gap-3 mb-3">
-                  {meta
-                    ? <h2 className="text-[11px] font-bold text-[#1A1A1A] uppercase tracking-widest">{meta.label}s</h2>
-                    : <h2 className="text-[11px] font-bold text-[#1A1A1A] uppercase tracking-widest">Unclassified</h2>
-                  }
-                  <span className="flex-1 border-t border-[#E8E3DB]" />
-                </div>
+                <h2 className="text-[11px] font-semibold text-[#b5a08a] uppercase tracking-widest mb-3">
+                  {meta ? `${meta.label}s` : 'Unclassified'}
+                </h2>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {list.map(goal => (
                     <div key={goal.id} className="contents">
@@ -454,42 +449,41 @@ function GoalCard({ goal, onClick, onEdit, onArchive, onDelete, isSub = false })
   }
 
   return (
-    <div onClick={onClick} className={`bg-white border border-[#E8E3DB] rounded-2xl cursor-pointer hover:shadow-md hover:border-[#2D7A6B]/30 transition-all group shadow-[0_1px_3px_rgba(0,0,0,0.08)] ${isSub ? 'p-4' : 'p-5'}`}>
-      <div className="flex justify-between items-start gap-2 mb-1">
-        <div className="flex items-start gap-3 flex-1 min-w-0">
+    <div onClick={onClick} className={`bg-white border border-[#E8E3DB] rounded-2xl cursor-pointer hover:shadow-md hover:border-[#2D7A6B]/30 transition-all group shadow-[0_1px_3px_rgba(0,0,0,0.04)] ${isSub ? 'p-4' : 'px-5 py-4'}`}>
+      <div className="flex items-start gap-3">
+        <div className="flex-shrink-0 mt-0.5">
           {goal.icon
-            ? <GoalIcon icon={goal.icon} size={isSub ? 'sm' : 'md'} className="mt-0.5" />
-            : <div className={`${isSub ? 'w-7 h-7' : 'w-10 h-10'} rounded-xl bg-[#1B3A2D] flex items-center justify-center flex-shrink-0 mt-0.5`}>
-                <span className={`${isSub ? 'text-base' : 'text-xl'} leading-none`}>{meta?.icon || '◈'}</span>
+            ? <GoalIcon icon={goal.icon} size={isSub ? 'sm' : 'md'} />
+            : <div className={`${isSub ? 'w-7 h-7 text-sm' : 'w-9 h-9 text-base'} rounded-xl bg-[#F2EDE4] text-[#6B6B6B] flex items-center justify-center`}>
+                {meta?.icon || '◈'}
               </div>
           }
-          <div className="flex-1 min-w-0">
-            {meta && !isSub && (
-              <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full mb-2 ${TYPE_BADGE[goal.type]}`}>
-                {meta.icon} {meta.label}
-              </span>
-            )}
-            <h2 className="font-semibold text-[#1A1A1A] group-hover:text-[#1B3A2D] transition-colors leading-snug">{goal.title}</h2>
-            {goal.description && <p className="text-sm text-[#6B6B6B] mt-1 line-clamp-1">{goal.description}</p>}
-          </div>
         </div>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-          <button onClick={onEdit} className="text-[#6B6B6B] hover:text-[#2D7A6B] w-6 h-6 flex items-center justify-center transition-colors" title="Edit">✎</button>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start gap-2 mb-0.5">
+            <h2 className={`font-semibold text-[#1A1A1A] group-hover:text-[#1B3A2D] transition-colors leading-snug ${isSub ? 'text-sm' : ''}`}>{goal.title}</h2>
+            {meta && !isSub && (
+              <span className="text-[10px] font-medium text-[#b5a08a] flex-shrink-0 uppercase tracking-wide mt-1">{meta.label}</span>
+            )}
+          </div>
+          {goal.description && <p className="text-xs text-[#6B6B6B] line-clamp-1">{goal.description}</p>}
+          {goal.task_count > 0 && (
+            <div className="mt-2.5 flex items-center gap-3">
+              <div className="flex-1 bg-[#E8E3DB] rounded-full h-1">
+                <div className={`h-1 rounded-full transition-all ${allDone ? 'bg-[#2D7A6B]' : 'bg-[#2D7A6B]'}`} style={{ width: `${pct}%` }} />
+              </div>
+              <span className={`text-[11px] font-medium flex-shrink-0 ${allDone ? 'text-[#2D7A6B]' : 'text-[#6B6B6B]'}`}>
+                {allDone ? '✓' : `${goal.done_count}/${goal.task_count}`}
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+          <button onClick={onEdit} className="text-[#b5a08a] hover:text-[#2D7A6B] w-6 h-6 flex items-center justify-center transition-colors" title="Edit">✎</button>
           <button onClick={onArchive} className="text-[#b5a08a] hover:text-[#E8C334] w-6 h-6 flex items-center justify-center text-sm transition-colors" title="Archive">◫</button>
           <button onClick={onDelete} className="text-[#b5a08a] hover:text-terra-400 w-6 h-6 flex items-center justify-center text-sm transition-colors" title="Delete">✕</button>
         </div>
       </div>
-      {goal.task_count > 0 && (
-        <div className="mt-4">
-          <div className="flex justify-between text-xs text-[#6B6B6B] mb-1.5">
-            <span>Completion</span>
-            <span className={allDone ? 'text-sage-500 font-medium' : 'font-medium text-[#1A1A1A]'}>{allDone ? '✓ Done' : `${pct}%`}</span>
-          </div>
-          <div className="w-full bg-[#E8E3DB] rounded-full h-1.5">
-            <div className={`h-1.5 rounded-full transition-all ${allDone ? 'bg-sage-400' : 'bg-[#2D7A6B]'}`} style={{ width: `${pct}%` }} />
-          </div>
-        </div>
-      )}
     </div>
   )
 }
