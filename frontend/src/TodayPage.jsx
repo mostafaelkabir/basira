@@ -15,6 +15,7 @@ import { ProofForm, TaskTags } from './GoalPage'
 import { useTimer } from './TimerContext'
 import PlannerView from './PlannerView'
 import DailySchedule from './DailySchedule'
+import DayPlanner from './DayPlanner'
 import Modal from './components/Modal'
 import { ActivityComments } from './components/ActivityComposer'
 import TimeLogModal from './components/TimeLogModal'
@@ -493,12 +494,12 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-[#1A1A1A]">Today</h1>
-          <p className="text-sm text-[#6B6B6B] mt-0.5">{formatDate(data.date)}</p>
+          <h1 className="text-2xl font-bold text-[#1A1A1A]">Today</h1>
+          <p className="text-xs text-[#6B6B6B] mt-0.5">{formatDate(data.date)}</p>
         </div>
-        <div className="flex items-center gap-2 mt-1">
+        <div className="flex items-center gap-2">
           <div className="flex rounded-xl border border-[#E8E3DB] overflow-hidden text-xs">
             <button onClick={() => setViewMode('list')}
               className={`px-3 py-1.5 font-medium transition-colors ${viewMode === 'list' ? 'bg-[#1B3A2D] text-white' : 'text-[#6B6B6B] hover:text-[#1A1A1A] hover:bg-[#F2EDE4]'}`}>
@@ -510,7 +511,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
             </button>
           </div>
           <button onClick={onOpenReview}
-            className="text-sm text-[#6B6B6B] hover:text-[#1B3A2D] px-2 py-1.5 transition-colors font-medium">
+            className="text-xs text-[#6B6B6B] hover:text-[#1B3A2D] px-2 py-1.5 transition-colors font-medium">
             Review →
           </button>
         </div>
@@ -580,23 +581,16 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
 
       {/* ── Progress Bar ── */}
       {totalItems > 0 && (
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-[#6B6B6B] font-medium">
-              {doneItems === totalItems
-                ? '✦ All done for today!'
-                : `${doneItems} of ${totalItems} done`}
-            </span>
-            <span className={`text-xs font-semibold ${pct === 100 ? 'text-[#2D7A6B]' : pct >= 50 ? 'text-[#E8C334]' : 'text-[#6B6B6B]'}`}>
-              {pct}%
-            </span>
-          </div>
-          <div className="h-2 bg-[#E8E3DB] rounded-full overflow-hidden">
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-1.5 bg-[#E8E3DB] rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-[#2D7A6B]' : pct >= 50 ? 'bg-[#E8C334]' : 'bg-[#2D7A6B]'}`}
+              className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-[#2D7A6B]' : 'bg-[#2D7A6B]'}`}
               style={{ width: `${pct}%` }}
             />
           </div>
+          <span className="text-xs text-[#6B6B6B] font-medium flex-shrink-0">
+            {doneItems}/{totalItems} · {pct}%
+          </span>
         </div>
       )}
 
@@ -615,9 +609,9 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
 
       {/* ── Focus ── */}
       <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-[#1A1A1A]">In Focus Today</h2>
-          <span className="text-sm text-[#6B6B6B]">{focus.length} Tasks</span>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-[11px] font-semibold text-[#b5a08a] uppercase tracking-widest">Focus</h2>
+          <span className="text-[11px] text-[#b5a08a]">{focus.length} items</span>
         </div>
         <FocusSection
           focus={focus} planItems={allPlanItems} today={data.date}
@@ -626,6 +620,12 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
           onStartTimer={(task) => startTimer(task.id, task.title, task.goal_title || '')}
         />
       </section>
+
+      {/* ── Day Planner ── */}
+      <DayPlanner onItemsAdded={() => {
+        window.dispatchEvent(new CustomEvent('basira:schedule-updated'))
+        load()
+      }} />
 
       {/* ── Daily Schedule ── */}
       <DailySchedule />
@@ -717,51 +717,48 @@ function FocusSection({ focus, planItems, today, onComplete, onUnpin, onPinTask,
         const isAddingHere = addingSubtaskFor === task.id
         return (
           <div key={task.id}
-            className={`bg-white rounded-2xl border shadow-sm flex flex-col overflow-hidden transition-all ${
-              isDone ? 'border-[#E8E3DB] opacity-70' : 'border-[#E8E3DB]'
+            className={`bg-white rounded-2xl border shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex flex-col overflow-hidden transition-all group ${
+              isDone ? 'border-[#E8E3DB]/60 opacity-60' : 'border-[#E8E3DB] hover:border-[#2D7A6B]/30'
             }`}>
-            {/* Top: tags */}
-            <div className="px-4 pt-4 pb-2 flex flex-wrap gap-1.5">
-              {task.is_urgent && (
-                <span className="bg-red-100 text-red-600 text-[10px] font-semibold px-2 py-0.5 rounded-full">URGENT</span>
-              )}
-              {task.is_important && (
-                <span className="bg-amber-100 text-amber-600 text-[10px] font-semibold px-2 py-0.5 rounded-full">IMPORTANT</span>
-              )}
+            {/* Top: goal label */}
+            <div className="px-4 pt-3.5 pb-1">
               {task.goal_title && (
-                <span className="bg-[#E8E3DB] text-[#6B6B6B] text-[10px] font-medium px-2 py-0.5 rounded-full">{task.goal_title}</span>
+                <span className="text-[10px] font-medium text-[#b5a08a] uppercase tracking-wide">{task.goal_title}</span>
               )}
             </div>
 
             {/* Middle: title */}
             <div className="px-4 flex-1">
-              <p className={`text-base font-bold leading-snug ${isDone ? 'line-through text-[#b5a08a]' : 'text-[#1A1A1A]'}`}>
+              <p className={`text-sm font-semibold leading-snug ${isDone ? 'line-through text-[#b5a08a]' : 'text-[#1A1A1A]'}`}>
                 {task.title}
               </p>
-              {task.parent_task_title && (
-                <p className="text-xs text-[#6B6B6B] mt-1">Goal: {task.parent_task_title}</p>
+              {!isDone && (task.is_urgent || task.is_important) && (
+                <div className="flex gap-1 mt-1.5">
+                  {task.is_urgent && <span className="text-[9px] font-semibold text-red-500">URGENT</span>}
+                  {task.is_important && <span className="text-[9px] font-semibold text-amber-500">IMPORTANT</span>}
+                </div>
               )}
             </div>
 
             {/* Bottom: action buttons */}
-            <div className="px-4 pb-4 pt-3 flex items-center gap-2 mt-auto">
+            <div className="px-4 pb-3.5 pt-3 flex items-center gap-2 mt-auto">
               {!isDone && onStartTimer && (
                 <button onClick={() => onStartTimer(task)}
-                  className="flex-1 flex items-center justify-center gap-1.5 bg-[#1B3A2D] text-white text-sm font-medium rounded-xl px-4 py-2 hover:bg-[#2a5240] transition-colors">
-                  <span>▶</span> Start
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-[#1B3A2D] text-white text-xs font-medium rounded-xl px-3 py-2 hover:bg-[#2a5240] transition-colors">
+                  ▶ Start
                 </button>
               )}
               {!isDone && (
                 <button onClick={() => onComplete(task)}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl border border-[#E8E3DB] text-[#2D7A6B] hover:bg-[#2D7A6B]/10 transition-colors text-base font-bold flex-shrink-0">
+                  className="w-8 h-8 flex items-center justify-center rounded-xl border border-[#E8E3DB] text-[#2D7A6B] hover:bg-[#2D7A6B] hover:text-white transition-colors text-sm font-bold flex-shrink-0">
                   ✓
                 </button>
               )}
               {isDone && (
-                <span className="text-sm text-[#2D7A6B] font-semibold">Done ✓</span>
+                <span className="text-xs text-[#2D7A6B] font-medium">Done ✓</span>
               )}
               <button onClick={() => onUnpin(task.id)}
-                className="w-8 h-8 flex items-center justify-center text-[#b5a08a] hover:text-red-400 transition-colors text-sm flex-shrink-0">✕</button>
+                className="w-6 h-6 flex items-center justify-center text-[#E8E3DB] hover:text-red-400 transition-colors text-xs flex-shrink-0 opacity-0 group-hover:opacity-100">✕</button>
             </div>
           </div>
         )
@@ -769,8 +766,8 @@ function FocusSection({ focus, planItems, today, onComplete, onUnpin, onPinTask,
 
       {Array.from({ length: slots - displayFocus.length }).map((_, i) => (
         <button key={`empty-${i}`} onClick={() => setShowPicker(true)}
-          className="flex items-center justify-center gap-2 border-2 border-dashed border-[#E8E3DB] rounded-2xl px-4 py-8 hover:border-[#E8C334] hover:bg-[#E8C334]/5 transition-all group min-h-[120px]">
-          <span className="text-sm text-[#6B6B6B] group-hover:text-[#1A1A1A] transition-colors">+ Pick a focus item</span>
+          className="flex items-center justify-center border border-dashed border-[#E8E3DB] rounded-2xl px-4 py-6 hover:border-[#2D7A6B]/40 hover:bg-[#2D7A6B]/5 transition-all min-h-[100px]">
+          <span className="text-xs text-[#b5a08a]">+ Add focus</span>
         </button>
       ))}
 

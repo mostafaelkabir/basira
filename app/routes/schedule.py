@@ -130,7 +130,8 @@ def get_schedule(db: Session = Depends(get_db)):
     daily_tasks = (
         db.query(Task).join(Goal, Task.goal_id == Goal.id)
         .filter(Goal.type == "daily", ACTIVE, Task.status == "todo",
-                Task.parent_task_id.is_(None), Task.pinned_date != today)
+                Task.parent_task_id.is_(None),
+                (Task.pinned_date.is_(None)) | (Task.pinned_date != today))
         .all()
     )
     daily_tasks = [t for t in daily_tasks if _not_deferred(t, today)]
@@ -139,7 +140,8 @@ def get_schedule(db: Session = Depends(get_db)):
     project_tasks = (
         db.query(Task).join(Goal, Task.goal_id == Goal.id)
         .filter(Goal.type == "project", ACTIVE, Task.plan_date == today,
-                Task.parent_task_id.is_(None), Task.pinned_date != today)
+                Task.parent_task_id.is_(None),
+                (Task.pinned_date.is_(None)) | (Task.pinned_date != today))
         .all()
     )
 
@@ -236,6 +238,8 @@ class CreateBody(BaseModel):
     goal_id: str | None = None      # for task
     company_id: str | None = None   # for ticket / worklog
     type: str = "code"              # ticket / worklog type
+    estimated_minutes: int | None = None
+    scheduled_time: str | None = None  # "HH:MM"
 
 
 @router.post("/create")
@@ -261,6 +265,8 @@ def create_schedule_item(body: CreateBody, db: Session = Depends(get_db)):
             plan_date=today,
             sort_order=order,
             created_at=today,
+            estimated_minutes=body.estimated_minutes,
+            scheduled_time=body.scheduled_time,
         )
         db.add(task)
         db.commit()
@@ -281,6 +287,8 @@ def create_schedule_item(body: CreateBody, db: Session = Depends(get_db)):
             status="todo",
             plan_date=today,
             schedule_order=order,
+            estimated_minutes=body.estimated_minutes,
+            scheduled_time=body.scheduled_time,
         )
         db.add(ticket)
         db.commit()
@@ -302,6 +310,7 @@ def create_schedule_item(body: CreateBody, db: Session = Depends(get_db)):
             logged_at=today,
             plan_date=today,
             schedule_order=order,
+            scheduled_time=body.scheduled_time,
         )
         db.add(log)
         db.commit()
@@ -309,6 +318,51 @@ def create_schedule_item(body: CreateBody, db: Session = Depends(get_db)):
         return _serialize_worklog(log)
 
     raise HTTPException(status_code=400, detail="Invalid kind")
+
+
+class BatchCreateItem(BaseModel):
+    title: str
+    goal_id: str | None = None
+    estimated_minutes: int | None = None
+    scheduled_time: str | None = None
+
+
+@router.post("/batch-create")
+def batch_create_schedule(items: list[BatchCreateItem], db: Session = Depends(get_db)):
+    today = _today()
+    order = _next_order(db)
+    created = []
+    for item in items:
+        title = item.title.strip()
+        if not title:
+            continue
+        goal_id = item.goal_id
+        if not goal_id:
+            daily_goal = db.query(Goal).filter(Goal.type == "daily", Goal.archived_at.is_(None)).first()
+            if not daily_goal:
+                daily_goal = Goal(id=str(uuid4()), title="Daily Tasks", description="", type="daily")
+                db.add(daily_goal)
+                db.flush()
+            goal_id = daily_goal.id
+        task = Task(
+            id=str(uuid4()),
+            title=title,
+            goal_id=goal_id,
+            status="todo",
+            requires_proof=False,
+            plan_date=today,
+            sort_order=order,
+            created_at=today,
+            estimated_minutes=item.estimated_minutes,
+            scheduled_time=item.scheduled_time,
+        )
+        db.add(task)
+        order += 10
+        created.append(task)
+    db.commit()
+    for t in created:
+        db.refresh(t)
+    return [_serialize_task(t, is_daily=(t.goal and t.goal.type == "daily")) for t in created]
 
 
 class CompleteBody(BaseModel):

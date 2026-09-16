@@ -255,3 +255,5 @@ export const reorderSchedule = (items) =>
   request('/today/schedule/reorder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(items) })
 export const setScheduleTime = (kind, id, time) =>
   request('/today/schedule/time', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, id, time }) })
+export const batchCreateSchedule = (items) =>
+  request('/today/schedule/batch-create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(items) })
