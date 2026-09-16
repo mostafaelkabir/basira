@@ -1,3 +1,4 @@
+import { notify } from './Notice'
 import { useEffect, useRef, useState } from 'react'
 import { addComment, deleteComment, updateComment, taskAiQuery, uploadProofFile, uploadProofImage, polishTaskComment, restoreTaskComment } from '../api'
 import MicButton from './MicButton'
@@ -41,7 +42,7 @@ export function CommentBubble({ comment, onDelete, onUpdate }) {
       await updateComment(comment.id, trimmed)
       await onUpdate()
       setEditing(false)
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setSaving(false) }
   }
 
@@ -77,7 +78,7 @@ export function CommentBubble({ comment, onDelete, onUpdate }) {
             <p className="text-[10px] text-sand-400 mt-1">{formatTime(comment.created_at)}</p>
           </div>
         ) : editing ? (
-          <div className="bg-sand-50 rounded-xl px-3 py-2 border border-[#2D7A6B]/30">
+          <div className="bg-sand-50 rounded-xl px-3 py-2 border border-accent/30">
             <textarea
               ref={editRef}
               value={editText}
@@ -91,7 +92,7 @@ export function CommentBubble({ comment, onDelete, onUpdate }) {
             />
             <div className="flex items-center gap-2 mt-1.5">
               <button onClick={saveEdit} disabled={saving}
-                className="text-[11px] px-2.5 py-1 rounded-lg bg-[#1B3A2D] text-white font-medium disabled:opacity-50 hover:bg-[#2a5240] transition-colors">
+                className="text-[11px] px-2.5 py-1 rounded-lg bg-forest text-white font-medium disabled:opacity-50 hover:bg-forest-hover transition-colors">
                 {saving ? '…' : 'Save'}
               </button>
               <button onClick={cancelEdit}
@@ -118,7 +119,7 @@ export function CommentBubble({ comment, onDelete, onUpdate }) {
       <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 mt-2 transition-all flex-shrink-0">
         {canEdit && !editing && (
           <button onClick={startEdit}
-            className="text-sand-300 hover:text-[#2D7A6B] transition-colors text-xs" title="Edit">✎</button>
+            className="text-sand-300 hover:text-accent transition-colors text-xs" title="Edit">✎</button>
         )}
         <button onClick={() => onDelete(comment.id)}
           className="text-sand-300 hover:text-terra-400 transition-colors text-xs" title="Delete">✕</button>
@@ -193,13 +194,13 @@ export function ActivityComments({ task, onRefresh }) {
         setAttachment(null)
         onRefresh()
       }
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setSubmitting(false) }
   }
 
   async function handleDelete(commentId) {
     try { await deleteComment(commentId); onRefresh() }
-    catch (err) { alert(err.message) }
+    catch (err) { notify(err.message) }
   }
 
   const canSubmit = !submitting && (attachment !== null || text.trim().length > 0)
@@ -260,7 +261,7 @@ export function ActivityComments({ task, onRefresh }) {
               : attachment ? 'Add a caption…' : 'Comment · paste an image · attach a file…'
           }
           disabled={submitting}
-          className={`flex-1 text-sm border rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 bg-white placeholder:text-sand-300 disabled:opacity-50 ${
+          className={`flex-1 text-sm border rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 bg-surface placeholder:text-sand-300 disabled:opacity-50 ${
             aiMode
               ? 'border-violet-200 focus:ring-violet-300'
               : 'border-sand-200 focus:ring-teal-400'

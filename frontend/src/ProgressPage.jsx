@@ -1,3 +1,4 @@
+import { notify } from './components/Notice'
 import { useEffect, useState } from 'react'
 import { checkinHabit, getAnalytics, getOverview, getToday, uncheckinHabit } from './api'
 import { GoalIcon } from './GoalsPage'
@@ -66,16 +67,16 @@ function isImageUrl(v) { return v && (v.startsWith('/') || v.startsWith('http'))
 function SectionLabel({ children, right }) {
   return (
     <div className="flex items-center gap-3 mb-3">
-      <p className="text-[11px] font-bold text-[#1A1A1A] uppercase tracking-widest whitespace-nowrap">{children}</p>
-      <span className="flex-1 border-t border-[#E8E3DB]" />
-      {right && <span className="text-[11px] text-[#6B6B6B] flex-shrink-0">{right}</span>}
+      <p className="text-[11px] font-bold text-ink uppercase tracking-widest whitespace-nowrap">{children}</p>
+      <span className="flex-1 border-t border-border" />
+      {right && <span className="text-[11px] text-muted flex-shrink-0">{right}</span>}
     </div>
   )
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export default function ProgressPage({ onGoToGoal }) {
+export default function ProgressPage({ onGoToGoal, onOpenAnalytics }) {
   const [overview, setOverview] = useState([])
   const [habits, setHabits]     = useState([])
   const [snapshots, setSnapshots] = useState([])
@@ -90,7 +91,7 @@ export default function ProgressPage({ onGoToGoal }) {
       setHabits(todayData.habits)
       setOverview(ov)
       setSnapshots(analytics.snapshots || [])
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
@@ -99,7 +100,7 @@ export default function ProgressPage({ onGoToGoal }) {
     try {
       habit.checked_today ? await uncheckinHabit(habit.id) : await checkinHabit(habit.id)
       load()
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
   }
 
   function toggleExpand(id) {
@@ -108,7 +109,7 @@ export default function ProgressPage({ onGoToGoal }) {
     })
   }
 
-  if (loading) return <p className="text-[#6B6B6B] text-sm">Loading…</p>
+  if (loading) return <p className="text-muted text-sm">Loading…</p>
 
   const habitsByGoal = {}
   for (const h of habits) {
@@ -161,58 +162,58 @@ export default function ProgressPage({ onGoToGoal }) {
   })()
 
   function heatmapColor(cell) {
-    if (cell.isWorkOnly) return '#2D7A6B'   // teal — work day, not a miss
-    if (cell.checkinCount === 0) return '#E8E3DB'
-    if (cell.checkinCount === 1) return '#a8d5c8'
-    if (cell.checkinCount <= 3) return '#2D7A6B'
-    return '#1B3A2D'
+    if (cell.isWorkOnly) return 'rgb(var(--info))'   // work day, not a miss
+    if (cell.checkinCount === 0) return 'rgb(var(--heat-0))'
+    if (cell.checkinCount === 1) return 'rgb(var(--heat-1))'
+    if (cell.checkinCount <= 3) return 'rgb(var(--heat-2))'
+    return 'rgb(var(--heat-4))'
   }
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <p className="text-[11px] font-bold text-[#6B6B6B] uppercase tracking-widest mb-1">PERFORMANCE</p>
-        <h1 className="text-3xl font-bold text-[#1A1A1A]">Progress</h1>
-        <p className="text-sm text-[#6B6B6B] mt-0.5">
+        <p className="text-[11px] font-bold text-muted uppercase tracking-widest mb-1">PERFORMANCE</p>
+        <h1 className="text-3xl font-bold text-ink">Progress</h1>
+        <p className="text-sm text-muted mt-0.5">
           {getWeekRange()} · {overview.length} goals · {onTrackHabits.length}/{habits.length} habits on track
         </p>
       </div>
 
       {/* ── Row 1: Stat Cards ── */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white border border-[#E8E3DB] rounded-2xl p-4 shadow-sm">
-          <p className="text-[10px] font-bold text-[#6B6B6B] uppercase tracking-widest mb-2">TOTAL OUTPUT</p>
-          <p className="text-3xl font-bold text-[#1A1A1A]">{totalTasksDone}</p>
-          <p className="text-xs text-[#6B6B6B] mt-1">Tasks Done</p>
-          {totalTasks > 0 && <p className="text-xs text-[#2D7A6B] mt-1">{Math.round(totalTasksDone / totalTasks * 100)}% complete</p>}
+        <div className="bg-surface border border-border rounded-2xl p-4 shadow-sm">
+          <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-2">TOTAL OUTPUT</p>
+          <p className="text-3xl font-bold text-ink">{totalTasksDone}</p>
+          <p className="text-xs text-muted mt-1">Tasks Done</p>
+          {totalTasks > 0 && <p className="text-xs text-accent mt-1">{Math.round(totalTasksDone / totalTasks * 100)}% complete</p>}
         </div>
-        <div className="bg-white border border-[#E8E3DB] rounded-2xl p-4 shadow-sm">
-          <p className="text-[10px] font-bold text-[#6B6B6B] uppercase tracking-widest mb-2">CONSISTENCY</p>
-          <p className="text-3xl font-bold text-[#1A1A1A]">{habitConsistencyPct}%</p>
-          <p className="text-xs text-[#6B6B6B] mt-1">Habit Streak</p>
-          <div className="w-full bg-[#E8E3DB] rounded-full h-1 mt-2">
-            <div className="bg-[#2D7A6B] h-1 rounded-full" style={{ width: `${habitConsistencyPct}%` }} />
+        <div className="bg-surface border border-border rounded-2xl p-4 shadow-sm">
+          <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-2">CONSISTENCY</p>
+          <p className="text-3xl font-bold text-ink">{habitConsistencyPct}%</p>
+          <p className="text-xs text-muted mt-1">Habit Streak</p>
+          <div className="w-full bg-border rounded-full h-1 mt-2">
+            <div className="bg-brand h-1 rounded-full" style={{ width: `${habitConsistencyPct}%` }} />
           </div>
         </div>
-        <div className="bg-white border border-[#E8E3DB] rounded-2xl p-4 shadow-sm">
-          <p className="text-[10px] font-bold text-[#6B6B6B] uppercase tracking-widest mb-2">DEEP WORK</p>
-          <p className="text-3xl font-bold text-[#1A1A1A]">{onTrackHabits.length}</p>
-          <p className="text-xs text-[#6B6B6B] mt-1">Habits On Track</p>
-          <p className="text-xs text-[#2D7A6B] mt-1">{habits.length > 0 ? `${habits.length} total habits` : 'No habits yet'}</p>
+        <div className="bg-surface border border-border rounded-2xl p-4 shadow-sm">
+          <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-2">DEEP WORK</p>
+          <p className="text-3xl font-bold text-ink">{onTrackHabits.length}</p>
+          <p className="text-xs text-muted mt-1">Habits On Track</p>
+          <p className="text-xs text-accent mt-1">{habits.length > 0 ? `${habits.length} total habits` : 'No habits yet'}</p>
         </div>
       </div>
 
       {/* ── Row 2: Velocity + Heatmap ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Weekly Velocity */}
-        <div className="bg-white border border-[#E8E3DB] rounded-2xl p-5 shadow-sm">
-          <p className="text-sm font-bold text-[#1A1A1A] mb-4">Weekly Velocity</p>
+        <div className="bg-surface border border-border rounded-2xl p-5 shadow-sm">
+          <p className="text-sm font-bold text-ink mb-4">Weekly Velocity</p>
           <div className="h-20 flex items-end gap-2">
             {velocityDays.map((day, i) => (
               <div key={i} className="flex-1 flex flex-col items-center gap-1">
                 <div
-                  className={`w-full rounded-t-sm min-h-[4px] transition-all ${day.isToday ? 'bg-[#E8C334]' : 'bg-[#2D7A6B]'}`}
+                  className={`w-full rounded-t-sm min-h-[4px] transition-all ${day.isToday ? 'bg-highlight' : 'bg-brand'}`}
                   style={{ height: `${Math.max(4, Math.round((day.count / maxVelocity) * 80))}px` }}
                 />
               </div>
@@ -221,21 +222,21 @@ export default function ProgressPage({ onGoToGoal }) {
           <div className="flex gap-2 mt-1">
             {velocityDays.map((day, i) => (
               <div key={i} className="flex-1 text-center">
-                <span className={`text-[9px] ${day.isToday ? 'text-[#E8C334] font-bold' : 'text-[#6B6B6B]'}`}>{day.label}</span>
+                <span className={`text-[9px] ${day.isToday ? 'text-highlight font-bold' : 'text-muted'}`}>{day.label}</span>
               </div>
             ))}
           </div>
-          <p className="text-[10px] text-[#6B6B6B] mt-2">Goals active per day (last 7 days)</p>
+          <p className="text-[10px] text-muted mt-2">Goals active per day (last 7 days)</p>
         </div>
 
         {/* Consistency Heatmap */}
-        <div className="bg-white border border-[#E8E3DB] rounded-2xl p-5 shadow-sm">
-          <p className="text-sm font-bold text-[#1A1A1A] mb-4">Consistency Map</p>
+        <div className="bg-surface border border-border rounded-2xl p-5 shadow-sm">
+          <p className="text-sm font-bold text-ink mb-4">Consistency Map</p>
           <div className="flex gap-1">
             <div className="flex flex-col gap-0.5 mr-1">
               {['M','T','W','T','F','S','S'].map((l, i) => (
                 <div key={i} className="h-3 flex items-center">
-                  <span className="text-[8px] text-[#6B6B6B] w-3">{i % 2 === 0 ? l : ''}</span>
+                  <span className="text-[8px] text-muted w-3">{i % 2 === 0 ? l : ''}</span>
                 </div>
               ))}
             </div>
@@ -245,7 +246,7 @@ export default function ProgressPage({ onGoToGoal }) {
                   <div
                     key={ri}
                     className="h-3 rounded-[2px]"
-                    style={{ backgroundColor: heatmapColor(cell), outline: cell.isToday ? '2px solid #E8C334' : 'none' }}
+                    style={{ backgroundColor: heatmapColor(cell), outline: cell.isToday ? '2px solid rgb(var(--gold))' : 'none' }}
                     title={cell.isWorkOnly ? `${cell.iso}: Work day` : `${cell.iso}: ${cell.checkinCount} habit${cell.checkinCount !== 1 ? 's' : ''}`}
                   />
                 ))}
@@ -253,11 +254,11 @@ export default function ProgressPage({ onGoToGoal }) {
             ))}
           </div>
           <div className="flex items-center gap-2 mt-3">
-            <span className="text-[9px] text-[#6B6B6B]">Less</span>
-            {['#E8E3DB','#a8d5c8','#2D7A6B','#1B3A2D'].map(c => (
+            <span className="text-[9px] text-muted">Less</span>
+            {['rgb(var(--heat-0))','rgb(var(--heat-1))','rgb(var(--heat-2))','rgb(var(--heat-4))'].map(c => (
               <div key={c} className="w-3 h-3 rounded-[2px]" style={{ backgroundColor: c }} />
             ))}
-            <span className="text-[9px] text-[#6B6B6B]">More</span>
+            <span className="text-[9px] text-muted">More</span>
           </div>
         </div>
       </div>
@@ -265,8 +266,8 @@ export default function ProgressPage({ onGoToGoal }) {
       {/* ── Row 3: Focus Areas + AI Insight ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Focus Areas */}
-        <div className="bg-white border border-[#E8E3DB] rounded-2xl p-5 shadow-sm">
-          <p className="text-sm font-bold text-[#1A1A1A] mb-4">Focus Areas</p>
+        <div className="bg-surface border border-border rounded-2xl p-5 shadow-sm">
+          <p className="text-sm font-bold text-ink mb-4">Focus Areas</p>
           <div className="space-y-3">
             {overview.slice(0, 6).map(goal => {
               const pct = goal.task_count > 0 ? Math.round((goal.done_count / goal.task_count) * 100) : 0
@@ -274,23 +275,23 @@ export default function ProgressPage({ onGoToGoal }) {
                 <button key={goal.id} onClick={() => onGoToGoal(goal.id)} className="w-full text-left group">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-base">{goal.icon && !goal.icon.startsWith('/') && !goal.icon.startsWith('http') ? goal.icon : '◈'}</span>
-                    <span className="text-sm text-[#1A1A1A] group-hover:text-[#1B3A2D] flex-1 truncate font-medium">{goal.title}</span>
-                    <span className="text-xs text-[#6B6B6B] flex-shrink-0">{goal.done_count}/{goal.task_count}</span>
+                    <span className="text-sm text-ink group-hover:text-accent flex-1 truncate font-medium">{goal.title}</span>
+                    <span className="text-xs text-muted flex-shrink-0">{goal.done_count}/{goal.task_count}</span>
                   </div>
-                  <div className="w-full bg-[#E8E3DB] rounded-full h-1">
-                    <div className="bg-[#2D7A6B] h-1 rounded-full" style={{ width: `${pct}%` }} />
+                  <div className="w-full bg-border rounded-full h-1">
+                    <div className="bg-brand h-1 rounded-full" style={{ width: `${pct}%` }} />
                   </div>
                 </button>
               )
             })}
-            {overview.length === 0 && <p className="text-sm text-[#6B6B6B] italic">No goals yet</p>}
+            {overview.length === 0 && <p className="text-sm text-muted italic">No goals yet</p>}
           </div>
         </div>
 
         {/* AI Smart Insight */}
         <div className="bg-violet-50 border border-violet-100 rounded-2xl p-5 shadow-sm flex flex-col">
-          <p className="text-[10px] font-bold text-violet-500 uppercase tracking-widest mb-2">AI SMART INSIGHT</p>
-          <p className="text-sm font-semibold text-[#1A1A1A] mb-2">
+          <p className="text-[10px] font-bold text-violet-500 uppercase tracking-widest mb-2">WEEKLY OBSERVATION</p>
+          <p className="text-sm font-semibold text-ink mb-2">
             {habitConsistencyPct >= 80
               ? 'Excellent consistency! You\'re hitting most of your habits this week.'
               : habitConsistencyPct >= 50
@@ -299,7 +300,7 @@ export default function ProgressPage({ onGoToGoal }) {
               ? 'Add habits to your goals to start tracking consistency.'
               : 'Focus on consistency — try completing at least one habit each day.'}
           </p>
-          <p className="text-xs text-[#6B6B6B] flex-1">
+          <p className="text-xs text-muted flex-1">
             {totalTasksDone > 0
               ? `You've completed ${totalTasksDone} task${totalTasksDone !== 1 ? 's' : ''} across ${overview.length} goal${overview.length !== 1 ? 's' : ''}. `
               : ''}
@@ -307,7 +308,7 @@ export default function ProgressPage({ onGoToGoal }) {
               ? `${onTrackHabits.length} habit${onTrackHabits.length !== 1 ? 's are' : ' is'} on track this week.`
               : ''}
           </p>
-          <button className="mt-4 text-sm text-violet-600 font-medium hover:underline self-start">View Analytics →</button>
+          <button onClick={onOpenAnalytics} className="mt-4 text-sm text-violet-600 font-medium hover:underline self-start">View Analytics →</button>
         </div>
       </div>
 
@@ -329,7 +330,7 @@ export default function ProgressPage({ onGoToGoal }) {
       {habits.length > 0 && (
         <section>
           <SectionLabel right={`${onTrackHabits.length}/${habits.length} on track`}>Habits this week</SectionLabel>
-          <div className="bg-white border border-[#E8E3DB] rounded-2xl overflow-hidden divide-y divide-[#F2EDE4] shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+          <div className="bg-surface border border-border rounded-2xl overflow-hidden divide-y divide-raised shadow-card">
             {offTrackHabits.map(habit => (
               <HabitWeekRow
                 key={habit.id} habit={habit} monthGrid={monthGrid} last7={last7}
@@ -340,8 +341,8 @@ export default function ProgressPage({ onGoToGoal }) {
               />
             ))}
             {offTrackHabits.length > 0 && onTrackHabits.length > 0 && (
-              <div className="px-4 py-1 bg-[#F2EDE4]">
-                <span className="text-[10px] text-[#6B6B6B] font-medium tracking-widest uppercase">on track this week</span>
+              <div className="px-4 py-1 bg-raised">
+                <span className="text-[10px] text-muted font-medium tracking-widest uppercase">on track this week</span>
               </div>
             )}
             {onTrackHabits.map(habit => (
@@ -414,18 +415,18 @@ function GoalProgressCard({ goal, habitsByGoal, onClick }) {
 
   return (
     <button onClick={onClick}
-      className={`bg-white border border-[#E8E3DB] border-l-[3px] ${mm.border} rounded-2xl p-4 text-left hover:shadow-md transition-all shadow-[0_1px_3px_rgba(0,0,0,0.08)] group`}>
+      className={`bg-surface border border-border border-l-[3px] ${mm.border} rounded-2xl p-4 text-left hover:shadow-md transition-all shadow-card group`}>
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex items-start gap-2.5 flex-1 min-w-0">
           {goal.icon
             ? <GoalIcon icon={goal.icon} size="md" className="mt-0.5" />
-            : <span className="text-[10px] font-semibold text-[#b5a08a] uppercase mt-0.5 flex-shrink-0">
+            : <span className="text-[10px] font-semibold text-muted uppercase mt-0.5 flex-shrink-0">
                 {goal.type === 'resolution' ? '✦' : goal.type === 'project' ? '◈' : '◇'}
               </span>
           }
           <div className="flex-1 min-w-0">
-            <span className="text-[10px] font-semibold text-[#6B6B6B] uppercase tracking-wider">{goal.type || 'Goal'}</span>
-            <p className="text-sm font-semibold text-[#1A1A1A] leading-snug group-hover:text-[#1B3A2D] transition-colors line-clamp-2 mt-0.5">
+            <span className="text-[10px] font-semibold text-muted uppercase tracking-wider">{goal.type || 'Goal'}</span>
+            <p className="text-sm font-semibold text-ink leading-snug group-hover:text-accent transition-colors line-clamp-2 mt-0.5">
               {goal.title}
             </p>
           </div>
@@ -443,14 +444,14 @@ function GoalProgressCard({ goal, habitsByGoal, onClick }) {
 function ProgressBarDisplay({ pct, label, allDone, cover }) {
   return (
     <div>
-      <div className={`flex justify-between text-xs mb-1 ${cover ? 'text-white/70' : 'text-[#6B6B6B]'}`}>
+      <div className={`flex justify-between text-xs mb-1 ${cover ? 'text-white/70' : 'text-muted'}`}>
         <span>{label}</span>
-        <span className={allDone ? (cover ? 'text-sage-300 font-medium' : 'text-sage-500 font-medium') : 'font-medium text-[#1A1A1A]'}>
+        <span className={allDone ? (cover ? 'text-sage-300 font-medium' : 'text-sage-500 font-medium') : 'font-medium text-ink'}>
           {allDone ? '✓' : `${pct}%`}
         </span>
       </div>
-      <div className={`w-full rounded-full h-1.5 ${cover ? 'bg-white/20' : 'bg-[#E8E3DB]'}`}>
-        <div className={`h-1.5 rounded-full transition-all ${allDone ? 'bg-sage-400' : cover ? 'bg-white/80' : 'bg-[#2D7A6B]'}`}
+      <div className={`w-full rounded-full h-1.5 ${cover ? 'bg-white/20' : 'bg-border'}`}>
+        <div className={`h-1.5 rounded-full transition-all ${allDone ? 'bg-sage-400' : cover ? 'bg-white/80' : 'bg-brand'}`}
           style={{ width: `${pct}%` }} />
       </div>
     </div>
@@ -473,25 +474,25 @@ function HabitWeekRow({ habit, monthGrid, last7, expanded, onToggleExpand, onTog
         {freq.perDay > 1 ? (
           <button onClick={onToggle}
             className={`min-w-[38px] h-5 rounded-full border-2 px-1 flex items-center justify-center flex-shrink-0 text-[11px] font-bold transition-all ${
-              habit.checked_today ? 'bg-[#2D7A6B] border-[#2D7A6B] text-white'
-                : habit.today_count > 0 ? 'border-[#2D7A6B] text-[#2D7A6B]'
-                : 'border-[#E8E3DB] text-[#6B6B6B] hover:border-[#2D7A6B]'}`}>
+              habit.checked_today ? 'bg-brand border-accent text-white'
+                : habit.today_count > 0 ? 'border-accent text-accent'
+                : 'border-border text-muted hover:border-accent'}`}>
             {habit.today_count}/{habit.today_target}
           </button>
         ) : (
           <button onClick={onToggle}
             className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-              habit.checked_today ? 'bg-[#2D7A6B] border-[#2D7A6B] text-white' : 'border-[#E8E3DB] hover:border-[#2D7A6B]'}`}>
+              habit.checked_today ? 'bg-brand border-accent text-white' : 'border-border hover:border-accent'}`}>
             {habit.checked_today && <span className="text-[10px] leading-none">✓</span>}
           </button>
         )}
 
         {/* Title + goal */}
         <button onClick={onToggleExpand} className="flex-1 text-left min-w-0">
-          <span className="text-sm text-[#1A1A1A]">{habit.title}</span>
+          <span className="text-sm text-ink">{habit.title}</span>
           <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[10px] text-[#6B6B6B]">{habit.goal_title}</span>
-            {freq.label && <span className="text-[10px] text-[#2D7A6B] font-medium">{freq.label}</span>}
+            <span className="text-[10px] text-muted">{habit.goal_title}</span>
+            {freq.label && <span className="text-[10px] text-accent font-medium">{freq.label}</span>}
           </div>
         </button>
 
@@ -500,22 +501,22 @@ function HabitWeekRow({ habit, monthGrid, last7, expanded, onToggleExpand, onTog
           <div className="flex gap-0.5">
             {last7.map(({ iso, isToday }) => (
               <div key={iso} className={`w-2 h-2 rounded-sm ${
-                checkins.has(iso) ? 'bg-[#2D7A6B]' : isToday ? 'bg-[#E8E3DB] ring-1 ring-[#2D7A6B]/30' : 'bg-[#F2EDE4]'
+                checkins.has(iso) ? 'bg-brand' : isToday ? 'bg-border ring-1 ring-accent/30' : 'bg-raised'
               }`} title={iso} />
             ))}
           </div>
-          <span className={`text-[11px] font-semibold tabular-nums w-8 text-right ${isOnTrack ? 'text-sage-500' : 'text-[#6B6B6B]'}`}>
+          <span className={`text-[11px] font-semibold tabular-nums w-8 text-right ${isOnTrack ? 'text-sage-500' : 'text-muted'}`}>
             {isOnTrack ? '✓' : `${wDone}/${wTarget}`}
           </span>
           {habit.streak > 0 && (
-            <span className="text-[11px] text-[#E8C334] font-bold">✦{habit.streak}</span>
+            <span className="text-[11px] text-highlight font-bold">✦{habit.streak}</span>
           )}
           <button onClick={onToggleExpand}
             className={`text-[10px] w-5 h-5 flex items-center justify-center rounded transition-colors ${
-              expanded ? 'text-[#2D7A6B]' : 'text-[#b5a08a] hover:text-[#6B6B6B]'}`}>
+              expanded ? 'text-accent' : 'text-muted hover:text-muted'}`}>
             {expanded ? '▴' : '▾'}
           </button>
-          <button onClick={onGoToGoal} className="text-[#b5a08a] hover:text-[#2D7A6B] text-xs transition-colors">→</button>
+          <button onClick={onGoToGoal} className="text-muted hover:text-accent text-xs transition-colors">→</button>
         </div>
       </div>
 
@@ -523,26 +524,26 @@ function HabitWeekRow({ habit, monthGrid, last7, expanded, onToggleExpand, onTog
       {expanded && (
         <div className="px-4 pb-4 ml-8 space-y-2">
           <div className="flex items-center gap-2">
-            <div className="flex-1 bg-[#E8E3DB] rounded-full h-1.5">
-              <div className="h-1.5 rounded-full bg-[#2D7A6B] transition-all" style={{ width: `${weekPct}%` }} />
+            <div className="flex-1 bg-border rounded-full h-1.5">
+              <div className="h-1.5 rounded-full bg-brand transition-all" style={{ width: `${weekPct}%` }} />
             </div>
-            <span className="text-[10px] text-[#6B6B6B]">{wDone}/{wTarget} this week</span>
+            <span className="text-[10px] text-muted">{wDone}/{wTarget} this week</span>
           </div>
           <div>
             <div className="flex gap-0.5 mb-1">
-              {DAY_LABELS.map((l, i) => <span key={i} className="text-[9px] text-[#6B6B6B] text-center flex-1">{l}</span>)}
+              {DAY_LABELS.map((l, i) => <span key={i} className="text-[9px] text-muted text-center flex-1">{l}</span>)}
             </div>
             {monthGrid.map((week, wi) => (
               <div key={wi} className="flex gap-0.5 mb-0.5">
                 {week.map(day => (
                   <div key={day.iso}
                     className={`flex-1 h-4 rounded-sm transition-colors ${
-                      checkins.has(day.iso) ? 'bg-[#2D7A6B]' : day.isToday ? 'bg-[#E8E3DB] ring-1 ring-[#2D7A6B]/30' : 'bg-[#F2EDE4]'
+                      checkins.has(day.iso) ? 'bg-brand' : day.isToday ? 'bg-border ring-1 ring-accent/30' : 'bg-raised'
                     }`} title={day.iso} />
                 ))}
               </div>
             ))}
-            <div className="flex justify-between text-[9px] text-[#6B6B6B] mt-1">
+            <div className="flex justify-between text-[9px] text-muted mt-1">
               <span>4 weeks ago</span>
               <span>{habit.monthly_checkins.length}/28 days</span>
               <span>today</span>

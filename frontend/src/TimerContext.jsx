@@ -1,3 +1,4 @@
+import { notify } from './components/Notice'
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { getActiveTimer, pauseTimer as apiPause, startTimer as apiStart } from './api'
 
@@ -69,7 +70,7 @@ export function TimerProvider({ children }) {
       setTimer(state)
       saveToStorage(state)
     } catch (err) {
-      alert('Could not start timer: ' + err.message)
+      notify('Could not start timer: ' + err.message)
     }
   }, [])
 
@@ -90,7 +91,7 @@ export function TimerProvider({ children }) {
         return updated
       })
     } catch (err) {
-      alert('Could not pause timer: ' + err.message)
+      notify('Could not pause timer: ' + err.message)
     }
   }, [timer])
 
@@ -110,7 +111,7 @@ export function TimerProvider({ children }) {
         return updated
       })
     } catch (err) {
-      alert('Could not resume timer: ' + err.message)
+      notify('Could not resume timer: ' + err.message)
     }
   }, [timer])
 

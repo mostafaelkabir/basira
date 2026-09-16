@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { getWorkReport, generateWeeklyReport } from './api'
 import { buildWorkReport, displayDate, formatWorkTime, localDate, periodRange, shiftPeriod, typeLabel } from './workReportUtils'
 
-const BUTTON = 'px-3 py-2 rounded-xl border border-[#E8E3DB] bg-white text-sm text-[#1B3A2D] hover:border-[#2D7A6B] disabled:opacity-40'
-const INPUT = 'px-3 py-2 rounded-xl border border-[#E8E3DB] bg-white text-sm text-[#1A1A1A] max-w-full'
-const COLORS = { code: '#2D7A6B', review: '#b39a45', meeting: '#859382', research: '#84719b', planning: '#b88765', other: '#6B6B6B' }
+const BUTTON = 'px-3 py-2 rounded-xl border border-border bg-surface text-sm text-accent hover:border-accent disabled:opacity-40'
+const INPUT = 'px-3 py-2 rounded-xl border border-border bg-surface text-sm text-ink max-w-full'
+const COLORS = { code: 'rgb(var(--chart-1))', review: 'rgb(var(--chart-3))', meeting: 'rgb(var(--muted))', research: 'rgb(var(--chart-5))', planning: 'rgb(var(--chart-4))', other: 'rgb(var(--faint))' }
 
 function TimeBar({ values, max }) {
   return (
-    <div className="flex h-2 rounded-full bg-[#F2EDE4] overflow-hidden" aria-hidden="true">
+    <div className="flex h-2 rounded-full bg-raised overflow-hidden" aria-hidden="true">
       {Object.entries(values).map(([type, seconds]) => (
         <div key={type} style={{ width: `${max ? seconds / max * 100 : 0}%`, background: COLORS[type] || COLORS.other }} />
       ))}
@@ -37,11 +37,11 @@ function ReportPreview({ data }) {
   }
 
   return (
-    <section className="bg-white border border-[#E8E3DB] rounded-2xl p-5">
+    <section className="bg-surface border border-border rounded-2xl p-5">
       <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
         <div>
-          <h3 className="font-semibold text-[#1B3A2D]">Manager report</h3>
-          <p className="text-xs text-[#6B6B6B] mt-1">Edit your draft before copying. Changes here only affect the report.</p>
+          <h3 className="font-semibold text-accent">Manager report</h3>
+          <p className="text-xs text-muted mt-1">Edit your draft before copying. Changes here only affect the report.</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <select aria-label="Report detail" className={INPUT} value={detail} onChange={e => { setDetail(e.target.value); setNotice('') }}>
@@ -52,18 +52,18 @@ function ReportPreview({ data }) {
           </select>
         </div>
       </div>
-      <label htmlFor="work-report-draft" className="text-xs font-medium text-[#6B6B6B]">Editable preview</label>
+      <label htmlFor="work-report-draft" className="text-xs font-medium text-muted">Editable preview</label>
       <textarea id="work-report-draft" ref={editor} value={value}
         onChange={e => { setDrafts(prev => ({ ...prev, [key]: e.target.value })); setNotice('') }}
-        className="w-full min-h-[280px] mt-2 p-4 rounded-xl border border-[#E8E3DB] bg-[#F9F6F1] text-sm leading-relaxed text-[#1A1A1A] resize-y" />
+        className="w-full min-h-[280px] mt-2 p-4 rounded-xl border border-border bg-canvas text-sm leading-relaxed text-ink resize-y" />
       <div className="flex items-center justify-between flex-wrap gap-3 mt-3">
         <button className={BUTTON} disabled={drafts[key] === undefined} onClick={() => {
           setDrafts(prev => { const next = { ...prev }; delete next[key]; return next })
           setNotice('Report reset to logged work.')
         }}>Reset this draft</button>
-        <button onClick={copy} className="px-4 py-2 rounded-xl bg-[#1B3A2D] text-white text-sm font-semibold">Copy report</button>
+        <button onClick={copy} className="px-4 py-2 rounded-xl bg-forest text-white text-sm font-semibold">Copy report</button>
       </div>
-      <p role="status" className="text-xs text-[#2D7A6B] mt-2 min-h-[16px]">{notice}</p>
+      <p role="status" className="text-xs text-accent mt-2 min-h-[16px]">{notice}</p>
     </section>
   )
 }
@@ -97,11 +97,11 @@ function AISummary({ dateFrom, dateTo, companyId }) {
   }
 
   return (
-    <section className="bg-white border border-violet-100 rounded-2xl p-5">
+    <section className="bg-surface border border-violet-100 rounded-2xl p-5">
       <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
         <div>
           <h3 className="font-semibold text-violet-800">AI Weekly Summary</h3>
-          <p className="text-xs text-[#6B6B6B] mt-1">Generate an AI narrative from your logged tickets and time.</p>
+          <p className="text-xs text-muted mt-1">Generate an AI narrative from your logged tickets and time.</p>
         </div>
         <button onClick={generate} disabled={loading}
           className="px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50 transition-colors">
@@ -112,18 +112,18 @@ function AISummary({ dateFrom, dateTo, companyId }) {
       {aiData && (
         <div className="space-y-3">
           <div className="flex items-center gap-4 flex-wrap text-sm">
-            <span className="font-semibold text-[#2D7A6B]">{formatWorkTime(aiData.total_seconds)}</span>
-            <span className="text-[#6B6B6B]">{aiData.tickets_completed} completed · {aiData.tickets_in_progress} in progress{aiData.tickets_blocked > 0 ? ` · ${aiData.tickets_blocked} blocked` : ''}</span>
+            <span className="font-semibold text-accent">{formatWorkTime(aiData.total_seconds)}</span>
+            <span className="text-muted">{aiData.tickets_completed} completed · {aiData.tickets_in_progress} in progress{aiData.tickets_blocked > 0 ? ` · ${aiData.tickets_blocked} blocked` : ''}</span>
           </div>
           {aiData.ai_narrative ? (
-            <div className="bg-violet-50 border border-violet-100 rounded-xl p-4 text-sm text-[#1A1A1A] whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
+            <div className="bg-violet-50 border border-violet-100 rounded-xl p-4 text-sm text-ink whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
               {aiData.ai_narrative}
             </div>
           ) : (
-            <p className="text-xs text-[#6B6B6B] italic">AI narrative unavailable — check your Groq API key in .env</p>
+            <p className="text-xs text-muted italic">AI narrative unavailable — check your Groq API key in .env</p>
           )}
           <button onClick={copy}
-            className={`${BUTTON} ${copied ? 'text-[#2D7A6B]' : ''}`}>
+            className={`${BUTTON} ${copied ? 'text-accent' : ''}`}>
             {copied ? '✓ Copied!' : 'Copy AI summary'}
           </button>
         </div>
@@ -135,21 +135,21 @@ function AISummary({ dateFrom, dateTo, companyId }) {
 function DayEntries({ day, entries }) {
   const rows = entries.filter(entry => entry.date === day.date)
   return (
-    <details className="border-t border-[#E8E3DB] py-3">
-      <summary className="cursor-pointer text-sm text-[#1A1A1A]">
+    <details className="border-t border-border py-3">
+      <summary className="cursor-pointer text-sm text-ink">
         <span className="ml-2">{displayDate(day.date)}</span>
         <span className="float-right font-medium tabular-nums">{formatWorkTime(day.seconds)}</span>
       </summary>
-      {rows.length === 0 ? <p className="text-xs text-[#6B6B6B] mt-3">No time entries recorded.</p> : (
+      {rows.length === 0 ? <p className="text-xs text-muted mt-3">No time entries recorded.</p> : (
         <div className="mt-3 space-y-3">
           {rows.map(entry => (
             <div key={`${entry.source}:${entry.id}`} className="flex justify-between items-start gap-3 pl-4">
               <div className="min-w-0">
-                <p className="text-sm text-[#1A1A1A] break-words">{entry.title}{entry.ticket_ref && <span className="text-[#2D7A6B]"> [{entry.ticket_ref}]</span>}</p>
-                <p className="text-xs text-[#6B6B6B] mt-0.5">{entry.company_name} · {typeLabel(entry.type)} · {entry.source === 'ticket' ? 'Ticket session' : 'Work log'}</p>
-                {entry.note && <p className="text-xs text-[#6B6B6B] mt-1 whitespace-pre-wrap break-words">{entry.note}</p>}
+                <p className="text-sm text-ink break-words">{entry.title}{entry.ticket_ref && <span className="text-accent"> [{entry.ticket_ref}]</span>}</p>
+                <p className="text-xs text-muted mt-0.5">{entry.company_name} · {typeLabel(entry.type)} · {entry.source === 'ticket' ? 'Ticket session' : 'Work log'}</p>
+                {entry.note && <p className="text-xs text-muted mt-1 whitespace-pre-wrap break-words">{entry.note}</p>}
               </div>
-              <span className="text-sm text-[#1B3A2D] font-medium tabular-nums whitespace-nowrap">{formatWorkTime(entry.seconds)}</span>
+              <span className="text-sm text-accent font-medium tabular-nums whitespace-nowrap">{formatWorkTime(entry.seconds)}</span>
             </div>
           ))}
         </div>
@@ -192,17 +192,17 @@ export default function WorkReports({ companyId }) {
   const max = data ? Math.max(1, ...data.by_week.map(w => w.seconds)) : 1
   return (
     <div className="space-y-5">
-      <section className="bg-white border border-[#E8E3DB] rounded-2xl p-5">
+      <section className="bg-surface border border-border rounded-2xl p-5">
         <div className="flex justify-between items-start gap-3 flex-wrap">
-          <div><h2 className="text-xl font-semibold text-[#1B3A2D]">Time &amp; Reports</h2>
-            <p className="text-sm text-[#6B6B6B] mt-1">Review your hours, then copy an update for your manager.</p></div>
+          <div><h2 className="text-xl font-semibold text-accent">Time &amp; Reports</h2>
+            <p className="text-sm text-muted mt-1">Review your hours, then copy an update for your manager.</p></div>
           <button className={BUTTON} onClick={() => setRevision(r => r + 1)}>Refresh totals</button>
         </div>
         <div className="flex items-end gap-3 flex-wrap my-5">
-          <div className="flex gap-1 bg-[#F2EDE4] rounded-xl p-1" aria-label="Reporting period">
+          <div className="flex gap-1 bg-raised rounded-xl p-1" aria-label="Reporting period">
             {['month', 'week', 'custom'].map(v => (
               <button key={v} aria-pressed={mode === v} onClick={() => setMode(v)}
-                className={`px-3 py-2 rounded-lg text-sm ${mode === v ? 'bg-[#1B3A2D] text-white' : 'text-[#6B6B6B]'}`}>{v.charAt(0).toUpperCase() + v.slice(1)}</button>
+                className={`px-3 py-2 rounded-lg text-sm ${mode === v ? 'bg-forest text-white' : 'text-muted'}`}>{v.charAt(0).toUpperCase() + v.slice(1)}</button>
             ))}
           </div>
           {mode !== 'custom' ? (
@@ -217,33 +217,33 @@ export default function WorkReports({ companyId }) {
             </div>
           ) : (
             <div className="flex gap-3 flex-wrap">
-              <label className="text-xs text-[#6B6B6B]">From<input aria-label="Report start date" type="date" className={`${INPUT} block mt-1`} value={customStart} onChange={e => setCustomStart(e.target.value)} /></label>
-              <label className="text-xs text-[#6B6B6B]">To<input aria-label="Report end date" type="date" className={`${INPUT} block mt-1`} value={customEnd} onChange={e => setCustomEnd(e.target.value)} /></label>
+              <label className="text-xs text-muted">From<input aria-label="Report start date" type="date" className={`${INPUT} block mt-1`} value={customStart} onChange={e => setCustomStart(e.target.value)} /></label>
+              <label className="text-xs text-muted">To<input aria-label="Report end date" type="date" className={`${INPUT} block mt-1`} value={customEnd} onChange={e => setCustomEnd(e.target.value)} /></label>
             </div>
           )}
         </div>
         {invalid ? <p role="alert" className="text-sm text-red-700">Choose a start and end date, with the end on or after the start.</p>
           : error ? <p role="alert" className="text-sm text-red-700">{error}</p>
-          : !data ? <p role="status" className="text-sm text-[#6B6B6B]">Loading logged time…</p>
+          : !data ? <p role="status" className="text-sm text-muted">Loading logged time…</p>
           : <>
             <div aria-live="polite">
-              <p className="text-xs text-[#6B6B6B]">{data.company_name} · {range.start} — {range.end}{currentPeriod ? ` · ${mode === 'month' ? 'Month' : 'Week'} to date` : ''}</p>
-              <p className="text-4xl font-semibold tracking-tight text-[#1B3A2D] tabular-nums mt-2">{formatWorkTime(data.total_seconds)}</p>
-              <p className="text-sm text-[#6B6B6B] mt-1">Logged work time</p>
+              <p className="text-xs text-muted">{data.company_name} · {range.start} — {range.end}{currentPeriod ? ` · ${mode === 'month' ? 'Month' : 'Week'} to date` : ''}</p>
+              <p className="text-4xl font-semibold tracking-tight text-accent tabular-nums mt-2">{formatWorkTime(data.total_seconds)}</p>
+              <p className="text-sm text-muted mt-1">Logged work time</p>
             </div>
-            <p className="text-xs text-[#6B6B6B] mt-4">Weeks run Monday–Sunday. Standalone logs use their saved date. Running timers count once stopped.</p>
+            <p className="text-xs text-muted mt-4">Weeks run Monday–Sunday. Standalone logs use their saved date. Running timers count once stopped.</p>
           </>}
       </section>
 
       {data && !invalid && !error && <>
-        <section className="bg-white border border-[#E8E3DB] rounded-2xl p-5">
-          <h3 className="font-semibold text-[#1B3A2D] mb-4">{mode === 'week' ? 'Daily breakdown' : 'Weekly breakdown'}</h3>
-          {data.entries.length === 0 && <p className="text-sm text-[#6B6B6B] mb-4">No work time entries recorded for this period.</p>}
+        <section className="bg-surface border border-border rounded-2xl p-5">
+          <h3 className="font-semibold text-accent mb-4">{mode === 'week' ? 'Daily breakdown' : 'Weekly breakdown'}</h3>
+          {data.entries.length === 0 && <p className="text-sm text-muted mb-4">No work time entries recorded for this period.</p>}
           {mode === 'week'
             ? data.by_day.map(day => <DayEntries key={day.date} day={day} entries={data.entries} />)
             : data.by_week.map(week => (
-              <details key={week.date_from} className="border-t border-[#E8E3DB] py-4">
-                <summary className="cursor-pointer text-sm text-[#1A1A1A]">
+              <details key={week.date_from} className="border-t border-border py-4">
+                <summary className="cursor-pointer text-sm text-ink">
                   <span className="ml-2">{displayDate(week.date_from)} – {displayDate(week.date_to)}</span>
                   <span className="float-right font-medium tabular-nums">{formatWorkTime(week.seconds)}</span>
                   <div className="mt-3"><TimeBar values={week.by_type} max={max} /></div>
@@ -254,15 +254,15 @@ export default function WorkReports({ companyId }) {
                 </div>
               </details>
             ))}
-          <div className="flex flex-wrap gap-x-5 gap-y-2 mt-3 text-xs text-[#6B6B6B]">
+          <div className="flex flex-wrap gap-x-5 gap-y-2 mt-3 text-xs text-muted">
             {Object.entries(data.by_type).sort((a, b) => b[1] - a[1]).map(([type, seconds]) => (
               <span key={type} className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm" style={{ background: COLORS[type] || COLORS.other }} />{typeLabel(type)} · {formatWorkTime(seconds)}</span>
             ))}
           </div>
         </section>
-        {!companyId && data.by_company.length > 0 && <section className="bg-white border border-[#E8E3DB] rounded-2xl p-5">
-          <h3 className="font-semibold text-[#1B3A2D] mb-3">By company</h3>
-          {data.by_company.map(c => <div key={c.company_id} className="flex justify-between gap-3 py-2 text-sm"><span className="text-[#6B6B6B]">{c.company_name}</span><span className="text-[#1B3A2D] font-medium tabular-nums">{formatWorkTime(c.seconds)}</span></div>)}
+        {!companyId && data.by_company.length > 0 && <section className="bg-surface border border-border rounded-2xl p-5">
+          <h3 className="font-semibold text-accent mb-3">By company</h3>
+          {data.by_company.map(c => <div key={c.company_id} className="flex justify-between gap-3 py-2 text-sm"><span className="text-muted">{c.company_name}</span><span className="text-accent font-medium tabular-nums">{formatWorkTime(c.seconds)}</span></div>)}
         </section>}
         <ReportPreview key={requestKey} data={data} />
         <AISummary dateFrom={range.start} dateTo={range.end} companyId={companyId} />

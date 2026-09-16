@@ -1,71 +1,88 @@
 /** @type {import('tailwindcss').Config} */
+const v = name => `rgb(var(--${name}) / <alpha-value>)`
+const tint = (name, alpha) => `rgb(var(--${name}) / ${alpha})`
+
+// A status scale: soft fills for 50/100, tinted lines for 200/300, solid ink from 400 up.
+const signal = name => ({
+  50: v(`${name}-soft`), 100: v(`${name}-soft`),
+  200: tint(name, .35), 300: tint(name, .55),
+  400: v(name), 500: v(name), 600: v(name), 700: v(name), 800: v(name), 900: v(name),
+})
+
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        sans: 'var(--font-sans)',
+        mono: 'var(--font-mono)',
+        arabic: 'var(--font-arabic)',
+      },
       colors: {
-        // New design system tokens
-        cream: '#F2EDE4',
-        forest: '#1B3A2D',
-        accent: '#2D7A6B',
-        'nav-active': '#E8C334',
-        'text-primary': '#1A1A1A',
-        'text-secondary': '#6B6B6B',
-        border: '#E8E3DB',
-        // Legacy tokens — kept for backward compatibility
+        // Semantic surfaces and text
+        canvas: v('canvas'),
+        surface: v('surface'),
+        raised: v('raised'),
+        overlay: v('overlay'),
+        ink: v('ink'),
+        muted: v('muted'),
+        faint: v('faint'),
+        border: v('border'),
+        'border-strong': v('border-strong'),
+
+        // Brand
+        accent: v('accent'),
+        'accent-strong': v('accent-strong'),
+        'accent-soft': v('accent-soft'),
+        'on-accent': v('on-accent'),
+        glow: v('glow'),
+        gold: { DEFAULT: v('gold'), 50: v('gold-soft'), 100: v('gold-soft'), 200: tint('gold', .35), 300: v('gold'), 400: v('gold'), 500: v('gold'), 600: v('gold') },
+        'on-gold': '#1a1508',
+        highlight: '#E4C46E',
+        forest: v('forest'),
+        'forest-hover': v('forest-hover'),
+        brand: '#236B4F',
+        'nav-active': '#E4C46E',
+        'text-primary': v('ink'),
+        'text-secondary': v('muted'),
+        cream: v('canvas'),
+
+        // Status and AI scales — theme aware, so dark mode never shows a white badge.
+        red: signal('danger'),
+        rose: signal('danger'),
+        amber: signal('warning'),
+        orange: signal('warning'),
+        yellow: signal('warning'),
+        emerald: signal('success'),
+        green: signal('success'),
+        blue: signal('info'),
+        sky: signal('info'),
+        violet: { ...signal('ai'), 200: v('ai-line'), 300: v('ai-line'), 600: v('ai-solid'), 700: v('ai-solid'), 800: v('ai-strong'), 900: v('ai-strong') },
+        purple: signal('ai'),
+
+        // Legacy aliases kept while old class names remain in pages.
         sand: {
-          50:  '#faf6f0',
-          100: '#F2EDE4',  // mapped to cream
-          200: '#E8E3DB',  // mapped to border
-          300: '#d4c5b0',
-          400: '#b5a08a',
-          500: '#9e8c78',
-          600: '#6b5a48',
-          700: '#4a3c2c',
-          800: '#2c2018',
-          900: '#1a1208',
+          50: v('surface'), 100: v('raised'), 200: v('border'), 300: v('faint'), 400: v('muted'),
+          500: v('muted'), 600: v('muted'), 700: v('ink'), 800: v('ink'), 900: v('ink'),
         },
         teal: {
-          50:  '#e8f4f3',
-          100: '#cde9e7',
-          200: '#9dd3d0',
-          300: '#6dbdba',
-          400: '#3aa7a3',
-          500: '#2D7A6B',  // mapped to accent
-          600: '#1B3A2D',  // mapped to forest
-          700: '#164d4b',
-          800: '#103836',
-          900: '#0a2524',
-          950: '#051e1d',
+          50: v('accent-soft'), 100: v('accent-soft'), 200: tint('accent', .35), 300: tint('accent', .55),
+          400: v('accent'), 500: v('accent'), 600: v('forest'), 700: v('forest-hover'), 800: v('forest-hover'), 900: v('forest-hover'), 950: v('forest-hover'),
         },
-        gold: {
-          50:  '#fdf9e8',
-          100: '#faf3c0',
-          200: '#f5e680',
-          300: '#E8C334',  // mapped to nav-active
-          400: '#c49a3c',
-          500: '#a07a20',
-          600: '#7d5e0f',
-        },
-        sage: {
-          50:  '#eef5f0',
-          100: '#d5e8d9',
-          200: '#acd1b3',
-          300: '#7db88a',
-          400: '#4a9e64',
-          500: '#3a8050',
-          600: '#2d6340',
-        },
-        terra: {
-          100: '#f5d5d0',
-          300: '#e0917f',
-          400: '#E85A4F',
-          500: '#9b3a2f',
-        },
+        sage: signal('success'),
+        terra: { 100: v('danger-soft'), 300: tint('danger', .55), 400: v('danger'), 500: v('danger') },
+        slate: { 500: v('muted') },
+      },
+      borderRadius: {
+        card: 'var(--radius-card)',
+        control: 'var(--radius-control)',
       },
       boxShadow: {
-        card: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)',
+        card: 'var(--shadow)',
+        float: 'var(--shadow-float)',
+        glow: '0 0 0 1px rgb(var(--glow) / .35), 0 0 24px rgb(var(--glow) / .25)',
       },
+      transitionTimingFunction: { out: 'var(--ease-out)' },
     },
   },
   plugins: [],

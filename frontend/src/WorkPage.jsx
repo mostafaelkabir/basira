@@ -1,3 +1,4 @@
+import { notify } from './components/Notice'
 import { useEffect, useState, useRef } from 'react'
 import {
   getCompanies, createCompany, updateCompany, deleteCompany,
@@ -25,16 +26,16 @@ const WORK_TYPES = {
 }
 
 const TICKET_STATUSES = {
-  backlog:     { label: 'Backlog',     dot: 'bg-sand-300',    bg: 'bg-[#F2EDE4] text-[#6B6B6B]' },
-  todo:        { label: 'To Do',       dot: 'bg-[#b5a08a]',   bg: 'bg-[#F2EDE4] text-[#6B6B6B]' },
+  backlog:     { label: 'Backlog',     dot: 'bg-sand-300',    bg: 'bg-raised text-muted' },
+  todo:        { label: 'To Do',       dot: 'bg-muted',   bg: 'bg-raised text-muted' },
   in_progress: { label: 'In Progress', dot: 'bg-blue-400',    bg: 'bg-blue-50 text-blue-700' },
   review:      { label: 'In Review',   dot: 'bg-violet-400',  bg: 'bg-violet-50 text-violet-700' },
-  done:        { label: 'Done',        dot: 'bg-[#2D7A6B]',   bg: 'bg-[#2D7A6B]/10 text-[#2D7A6B]' },
+  done:        { label: 'Done',        dot: 'bg-brand',   bg: 'bg-brand/10 text-accent' },
   blocked:     { label: 'Blocked',     dot: 'bg-red-400',     bg: 'bg-red-50 text-red-600' },
 }
 
 const PRIORITIES = {
-  low:    { label: 'Low',    color: 'text-[#b5a08a]', icon: '↓' },
+  low:    { label: 'Low',    color: 'text-muted', icon: '↓' },
   medium: { label: 'Medium', color: 'text-amber-500',  icon: '→' },
   high:   { label: 'High',   color: 'text-orange-500', icon: '↑' },
   urgent: { label: 'Urgent', color: 'text-red-500',    icon: '⚡' },
@@ -131,7 +132,7 @@ function ProofBadge({ proof }) {
   return (
     <a href={proof.url} target="_blank" rel="noreferrer"
       onClick={e => e.stopPropagation()}
-      className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-lg border border-[#E8E3DB] bg-[#F9F6F1] text-[#1A1A1A] hover:border-[#2D7A6B] hover:bg-[#2D7A6B]/5 transition-all font-mono">
+      className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-lg border border-border bg-canvas text-ink hover:border-accent hover:bg-brand/5 transition-all font-mono">
       <span>{icon}</span><span>{label}</span>
     </a>
   )
@@ -146,14 +147,14 @@ function TimeBar({ estimated, logged, running = 0 }) {
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-[11px]">
-        <span className="text-[#6B6B6B]">
+        <span className="text-muted">
           {fmtMins(total)} logged · est. {fmtMins(estimated)}
         </span>
-        <span className={over ? 'text-red-500 font-semibold' : 'text-[#6B6B6B]'}>{pct}%</span>
+        <span className={over ? 'text-red-500 font-semibold' : 'text-muted'}>{pct}%</span>
       </div>
-      <div className="w-full h-1.5 bg-[#F2EDE4] rounded-full overflow-hidden">
+      <div className="w-full h-1.5 bg-raised rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all ${over ? 'bg-red-400' : pct >= 80 ? 'bg-amber-400' : 'bg-[#2D7A6B]'}`}
+          className={`h-full rounded-full transition-all ${over ? 'bg-red-400' : pct >= 80 ? 'bg-amber-400' : 'bg-brand'}`}
           style={{ width: `${pct}%` }} />
       </div>
     </div>
@@ -200,7 +201,7 @@ function NoteItem({ item, ticketId, onUpdate }) {
       const updated = await updateTicketComment(ticketId, item.id, trimmed)
       onUpdate(updated)
       setEditing(false)
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setSaving(false) }
   }
 
@@ -218,18 +219,18 @@ function NoteItem({ item, ticketId, onUpdate }) {
             if (e.key === 'Escape') cancelEdit()
           }}
           rows={Math.max(2, editText.split('\n').length)}
-          className="w-full text-sm text-[#1A1A1A] leading-relaxed bg-[#F9F6F1] border border-[#2D7A6B]/30 rounded-xl px-3 py-2 focus:outline-none resize-none"
+          className="w-full text-sm text-ink leading-relaxed bg-canvas border border-accent/30 rounded-xl px-3 py-2 focus:outline-none resize-none"
         />
         <div className="flex items-center gap-2 mt-1.5">
           <button onClick={saveEdit} disabled={saving}
-            className="text-[11px] px-2.5 py-1 rounded-lg bg-[#1B3A2D] text-white font-medium disabled:opacity-50 hover:bg-[#2a5240] transition-colors">
+            className="text-[11px] px-2.5 py-1 rounded-lg bg-forest text-white font-medium disabled:opacity-50 hover:bg-forest-hover transition-colors">
             {saving ? '…' : 'Save'}
           </button>
           <button onClick={cancelEdit}
-            className="text-[11px] px-2.5 py-1 rounded-lg text-[#6B6B6B] hover:text-[#1A1A1A] transition-colors">
+            className="text-[11px] px-2.5 py-1 rounded-lg text-muted hover:text-ink transition-colors">
             Cancel
           </button>
-          <span className="text-[10px] text-[#b5a08a] ml-auto">↵ save · Esc cancel</span>
+          <span className="text-[10px] text-muted ml-auto">↵ save · Esc cancel</span>
         </div>
       </div>
     )
@@ -242,12 +243,12 @@ function NoteItem({ item, ticketId, onUpdate }) {
         original={item.body_original}
         onPolish={() => polishTicketComment(item.id).then(onUpdate)}
         onRestore={() => restoreTicketComment(item.id).then(onUpdate)}>
-        {(txt) => <p className="text-sm text-[#1A1A1A] leading-relaxed whitespace-pre-wrap">{txt}</p>}
+        {(txt) => <p className="text-sm text-ink leading-relaxed whitespace-pre-wrap">{txt}</p>}
       </SavedTextToggle>
       <div className="flex items-center gap-2 mt-0.5">
-        <p className="text-[10px] text-[#b5a08a]">{fmtTimestamp(item.ts)}</p>
+        <p className="text-[10px] text-muted">{fmtTimestamp(item.ts)}</p>
         <button onClick={startEdit}
-          className="opacity-0 group-hover:opacity-100 text-[10px] text-[#b5a08a] hover:text-[#2D7A6B] transition-all">
+          className="opacity-0 group-hover:opacity-100 text-[10px] text-muted hover:text-accent transition-all">
           ✎ edit
         </button>
       </div>
@@ -319,7 +320,7 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
       onUpdate(updated)
       setCompose('')
       composeRef.current?.focus()
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setSending(false) }
   }
 
@@ -334,7 +335,7 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
       const { url } = await uploadProofImage(file)
       const updated = await addTicketComment(ticket.id, { body: url, type: 'proof' })
       onUpdate(updated)
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setSending(false) }
   }
 
@@ -350,7 +351,7 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
       onUpdate(updated)
       setLogForm({ duration_minutes: '', logged_at: todayStr(), note: '' })
       setLogMode(false)
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setSending(false) }
   }
 
@@ -367,7 +368,7 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
         // Let useEffect handle the interval — don't start one here too
         onUpdate({ ...ticket, timer_running: true, timer_started_at: res.started_at, status: ticket.status === 'todo' ? 'in_progress' : ticket.status })
       }
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
   }
 
   async function handleDeleteFeedItem(item) {
@@ -379,7 +380,7 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
       }
       const full = await getWorkTicket(ticket.id)
       onUpdate(full)
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
   }
 
   const feed = buildFeed(ticket)
@@ -389,35 +390,35 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
-      <div className="w-full max-w-xl bg-white h-full shadow-2xl flex flex-col"
+      <div className="w-full max-w-xl bg-surface h-full shadow-2xl flex flex-col"
         onClick={e => e.stopPropagation()}>
 
         {/* ── Header ── */}
-        <div className="px-6 pt-5 pb-4 border-b border-[#E8E3DB] flex-shrink-0">
+        <div className="px-6 pt-5 pb-4 border-b border-border flex-shrink-0">
           <div className="flex items-start gap-3">
             <div className="flex-1 min-w-0">
               {/* Badges row */}
               <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <TypeBadge type={ticket.type} />
                 <StatusPill status={ticket.status} onChange={status =>
-                  updateWorkTicket(ticket.id, { status }).then(onUpdate).catch(e => alert(e.message))
+                  updateWorkTicket(ticket.id, { status }).then(onUpdate).catch(e => notify(e.message))
                 } />
                 <PriorityDot priority={ticket.priority} />
                 {ticket.ticket_ref && (
-                  <span className="text-[11px] font-mono text-[#6B6B6B] bg-[#F2EDE4] px-2 py-0.5 rounded-lg">
+                  <span className="text-[11px] font-mono text-muted bg-raised px-2 py-0.5 rounded-lg">
                     {ticket.ticket_ref}
                   </span>
                 )}
               </div>
-              <h2 className="font-bold text-[#1A1A1A] text-lg leading-tight">{ticket.title}</h2>
+              <h2 className="font-bold text-ink text-lg leading-tight">{ticket.title}</h2>
               <div className="flex items-center gap-1.5 mt-1">
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: ticket.company_color }} />
-                <span className="text-xs text-[#6B6B6B]">{ticket.company_name}</span>
+                <span className="text-xs text-muted">{ticket.company_name}</span>
                 {ticket.tags?.length > 0 && (
                   <>
-                    <span className="text-[#E8E3DB]">·</span>
+                    <span className="text-border">·</span>
                     {ticket.tags.slice(0, 3).map((t, i) => (
-                      <span key={i} className="text-[10px] px-1.5 py-0.5 bg-[#F2EDE4] text-[#6B6B6B] rounded-md">#{t}</span>
+                      <span key={i} className="text-[10px] px-1.5 py-0.5 bg-raised text-muted rounded-md">#{t}</span>
                     ))}
                   </>
                 )}
@@ -426,11 +427,11 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
             <div className="flex items-center gap-1 flex-shrink-0">
               <button onClick={() => onEdit?.(ticket)}
                 title="Edit ticket"
-                className="w-7 h-7 flex items-center justify-center text-[#b5a08a] hover:text-[#2D7A6B] transition-colors text-sm">✏️</button>
-              <button onClick={() => { if (confirm('Delete ticket?')) deleteWorkTicket(ticket.id).then(onDelete).catch(e => alert(e.message)) }}
-                className="w-7 h-7 flex items-center justify-center text-[#b5a08a] hover:text-red-400 transition-colors text-sm">🗑</button>
+                className="w-7 h-7 flex items-center justify-center text-muted hover:text-accent transition-colors text-sm">✏️</button>
+              <button onClick={() => { if (confirm('Delete ticket?')) deleteWorkTicket(ticket.id).then(onDelete).catch(e => notify(e.message)) }}
+                className="w-7 h-7 flex items-center justify-center text-muted hover:text-red-400 transition-colors text-sm">🗑</button>
               <button onClick={onClose}
-                className="w-7 h-7 flex items-center justify-center text-[#b5a08a] hover:text-[#1A1A1A] transition-colors text-lg">✕</button>
+                className="w-7 h-7 flex items-center justify-center text-muted hover:text-ink transition-colors text-lg">✕</button>
             </div>
           </div>
 
@@ -438,9 +439,9 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
           {ticket.estimated_minutes > 0
             ? <div className="mt-3"><TimeBar estimated={ticket.estimated_minutes} logged={ticket.logged_minutes} running={timerSecs} /></div>
             : (ticket.logged_minutes > 0 || ticket.timer_running) && (
-              <p className="text-xs text-[#6B6B6B] mt-2">
+              <p className="text-xs text-muted mt-2">
                 {ticket.timer_running
-                  ? <><span className="font-mono text-[#2D7A6B] font-semibold">{fmtClock(totalSecs)}</span><span className="ml-1.5">total · session {fmtClock(timerSecs)}</span></>
+                  ? <><span className="font-mono text-accent font-semibold">{fmtClock(totalSecs)}</span><span className="ml-1.5">total · session {fmtClock(timerSecs)}</span></>
                   : <>⏱ {fmtMins(ticket.logged_minutes)} logged</>
                 }
               </p>
@@ -452,12 +453,12 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
             <button onClick={handleTimerToggle}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors flex-1 justify-center ${
                 ticket.timer_running
-                  ? 'bg-[#2D7A6B] text-white hover:bg-[#1B3A2D]'
-                  : 'bg-[#1B3A2D] text-white hover:bg-[#2a5240]'
+                  ? 'bg-brand text-white hover:bg-forest'
+                  : 'bg-forest text-white hover:bg-forest-hover'
               }`}>
               {ticket.timer_running ? (
                 <>
-                  <span className="w-2 h-2 rounded-full bg-white animate-pulse flex-shrink-0" />
+                  <span className="w-2 h-2 rounded-full bg-surface animate-pulse flex-shrink-0" />
                   <span>⏹ Stop</span>
                   <span className="font-mono tracking-widest">{fmtClock(totalSecs)}</span>
                 </>
@@ -465,7 +466,7 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
             </button>
             <button onClick={() => setLogMode(v => !v)}
               className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
-                logMode ? 'bg-[#F2EDE4] border-[#E8E3DB] text-[#1A1A1A]' : 'border-[#E8E3DB] text-[#6B6B6B] hover:border-[#2D7A6B] hover:text-[#2D7A6B]'
+                logMode ? 'bg-raised border-border text-ink' : 'border-border text-muted hover:border-accent hover:text-accent'
               }`}>
               + Log Time
             </button>
@@ -473,33 +474,33 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
 
           {/* Log Time inline form */}
           {logMode && (
-            <form onSubmit={handleLogTime} className="mt-3 bg-[#F9F6F1] rounded-xl p-3 border border-[#E8E3DB] space-y-2">
+            <form onSubmit={handleLogTime} className="mt-3 bg-canvas rounded-xl p-3 border border-border space-y-2">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] text-[#6B6B6B] font-medium">Duration (min)</label>
+                  <label className="text-[10px] text-muted font-medium">Duration (min)</label>
                   <input type="number" min="1" required autoFocus value={logForm.duration_minutes}
                     onChange={e => setLogForm(f => ({ ...f, duration_minutes: e.target.value }))}
                     placeholder="90"
-                    className="w-full mt-0.5 px-2 py-1.5 rounded-lg border border-[#E8E3DB] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30" />
+                    className="w-full mt-0.5 px-2 py-1.5 rounded-lg border border-border text-sm bg-surface focus:outline-none focus:ring-2 focus:ring-accent/30" />
                   {logForm.duration_minutes && (
-                    <p className="text-[10px] text-[#2D7A6B] mt-0.5">{fmtMins(parseInt(logForm.duration_minutes) || 0)}</p>
+                    <p className="text-[10px] text-accent mt-0.5">{fmtMins(parseInt(logForm.duration_minutes) || 0)}</p>
                   )}
                 </div>
                 <div>
-                  <label className="text-[10px] text-[#6B6B6B] font-medium">Date</label>
+                  <label className="text-[10px] text-muted font-medium">Date</label>
                   <input type="date" value={logForm.logged_at}
                     onChange={e => setLogForm(f => ({ ...f, logged_at: e.target.value }))}
-                    className="w-full mt-0.5 px-2 py-1.5 rounded-lg border border-[#E8E3DB] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30" />
+                    className="w-full mt-0.5 px-2 py-1.5 rounded-lg border border-border text-sm bg-surface focus:outline-none focus:ring-2 focus:ring-accent/30" />
                 </div>
               </div>
               <input value={logForm.note} onChange={e => setLogForm(f => ({ ...f, note: e.target.value }))}
                 placeholder="What did you do? (optional)"
-                className="w-full px-2 py-1.5 rounded-lg border border-[#E8E3DB] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30" />
+                className="w-full px-2 py-1.5 rounded-lg border border-border text-sm bg-surface focus:outline-none focus:ring-2 focus:ring-accent/30" />
               <div className="flex justify-end gap-2">
                 <button type="button" onClick={() => setLogMode(false)}
-                  className="text-xs text-[#6B6B6B] px-3 py-1.5 hover:text-[#1A1A1A]">Cancel</button>
+                  className="text-xs text-muted px-3 py-1.5 hover:text-ink">Cancel</button>
                 <button type="submit" disabled={sending || !logForm.duration_minutes}
-                  className="bg-[#1B3A2D] text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#2a5240] disabled:opacity-40">
+                  className="bg-forest text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-forest-hover disabled:opacity-40">
                   {sending ? 'Logging…' : 'Log Time'}
                 </button>
               </div>
@@ -511,17 +512,17 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2 flex flex-col-reverse">
           {/* Description pinned at bottom of feed (visually at top when scrolled to top) */}
           {(ticket.description || ticket.notes) && (
-            <div className="mb-4 pb-4 border-b border-[#F2EDE4]">
+            <div className="mb-4 pb-4 border-b border-raised">
               {ticket.description && (
                 <div className="mb-3">
-                  <p className="text-[10px] font-bold text-[#b5a08a] uppercase tracking-wide mb-1">Description</p>
-                  <p className="text-sm text-[#1A1A1A] leading-relaxed whitespace-pre-wrap">{ticket.description}</p>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-wide mb-1">Description</p>
+                  <p className="text-sm text-ink leading-relaxed whitespace-pre-wrap">{ticket.description}</p>
                 </div>
               )}
               {ticket.notes && (
                 <div>
-                  <p className="text-[10px] font-bold text-[#b5a08a] uppercase tracking-wide mb-1">Notes</p>
-                  <div className="bg-[#F9F6F1] rounded-xl p-3 text-xs text-[#1A1A1A] leading-relaxed whitespace-pre-wrap border border-[#E8E3DB] font-mono">
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-wide mb-1">Notes</p>
+                  <div className="bg-canvas rounded-xl p-3 text-xs text-ink leading-relaxed whitespace-pre-wrap border border-border font-mono">
                     {ticket.notes}
                   </div>
                 </div>
@@ -534,13 +535,13 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
             const imgs = feed.filter(item => item.kind === 'proof' && isImageUrl(item.body))
             if (!imgs.length) return null
             return (
-              <div className="mb-4 pb-4 border-b border-[#F2EDE4]">
-                <p className="text-[10px] font-bold text-[#b5a08a] uppercase tracking-wide mb-2">Screenshots</p>
+              <div className="mb-4 pb-4 border-b border-raised">
+                <p className="text-[10px] font-bold text-muted uppercase tracking-wide mb-2">Screenshots</p>
                 <div className="flex gap-2 flex-wrap">
                   {imgs.map(item => (
                     <a key={item.id} href={item.body} target="_blank" rel="noreferrer"
                       onClick={e => e.stopPropagation()}
-                      className="group relative block rounded-xl overflow-hidden border border-[#E8E3DB] hover:border-[#2D7A6B] transition-all shadow-sm">
+                      className="group relative block rounded-xl overflow-hidden border border-border hover:border-accent transition-all shadow-sm">
                       <img src={item.body} alt="screenshot"
                         className="w-36 h-24 object-cover group-hover:opacity-90 transition-opacity" />
                     </a>
@@ -551,7 +552,7 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
           })()}
 
           {feed.length === 0 && !ticket.description && !ticket.notes && (
-            <div className="flex flex-col items-center justify-center py-12 text-[#b5a08a] flex-1">
+            <div className="flex flex-col items-center justify-center py-12 text-muted flex-1">
               <p className="text-3xl mb-2">📝</p>
               <p className="text-sm font-medium">Nothing here yet</p>
               <p className="text-xs mt-1">Drop a note, paste a link, or log some time below</p>
@@ -562,9 +563,9 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
             <div key={item.id} className="group flex items-start gap-3">
               {/* Icon */}
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] flex-shrink-0 mt-0.5 ${
-                item.kind === 'time'  ? 'bg-[#1B3A2D]/10 text-[#1B3A2D]' :
+                item.kind === 'time'  ? 'bg-forest/10 text-accent' :
                 item.kind === 'proof' ? 'bg-blue-50 text-blue-600' :
-                'bg-[#F2EDE4] text-[#6B6B6B]'
+                'bg-raised text-muted'
               }`}>
                 {item.kind === 'time' ? '⏱' : item.kind === 'proof' ? '🔗' : '💬'}
               </div>
@@ -574,10 +575,10 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
                 {item.kind === 'time' && (
                   <div>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-sm font-bold text-[#1B3A2D] font-mono">{fmtClock(item.duration_seconds)}</span>
-                      <span className="text-[11px] text-[#6B6B6B]">logged · {fmtDate(item.logged_at)}</span>
+                      <span className="text-sm font-bold text-accent font-mono">{fmtClock(item.duration_seconds)}</span>
+                      <span className="text-[11px] text-muted">logged · {fmtDate(item.logged_at)}</span>
                     </div>
-                    {item.note && <p className="text-xs text-[#6B6B6B] mt-0.5 leading-relaxed">{item.note}</p>}
+                    {item.note && <p className="text-xs text-muted mt-0.5 leading-relaxed">{item.note}</p>}
                   </div>
                 )}
                 {item.kind === 'proof' && (
@@ -585,12 +586,12 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
                     {isImageUrl(item.body) ? (
                       <a href={item.body} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>
                         <img src={item.body} alt="proof screenshot"
-                          className="max-w-[260px] max-h-[180px] rounded-xl border border-[#E8E3DB] object-cover hover:opacity-90 transition-opacity" />
+                          className="max-w-[260px] max-h-[180px] rounded-xl border border-border object-cover hover:opacity-90 transition-opacity" />
                       </a>
                     ) : (
                       <ProofBadge proof={{ url: item.body, label: '' }} />
                     )}
-                    <p className="text-[10px] text-[#b5a08a] mt-0.5">{fmtTimestamp(item.ts)}</p>
+                    <p className="text-[10px] text-muted mt-0.5">{fmtTimestamp(item.ts)}</p>
                   </div>
                 )}
                 {item.kind === 'note' && (
@@ -604,13 +605,13 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
 
               {/* Delete */}
               <button onClick={() => handleDeleteFeedItem(item)}
-                className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-[#b5a08a] hover:text-red-400 transition-all text-xs flex-shrink-0 mt-1">✕</button>
+                className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-muted hover:text-red-400 transition-all text-xs flex-shrink-0 mt-1">✕</button>
             </div>
           ))}
         </div>
 
         {/* ── Compose Bar ── (sticky bottom) */}
-        <div className="flex-shrink-0 border-t border-[#E8E3DB] px-4 py-3 bg-white">
+        <div className="flex-shrink-0 border-t border-border px-4 py-3 bg-surface">
           {isProof && (
             <p className="text-[10px] text-blue-500 mb-1.5 px-1">🔗 Will be saved as a proof link</p>
           )}
@@ -623,18 +624,18 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
               onPaste={handlePaste}
               placeholder="Drop a note, paste a link, or write a finding… (Enter to send)"
               rows={compose.split('\n').length > 2 ? 4 : 2}
-              className="flex-1 resize-none px-3 py-2.5 rounded-xl border border-[#E8E3DB] text-sm bg-[#F9F6F1] focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30 focus:bg-white transition-colors placeholder:text-[#b5a08a] leading-relaxed"
+              className="flex-1 resize-none px-3 py-2.5 rounded-xl border border-border text-sm bg-canvas focus:outline-none focus:ring-2 focus:ring-accent/30 focus:bg-surface transition-colors placeholder:text-muted leading-relaxed"
             />
             <MicButton value={compose} onChange={setCompose} />
             <button onClick={handleSend} disabled={!compose.trim() || sending}
               className={`w-9 h-9 flex items-center justify-center rounded-xl text-white transition-colors flex-shrink-0 font-bold text-base ${
-                isProof ? 'bg-blue-500 hover:bg-blue-600' : 'bg-[#1B3A2D] hover:bg-[#2a5240]'
+                isProof ? 'bg-blue-500 hover:bg-blue-600' : 'bg-forest hover:bg-forest-hover'
               } disabled:opacity-40`}>
               {sending ? '…' : '↑'}
             </button>
           </div>
           <div className="flex items-center justify-between mt-1.5 px-1">
-            <p className="text-[10px] text-[#b5a08a]">Shift+Enter for new line · paste URL or screenshot</p>
+            <p className="text-[10px] text-muted">Shift+Enter for new line · paste URL or screenshot</p>
             <AIPolishButton value={compose} onChange={setCompose} context="comment" />
           </div>
         </div>
@@ -651,10 +652,10 @@ function TicketCard({ ticket, onClick, onStatusChange }) {
 
   return (
     <div onClick={onClick}
-      className={`bg-white border rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.07)] cursor-pointer transition-all ${
-        isBlocked ? 'border-l-[3px] border-l-red-400 border-t-[#E8E3DB] border-r-[#E8E3DB] border-b-[#E8E3DB]'
-        : isDone ? 'border-[#E8E3DB] opacity-70'
-        : 'border-[#E8E3DB] hover:border-[#2D7A6B]/30 hover:shadow-md'
+      className={`bg-surface border rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.07)] cursor-pointer transition-all ${
+        isBlocked ? 'border-l-[3px] border-l-red-400 border-t-border border-r-border border-b-border'
+        : isDone ? 'border-border opacity-70'
+        : 'border-border hover:border-accent/30 hover:shadow-md'
       }`}>
       {/* Top row */}
       <div className="flex items-start gap-2 mb-2">
@@ -665,9 +666,9 @@ function TicketCard({ ticket, onClick, onStatusChange }) {
       </div>
 
       {/* Title */}
-      <h3 className={`font-semibold text-sm leading-snug mb-1 ${isDone ? 'line-through text-[#6B6B6B]' : 'text-[#1A1A1A]'}`}>
+      <h3 className={`font-semibold text-sm leading-snug mb-1 ${isDone ? 'line-through text-muted' : 'text-ink'}`}>
         {ticket.ticket_ref && (
-          <span className="font-mono text-[11px] text-[#b5a08a] mr-1.5">{ticket.ticket_ref}</span>
+          <span className="font-mono text-[11px] text-muted mr-1.5">{ticket.ticket_ref}</span>
         )}
         {ticket.title}
       </h3>
@@ -675,14 +676,14 @@ function TicketCard({ ticket, onClick, onStatusChange }) {
       {/* Company */}
       <div className="flex items-center gap-1.5 mb-3">
         <span className="w-1.5 h-1.5 rounded-full" style={{ background: ticket.company_color }} />
-        <span className="text-[11px] text-[#6B6B6B]">{ticket.company_name}</span>
+        <span className="text-[11px] text-muted">{ticket.company_name}</span>
       </div>
 
       {/* Time bar */}
       <TimeBar estimated={ticket.estimated_minutes} logged={ticket.logged_minutes} running={ticket.timer_running ? 10 : 0} />
 
       {!ticket.estimated_minutes && ticket.logged_minutes > 0 && (
-        <p className="text-[11px] text-[#6B6B6B] mt-1">⏱ {fmtMins(ticket.logged_minutes)} logged</p>
+        <p className="text-[11px] text-muted mt-1">⏱ {fmtMins(ticket.logged_minutes)} logged</p>
       )}
 
       {/* Proofs + tags */}
@@ -690,7 +691,7 @@ function TicketCard({ ticket, onClick, onStatusChange }) {
         <div className="flex flex-wrap gap-1.5 mt-2" onClick={e => e.stopPropagation()}>
           {ticket.proofs?.slice(0, 2).map((p, i) => <ProofBadge key={i} proof={p} />)}
           {ticket.tags?.slice(0, 3).map((t, i) => (
-            <span key={i} className="text-[10px] px-1.5 py-0.5 bg-[#F2EDE4] text-[#6B6B6B] rounded-md">#{t}</span>
+            <span key={i} className="text-[10px] px-1.5 py-0.5 bg-raised text-muted rounded-md">#{t}</span>
           ))}
         </div>
       )}
@@ -698,14 +699,14 @@ function TicketCard({ ticket, onClick, onStatusChange }) {
       {/* Timer indicator */}
       {ticket.timer_running && (
         <div className="flex items-center gap-1.5 mt-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#2D7A6B] animate-pulse" />
-          <span className="text-[11px] text-[#2D7A6B] font-medium">Timer running</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
+          <span className="text-[11px] text-accent font-medium">Timer running</span>
         </div>
       )}
 
       {/* Completed date for done tickets */}
       {isDone && ticket.completed_at && (
-        <p className="text-[10px] text-[#6B6B6B] mt-2">
+        <p className="text-[10px] text-muted mt-2">
           Completed {fmtDate(ticket.completed_at.split(/[T ]/)[0])} · {fmtMins(ticket.logged_minutes)} total
         </p>
       )}
@@ -764,12 +765,12 @@ function TicketModal({ companies, initial, onSave, onClose }) {
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Company */}
         <div>
-          <label className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Company</label>
+          <label className="text-xs font-semibold text-muted uppercase tracking-wide">Company</label>
           <div className="flex flex-wrap gap-2 mt-1.5">
             {companies.map(c => (
               <button key={c.id} type="button" onClick={() => setForm(f => ({ ...f, company_id: c.id }))}
                 className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
-                  form.company_id === c.id ? 'text-white border-transparent' : 'border-[#E8E3DB] text-[#6B6B6B]'
+                  form.company_id === c.id ? 'text-white border-transparent' : 'border-border text-muted'
                 }`}
                 style={form.company_id === c.id ? { background: c.color } : {}}>
                 {c.name}
@@ -780,32 +781,32 @@ function TicketModal({ companies, initial, onSave, onClose }) {
 
         {/* Title */}
         <div>
-          <label className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Ticket Title</label>
+          <label className="text-xs font-semibold text-muted uppercase tracking-wide">Ticket Title</label>
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required
             placeholder="e.g. Implement JWT authentication"
-            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-[#E8E3DB] text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30 bg-white" />
+            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-surface" />
         </div>
 
         {/* Type + Priority + Status */}
         <div className="grid grid-cols-3 gap-2">
           <div>
-            <label className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Type</label>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wide">Type</label>
             <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-              className="w-full mt-1.5 px-2 py-2 rounded-xl border border-[#E8E3DB] text-xs bg-white focus:outline-none">
+              className="w-full mt-1.5 px-2 py-2 rounded-xl border border-border text-xs bg-surface focus:outline-none">
               {Object.entries(WORK_TYPES).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Priority</label>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wide">Priority</label>
             <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}
-              className="w-full mt-1.5 px-2 py-2 rounded-xl border border-[#E8E3DB] text-xs bg-white focus:outline-none">
+              className="w-full mt-1.5 px-2 py-2 rounded-xl border border-border text-xs bg-surface focus:outline-none">
               {Object.entries(PRIORITIES).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Status</label>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wide">Status</label>
             <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-              className="w-full mt-1.5 px-2 py-2 rounded-xl border border-[#E8E3DB] text-xs bg-white focus:outline-none">
+              className="w-full mt-1.5 px-2 py-2 rounded-xl border border-border text-xs bg-surface focus:outline-none">
               {STATUS_ORDER.map(k => <option key={k} value={k}>{TICKET_STATUSES[k].label}</option>)}
             </select>
           </div>
@@ -814,52 +815,52 @@ function TicketModal({ companies, initial, onSave, onClose }) {
         {/* Estimate + External ref */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Estimate (min)</label>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wide">Estimate (min)</label>
             <input type="number" min="0" value={form.estimated_minutes}
               onChange={e => setForm(f => ({ ...f, estimated_minutes: e.target.value }))}
               placeholder="e.g. 240  (= 4h)"
-              className="w-full mt-1.5 px-3 py-2 rounded-xl border border-[#E8E3DB] text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30 bg-white" />
+              className="w-full mt-1.5 px-3 py-2 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-surface" />
             {form.estimated_minutes && (
-              <p className="text-[10px] text-[#2D7A6B] mt-0.5">= {fmtMins(parseInt(form.estimated_minutes) || 0)}</p>
+              <p className="text-[10px] text-accent mt-0.5">= {fmtMins(parseInt(form.estimated_minutes) || 0)}</p>
             )}
           </div>
           <div>
-            <label className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">External Ref</label>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wide">External Ref</label>
             <input value={form.ticket_ref} onChange={e => setForm(f => ({ ...f, ticket_ref: e.target.value }))}
               placeholder="e.g. PROJ-123"
-              className="w-full mt-1.5 px-3 py-2 rounded-xl border border-[#E8E3DB] text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30 bg-white font-mono" />
+              className="w-full mt-1.5 px-3 py-2 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-surface font-mono" />
           </div>
         </div>
 
         {/* Description */}
         <div>
-          <label className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Description</label>
+          <label className="text-xs font-semibold text-muted uppercase tracking-wide">Description</label>
           <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             rows={2} placeholder="What needs to be done? Acceptance criteria..."
-            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-[#E8E3DB] text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30 bg-white resize-none" />
+            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-surface resize-none" />
         </div>
 
         {/* Proof links */}
         <div>
-          <label className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Proof Links (one per line)</label>
+          <label className="text-xs font-semibold text-muted uppercase tracking-wide">Proof Links (one per line)</label>
           <textarea value={form.proofs} onChange={e => setForm(f => ({ ...f, proofs: e.target.value }))}
             rows={2} placeholder="https://jira.company.com/PROJ-123&#10;https://github.com/org/repo/pull/456"
-            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-[#E8E3DB] text-xs focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30 bg-white resize-none font-mono" />
+            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-border text-xs focus:outline-none focus:ring-2 focus:ring-accent/30 bg-surface resize-none font-mono" />
         </div>
 
         {/* Tags */}
         <div>
-          <label className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Tags</label>
+          <label className="text-xs font-semibold text-muted uppercase tracking-wide">Tags</label>
           <input value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
             placeholder="backend, auth, sprint-3"
-            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-[#E8E3DB] text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30 bg-white" />
+            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-surface" />
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" onClick={onClose}
-            className="px-4 py-2 text-sm text-[#6B6B6B] hover:text-[#1A1A1A] transition-colors">Cancel</button>
+            className="px-4 py-2 text-sm text-muted hover:text-ink transition-colors">Cancel</button>
           <button type="submit" disabled={saving || !form.title.trim() || !form.company_id}
-            className="bg-[#1B3A2D] text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-[#2a5240] disabled:opacity-40 transition-colors">
+            className="bg-forest text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-forest-hover disabled:opacity-40 transition-colors">
             {saving ? 'Saving…' : initial ? 'Save Changes' : 'Create Ticket'}
           </button>
         </div>
@@ -887,31 +888,31 @@ function CompanyModal({ initial, onSave, onClose }) {
     <Modal title={initial ? 'Edit Company' : 'Add Company'} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Company Name</label>
+          <label className="text-xs font-semibold text-muted uppercase tracking-wide">Company Name</label>
           <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required
-            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-[#E8E3DB] text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30 bg-white" />
+            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-surface" />
         </div>
         <div>
-          <label className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Your Role</label>
+          <label className="text-xs font-semibold text-muted uppercase tracking-wide">Your Role</label>
           <input value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
             placeholder="e.g. Backend Developer"
-            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-[#E8E3DB] text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30 bg-white" />
+            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-surface" />
         </div>
         <div>
-          <label className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Color</label>
+          <label className="text-xs font-semibold text-muted uppercase tracking-wide">Color</label>
           <div className="flex flex-wrap gap-2 mt-2">
             {COMPANY_COLORS.map(c => (
               <button key={c} type="button" onClick={() => setForm(f => ({ ...f, color: c }))}
-                className={`w-7 h-7 rounded-full transition-all ${form.color === c ? 'ring-2 ring-offset-2 ring-[#1B3A2D] scale-110' : 'hover:scale-105'}`}
+                className={`w-7 h-7 rounded-full transition-all ${form.color === c ? 'ring-2 ring-offset-2 ring-forest scale-110' : 'hover:scale-105'}`}
                 style={{ background: c }} />
             ))}
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" onClick={onClose}
-            className="px-4 py-2 text-sm text-[#6B6B6B] hover:text-[#1A1A1A]">Cancel</button>
+            className="px-4 py-2 text-sm text-muted hover:text-ink">Cancel</button>
           <button type="submit" disabled={saving || !form.name.trim()}
-            className="bg-[#1B3A2D] text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-[#2a5240] disabled:opacity-40">
+            className="bg-forest text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-forest-hover disabled:opacity-40">
             {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
@@ -955,11 +956,11 @@ function fmtWeekRange(mondayStr) {
 }
 
 const TYPE_COLORS = {
-  code:     '#1B3A2D',
-  research: '#2D7A6B',
-  planning: '#E8C334',
-  review:   '#b5a08a',
-  meeting:  '#6B6B6B',
+  code:     'rgb(var(--chart-1))',
+  research: 'rgb(var(--chart-5))',
+  planning: 'rgb(var(--chart-3))',
+  review:   'rgb(var(--chart-4))',
+  meeting:  'rgb(var(--muted))',
 }
 
 function fmtSecs(secs) {
@@ -1005,7 +1006,7 @@ function WeeklyReportModal({ companies, defaultCompanyId, onClose }) {
     try {
       const result = await generateWeeklyReport(companyId, monday, getSunday(monday))
       setData(result)
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setGenerating(false) }
   }
 
@@ -1024,12 +1025,12 @@ function WeeklyReportModal({ companies, defaultCompanyId, onClose }) {
         {/* Company picker */}
         <div className="flex flex-wrap gap-1.5">
           <button onClick={() => setCompanyId(null)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${!companyId ? 'bg-[#1B3A2D] text-white' : 'bg-[#F2EDE4] text-[#6B6B6B] hover:bg-[#E8E3DB]'}`}>
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${!companyId ? 'bg-forest text-white' : 'bg-raised text-muted hover:bg-border'}`}>
             All Clients
           </button>
           {companies.map(c => (
             <button key={c.id} onClick={() => setCompanyId(c.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${companyId === c.id ? 'text-white' : 'bg-[#F2EDE4] text-[#6B6B6B] hover:bg-[#E8E3DB]'}`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${companyId === c.id ? 'text-white' : 'bg-raised text-muted hover:bg-border'}`}
               style={companyId === c.id ? { backgroundColor: c.color || '#1B3A2D' } : {}}>
               {c.name}
             </button>
@@ -1037,21 +1038,21 @@ function WeeklyReportModal({ companies, defaultCompanyId, onClose }) {
         </div>
 
         {/* Week navigator */}
-        <div className="flex items-center justify-between bg-[#F9F6F1] rounded-xl px-4 py-2.5">
+        <div className="flex items-center justify-between bg-canvas rounded-xl px-4 py-2.5">
           <button onClick={() => setMonday(m => addWeeks(m, -1))}
-            className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-[#E8E3DB] transition-colors text-[#6B6B6B] font-bold">
+            className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-border transition-colors text-muted font-bold">
             ‹
           </button>
-          <span className="text-sm font-semibold text-[#1A1A1A]">{fmtWeekRange(monday)}</span>
+          <span className="text-sm font-semibold text-ink">{fmtWeekRange(monday)}</span>
           <button onClick={() => setMonday(m => addWeeks(m, 1))}
-            className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-[#E8E3DB] transition-colors text-[#6B6B6B] font-bold">
+            className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-border transition-colors text-muted font-bold">
             ›
           </button>
         </div>
 
         {/* Generate button */}
         <button onClick={generate} disabled={generating}
-          className="w-full bg-[#1B3A2D] text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-[#2a5240] disabled:opacity-60 transition-colors">
+          className="w-full bg-forest text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-forest-hover disabled:opacity-60 transition-colors">
           {generating ? '⏳ Generating report…' : '📋 Generate Report'}
         </button>
 
@@ -1060,27 +1061,27 @@ function WeeklyReportModal({ companies, defaultCompanyId, onClose }) {
           <div className="space-y-4">
 
             {/* Stat strip */}
-            <div className="flex items-center gap-3 bg-[#F9F6F1] rounded-xl px-4 py-3 flex-wrap">
+            <div className="flex items-center gap-3 bg-canvas rounded-xl px-4 py-3 flex-wrap">
               <div className="text-center">
-                <div className="text-xl font-bold text-[#1B3A2D]">{fmtSecs(data.total_seconds)}</div>
-                <div className="text-[10px] text-[#6B6B6B] uppercase tracking-wide">Total logged</div>
+                <div className="text-xl font-bold text-accent">{fmtSecs(data.total_seconds)}</div>
+                <div className="text-[10px] text-muted uppercase tracking-wide">Total logged</div>
               </div>
-              <div className="w-px h-8 bg-[#E8E3DB] flex-shrink-0" />
+              <div className="w-px h-8 bg-border flex-shrink-0" />
               <div className="text-center">
-                <div className="text-xl font-bold text-[#2D7A6B]">{data.tickets_completed}</div>
-                <div className="text-[10px] text-[#6B6B6B] uppercase tracking-wide">Done</div>
+                <div className="text-xl font-bold text-accent">{data.tickets_completed}</div>
+                <div className="text-[10px] text-muted uppercase tracking-wide">Done</div>
               </div>
-              <div className="w-px h-8 bg-[#E8E3DB] flex-shrink-0" />
+              <div className="w-px h-8 bg-border flex-shrink-0" />
               <div className="text-center">
-                <div className="text-xl font-bold text-[#E8C334]">{data.tickets_in_progress}</div>
-                <div className="text-[10px] text-[#6B6B6B] uppercase tracking-wide">In progress</div>
+                <div className="text-xl font-bold text-highlight">{data.tickets_in_progress}</div>
+                <div className="text-[10px] text-muted uppercase tracking-wide">In progress</div>
               </div>
               {data.tickets_blocked > 0 && (
                 <>
-                  <div className="w-px h-8 bg-[#E8E3DB] flex-shrink-0" />
+                  <div className="w-px h-8 bg-border flex-shrink-0" />
                   <div className="text-center">
                     <div className="text-xl font-bold text-amber-500">{data.tickets_blocked}</div>
-                    <div className="text-[10px] text-[#6B6B6B] uppercase tracking-wide">Blocked</div>
+                    <div className="text-[10px] text-muted uppercase tracking-wide">Blocked</div>
                   </div>
                 </>
               )}
@@ -1088,28 +1089,28 @@ function WeeklyReportModal({ companies, defaultCompanyId, onClose }) {
 
             {/* AI narrative */}
             {data.ai_narrative && (
-              <div className="bg-[#1B3A2D]/5 border border-[#1B3A2D]/10 rounded-xl p-4 max-h-52 overflow-y-auto">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#1B3A2D]/60 mb-2">AI Summary</p>
-                <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap leading-relaxed">{data.ai_narrative}</p>
+              <div className="bg-forest/5 border border-forest/10 rounded-xl p-4 max-h-52 overflow-y-auto">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-accent/60 mb-2">AI Summary</p>
+                <p className="text-sm text-ink whitespace-pre-wrap leading-relaxed">{data.ai_narrative}</p>
               </div>
             )}
 
             {/* Completed tickets */}
             {data.completed_tickets.length > 0 && (
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#6B6B6B] mb-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted mb-2">
                   ✓ Completed ({data.completed_tickets.length})
                 </p>
                 <div className="space-y-1.5">
                   {data.completed_tickets.map((t, i) => (
-                    <div key={i} className="flex items-center gap-2 py-1.5 px-2.5 bg-[#F9F6F1] rounded-xl">
+                    <div key={i} className="flex items-center gap-2 py-1.5 px-2.5 bg-canvas rounded-xl">
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md text-white flex-shrink-0"
                         style={{ backgroundColor: TYPE_COLORS[t.type] || '#6B6B6B' }}>
                         {t.type.toUpperCase()}
                       </span>
-                      <span className="flex-1 text-sm text-[#1A1A1A] truncate">{t.title}</span>
-                      {t.ticket_ref && <span className="text-[10px] text-[#b5a08a] flex-shrink-0">{t.ticket_ref}</span>}
-                      <span className="text-xs font-semibold text-[#2D7A6B] flex-shrink-0 tabular-nums">{fmtSecs(t.logged_seconds)}</span>
+                      <span className="flex-1 text-sm text-ink truncate">{t.title}</span>
+                      {t.ticket_ref && <span className="text-[10px] text-muted flex-shrink-0">{t.ticket_ref}</span>}
+                      <span className="text-xs font-semibold text-accent flex-shrink-0 tabular-nums">{fmtSecs(t.logged_seconds)}</span>
                     </div>
                   ))}
                 </div>
@@ -1119,19 +1120,19 @@ function WeeklyReportModal({ companies, defaultCompanyId, onClose }) {
             {/* In progress */}
             {data.in_progress_tickets.length > 0 && (
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#6B6B6B] mb-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted mb-2">
                   ⟳ In Progress ({data.in_progress_tickets.length})
                 </p>
                 <div className="space-y-1.5">
                   {data.in_progress_tickets.map((t, i) => (
-                    <div key={i} className="flex items-center gap-2 py-1.5 px-2.5 bg-[#F9F6F1] rounded-xl">
+                    <div key={i} className="flex items-center gap-2 py-1.5 px-2.5 bg-canvas rounded-xl">
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md text-white flex-shrink-0"
                         style={{ backgroundColor: TYPE_COLORS[t.type] || '#6B6B6B' }}>
                         {t.type.toUpperCase()}
                       </span>
-                      <span className="flex-1 text-sm text-[#1A1A1A] truncate">{t.title}</span>
-                      {t.ticket_ref && <span className="text-[10px] text-[#b5a08a] flex-shrink-0">{t.ticket_ref}</span>}
-                      <span className="text-xs font-medium text-[#6B6B6B] flex-shrink-0 tabular-nums">{fmtSecs(t.logged_seconds)} logged</span>
+                      <span className="flex-1 text-sm text-ink truncate">{t.title}</span>
+                      {t.ticket_ref && <span className="text-[10px] text-muted flex-shrink-0">{t.ticket_ref}</span>}
+                      <span className="text-xs font-medium text-muted flex-shrink-0 tabular-nums">{fmtSecs(t.logged_seconds)} logged</span>
                     </div>
                   ))}
                 </div>
@@ -1147,8 +1148,8 @@ function WeeklyReportModal({ companies, defaultCompanyId, onClose }) {
                 <div className="space-y-1.5">
                   {data.blocked_tickets.map((t, i) => (
                     <div key={i} className="flex items-center gap-2 py-1.5 px-2.5 bg-amber-50 border border-amber-100 rounded-xl">
-                      <span className="flex-1 text-sm text-[#1A1A1A] truncate">{t.title}</span>
-                      {t.ticket_ref && <span className="text-[10px] text-[#b5a08a]">{t.ticket_ref}</span>}
+                      <span className="flex-1 text-sm text-ink truncate">{t.title}</span>
+                      {t.ticket_ref && <span className="text-[10px] text-muted">{t.ticket_ref}</span>}
                     </div>
                   ))}
                 </div>
@@ -1158,21 +1159,21 @@ function WeeklyReportModal({ companies, defaultCompanyId, onClose }) {
             {/* Time by type bars */}
             {Object.keys(data.by_type).length > 0 && (
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#6B6B6B] mb-2">Time by Type</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted mb-2">Time by Type</p>
                 <div className="space-y-2">
                   {Object.entries(data.by_type)
                     .sort((a, b) => b[1] - a[1])
                     .map(([type, secs]) => (
                       <div key={type} className="flex items-center gap-2">
-                        <span className="text-xs text-[#6B6B6B] w-16 flex-shrink-0 capitalize">{type}</span>
-                        <div className="flex-1 bg-[#E8E3DB] rounded-full h-2 overflow-hidden">
+                        <span className="text-xs text-muted w-16 flex-shrink-0 capitalize">{type}</span>
+                        <div className="flex-1 bg-border rounded-full h-2 overflow-hidden">
                           <div className="h-full rounded-full transition-all"
                             style={{
                               width: `${Math.round((secs / maxTypeSecs) * 100)}%`,
                               backgroundColor: TYPE_COLORS[type] || '#6B6B6B',
                             }} />
                         </div>
-                        <span className="text-xs font-semibold text-[#1A1A1A] w-10 text-right tabular-nums">{fmtSecs(secs)}</span>
+                        <span className="text-xs font-semibold text-ink w-10 text-right tabular-nums">{fmtSecs(secs)}</span>
                       </div>
                     ))}
                 </div>
@@ -1181,14 +1182,14 @@ function WeeklyReportModal({ companies, defaultCompanyId, onClose }) {
 
             {/* Copy button */}
             <button onClick={copyMarkdown}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-[#E8E3DB] text-sm font-medium text-[#6B6B6B] hover:border-[#2D7A6B] hover:text-[#2D7A6B] transition-colors">
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-border text-sm font-medium text-muted hover:border-accent hover:text-accent transition-colors">
               {copied ? '✓ Copied to clipboard!' : '📋 Copy as Markdown'}
             </button>
           </div>
         )}
 
         {!data && !generating && (
-          <p className="text-center text-sm text-[#b5a08a] py-2">
+          <p className="text-center text-sm text-muted py-2">
             Select a company and week, then click Generate.
           </p>
         )}
@@ -1233,24 +1234,24 @@ function AIPanel({ onClose }) {
           {AI_MODES.map(m => (
             <button key={m.key} type="button" onClick={() => setMode(m.key)}
               className={`p-3 rounded-xl border text-left transition-all ${
-                mode === m.key ? 'border-[#2D7A6B] bg-[#2D7A6B]/10' : 'border-[#E8E3DB] hover:border-[#2D7A6B]/30'
+                mode === m.key ? 'border-accent bg-brand/10' : 'border-border hover:border-accent/30'
               }`}>
-              <div className="text-sm font-semibold text-[#1A1A1A]">{m.label}</div>
-              <div className="text-xs text-[#6B6B6B] mt-0.5">{m.desc}</div>
+              <div className="text-sm font-semibold text-ink">{m.label}</div>
+              <div className="text-xs text-muted mt-0.5">{m.desc}</div>
             </button>
           ))}
         </div>
         <button onClick={generate} disabled={loading}
-          className="w-full bg-[#1B3A2D] text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-[#2a5240] disabled:opacity-60">
+          className="w-full bg-forest text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-forest-hover disabled:opacity-60">
           {loading ? '✨ Generating…' : '✨ Generate'}
         </button>
         {result && (
           <div className="relative">
-            <div className="bg-[#F9F6F1] border border-[#E8E3DB] rounded-xl p-4 text-sm text-[#1A1A1A] whitespace-pre-wrap leading-relaxed max-h-80 overflow-y-auto">
+            <div className="bg-canvas border border-border rounded-xl p-4 text-sm text-ink whitespace-pre-wrap leading-relaxed max-h-80 overflow-y-auto">
               {result}
             </div>
             <button onClick={copy}
-              className="absolute top-2 right-2 text-xs px-2.5 py-1 bg-white border border-[#E8E3DB] rounded-lg text-[#6B6B6B] hover:border-[#2D7A6B]">
+              className="absolute top-2 right-2 text-xs px-2.5 py-1 bg-surface border border-border rounded-lg text-muted hover:border-accent">
               {copied ? '✓ Copied!' : 'Copy'}
             </button>
           </div>
@@ -1386,16 +1387,16 @@ export default function WorkPage() {
     totalMins: tickets.reduce((s, t) => s + (t.logged_minutes || 0), 0),
   } : null
 
-  if (loading) return <div className="flex items-center justify-center h-64 text-[#6B6B6B]">Loading…</div>
+  if (loading) return <div className="flex items-center justify-center h-64 text-muted">Loading…</div>
 
   return (
     <div>
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3 mb-6">
         <div>
-          <p className="text-[11px] font-bold text-[#6B6B6B] uppercase tracking-widest mb-1">Work Tracker</p>
-          <h1 className="text-3xl font-bold text-[#1A1A1A]">Work</h1>
-          <p className="text-sm text-[#6B6B6B] mt-0.5">
+          <p className="text-[11px] font-bold text-muted uppercase tracking-widest mb-1">Work Tracker</p>
+          <h1 className="text-3xl font-bold text-ink">Work</h1>
+          <p className="text-sm text-muted mt-0.5">
             {companies.length} {companies.length === 1 ? 'client' : 'clients'} · {fmtMins(thisWeekMins)} this week
           </p>
         </div>
@@ -1406,12 +1407,12 @@ export default function WorkPage() {
           </button>
           {view === 'tickets' ? (
             <button onClick={() => setShowNewTicket(true)} disabled={companies.length === 0}
-              className="bg-[#1B3A2D] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#2a5240] disabled:opacity-40 transition-colors shadow-sm">
+              className="bg-forest text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-forest-hover disabled:opacity-40 transition-colors shadow-sm">
               + New Ticket
             </button>
           ) : view === 'log' ? (
             <button onClick={() => setShowNewLog(true)} disabled={companies.length === 0}
-              className="bg-[#1B3A2D] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#2a5240] disabled:opacity-40 transition-colors shadow-sm">
+              className="bg-forest text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-forest-hover disabled:opacity-40 transition-colors shadow-sm">
               + Log Work
             </button>
           ) : null}
@@ -1421,53 +1422,53 @@ export default function WorkPage() {
       {companies.length === 0 ? (
         <div className="text-center py-24">
           <div className="text-5xl mb-4">⌨️</div>
-          <h2 className="text-xl font-bold text-[#1A1A1A] mb-2">Set up your first client</h2>
-          <p className="text-sm text-[#6B6B6B] mb-6 max-w-sm mx-auto">
+          <h2 className="text-xl font-bold text-ink mb-2">Set up your first client</h2>
+          <p className="text-sm text-muted mb-6 max-w-sm mx-auto">
             Add a company or client to start tracking tickets, time, and proof of work.
           </p>
           <button onClick={() => setShowCompany(true)}
-            className="bg-[#1B3A2D] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#2a5240]">
+            className="bg-forest text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-forest-hover">
             + Add Company
           </button>
         </div>
       ) : (
         <div className="space-y-5">
           {/* Time breakdown */}
-          {view !== 'reports' && <div className="bg-white border border-[#E8E3DB] rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.07)] overflow-hidden">
+          {view !== 'reports' && <div className="bg-surface border border-border rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.07)] overflow-hidden">
             {/* Totals header */}
-            <div className="grid grid-cols-3 border-b border-[#E8E3DB]">
+            <div className="grid grid-cols-3 border-b border-border">
               <div className="px-4 py-3">
-                <p className="text-[10px] font-bold text-[#b5a08a] uppercase tracking-widest">Client</p>
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Client</p>
               </div>
-              <div className="px-4 py-3 border-l border-[#E8E3DB] text-center">
-                <p className="text-[10px] font-bold text-[#b5a08a] uppercase tracking-widest">Today</p>
-                <p className="text-lg font-bold text-[#1A1A1A] leading-tight">{fmtMins(todayMins)}</p>
+              <div className="px-4 py-3 border-l border-border text-center">
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Today</p>
+                <p className="text-lg font-bold text-ink leading-tight">{fmtMins(todayMins)}</p>
               </div>
-              <div className="px-4 py-3 border-l border-[#E8E3DB] text-center">
-                <p className="text-[10px] font-bold text-[#b5a08a] uppercase tracking-widest">This Week</p>
-                <p className="text-lg font-bold text-[#1A1A1A] leading-tight">{fmtMins(thisWeekMins)}</p>
+              <div className="px-4 py-3 border-l border-border text-center">
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest">This Week</p>
+                <p className="text-lg font-bold text-ink leading-tight">{fmtMins(thisWeekMins)}</p>
               </div>
             </div>
             {/* Per-company rows */}
             {companyTimeRows.map((c, i) => (
               <div key={c.company_id}
-                className={`grid grid-cols-3 ${i < companyTimeRows.length - 1 ? 'border-b border-[#F2EDE4]' : ''}`}>
+                className={`grid grid-cols-3 ${i < companyTimeRows.length - 1 ? 'border-b border-raised' : ''}`}>
                 <div className="px-4 py-3 flex items-center gap-2 min-w-0">
                   <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: c.company_color }} />
-                  <span className="text-sm font-medium text-[#1A1A1A] truncate">{c.company_name}</span>
+                  <span className="text-sm font-medium text-ink truncate">{c.company_name}</span>
                 </div>
-                <div className="px-4 py-3 border-l border-[#F2EDE4] flex items-center justify-center">
-                  <span className={`text-sm font-semibold ${c.today_minutes > 0 ? 'text-[#2D7A6B]' : 'text-[#b5a08a]'}`}>
+                <div className="px-4 py-3 border-l border-raised flex items-center justify-center">
+                  <span className={`text-sm font-semibold ${c.today_minutes > 0 ? 'text-accent' : 'text-muted'}`}>
                     {c.today_minutes > 0 ? fmtMins(c.today_minutes) : '—'}
                   </span>
                 </div>
-                <div className="px-4 py-3 border-l border-[#F2EDE4] flex items-center justify-center">
-                  <span className="text-sm font-semibold text-[#1A1A1A]">{fmtMins(c.week_minutes)}</span>
+                <div className="px-4 py-3 border-l border-raised flex items-center justify-center">
+                  <span className="text-sm font-semibold text-ink">{fmtMins(c.week_minutes)}</span>
                 </div>
               </div>
             ))}
             {companyTimeRows.length === 0 && (
-              <div className="px-4 py-5 text-center text-xs text-[#b5a08a]">No time logged this week</div>
+              <div className="px-4 py-5 text-center text-xs text-muted">No time logged this week</div>
             )}
           </div>}
 
@@ -1475,12 +1476,12 @@ export default function WorkPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <button onClick={() => setFilterCompany(null)}
               className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
-                !filterCompany ? 'bg-[#1B3A2D] text-white border-[#1B3A2D]' : 'bg-white border-[#E8E3DB] text-[#6B6B6B] hover:border-[#2D7A6B]/40'
+                !filterCompany ? 'bg-forest text-white border-forest' : 'bg-surface border-border text-muted hover:border-accent/40'
               }`}>All</button>
             {companies.map(c => (
               <button key={c.id} onClick={() => setFilterCompany(filterCompany === c.id ? null : c.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
-                  filterCompany === c.id ? 'text-white border-transparent shadow-sm' : 'bg-white border-[#E8E3DB] text-[#6B6B6B] hover:border-[#2D7A6B]/40'
+                  filterCompany === c.id ? 'text-white border-transparent shadow-sm' : 'bg-surface border-border text-muted hover:border-accent/40'
                 }`}
                 style={filterCompany === c.id ? { background: c.color } : {}}>
                 <span className="w-2 h-2 rounded-full" style={{ background: c.color }} />
@@ -1488,25 +1489,25 @@ export default function WorkPage() {
               </button>
             ))}
             <button onClick={() => setShowCompany(true)}
-              className="px-3 py-1.5 rounded-xl text-xs font-medium border border-dashed border-[#E8E3DB] text-[#6B6B6B] hover:border-[#2D7A6B] hover:text-[#2D7A6B]">
+              className="px-3 py-1.5 rounded-xl text-xs font-medium border border-dashed border-border text-muted hover:border-accent hover:text-accent">
               + Company
             </button>
             {filterCompany && (
               <div className="ml-auto flex gap-1">
                 <button onClick={() => setEditCompany(companies.find(c => c.id === filterCompany))}
-                  className="text-xs px-2 py-1 rounded-lg border border-[#E8E3DB] text-[#6B6B6B] hover:border-[#2D7A6B] hover:text-[#2D7A6B]">✎</button>
+                  className="text-xs px-2 py-1 rounded-lg border border-border text-muted hover:border-accent hover:text-accent">✎</button>
                 <button onClick={() => handleDeleteCompany(filterCompany)}
-                  className="text-xs px-2 py-1 rounded-lg border border-[#E8E3DB] text-[#b5a08a] hover:text-red-400">✕</button>
+                  className="text-xs px-2 py-1 rounded-lg border border-border text-muted hover:text-red-400">✕</button>
               </div>
             )}
           </div>
 
           {/* View tabs */}
-          <div className="flex flex-wrap gap-1 bg-[#F2EDE4] rounded-xl p-1 w-fit">
+          <div className="flex flex-wrap gap-1 bg-raised rounded-xl p-1 w-fit">
             {[['tickets', '🎫 Tickets'], ['log', '📋 Work Log'], ['reports', 'Time & Reports']].map(([v, label]) => (
               <button key={v} onClick={() => setView(v)}
                 className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                  view === v ? 'bg-white text-[#1A1A1A] shadow-sm' : 'text-[#6B6B6B] hover:text-[#1A1A1A]'
+                  view === v ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'
                 }`}>{label}</button>
             ))}
           </div>
@@ -1522,13 +1523,13 @@ export default function WorkPage() {
                   {[['active', 'Active'], ['done', 'Done'], ['all', 'All']].map(([v, label]) => (
                     <button key={v} onClick={() => setFilterStatus(v)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
-                        filterStatus === v ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]' : 'bg-white border-[#E8E3DB] text-[#6B6B6B] hover:border-[#2D7A6B]/40'
+                        filterStatus === v ? 'bg-accent text-on-accent border-accent shadow-glow' : 'bg-surface border-border text-muted hover:border-accent/40'
                       }`}>{label}</button>
                   ))}
                 </div>
                 {tickets.length > 1 && (
                   <select value={sortBy} onChange={e => setSortBy(e.target.value)}
-                    className="ml-auto text-[11px] px-2 py-1.5 rounded-lg border border-[#E8E3DB] bg-white text-[#6B6B6B] cursor-pointer">
+                    className="ml-auto text-[11px] px-2 py-1.5 rounded-lg border border-border bg-surface text-muted cursor-pointer">
                     <option value="created">Newest first</option>
                     <option value="priority">Priority</option>
                     <option value="time">Most time logged</option>
@@ -1539,21 +1540,21 @@ export default function WorkPage() {
 
               {/* Done summary banner */}
               {doneStats && doneStats.count > 0 && (
-                <div className="flex items-center gap-4 bg-[#2D7A6B]/5 border border-[#2D7A6B]/15 rounded-xl px-4 py-3">
+                <div className="flex items-center gap-4 bg-brand/5 border border-accent/15 rounded-xl px-4 py-3">
                   <div className="text-center">
-                    <div className="text-lg font-bold text-[#2D7A6B]">{doneStats.count}</div>
-                    <div className="text-[10px] text-[#6B6B6B] uppercase tracking-wide">Completed</div>
+                    <div className="text-lg font-bold text-accent">{doneStats.count}</div>
+                    <div className="text-[10px] text-muted uppercase tracking-wide">Completed</div>
                   </div>
-                  <div className="w-px h-8 bg-[#2D7A6B]/15" />
+                  <div className="w-px h-8 bg-brand/15" />
                   <div className="text-center">
-                    <div className="text-lg font-bold text-[#1B3A2D]">{fmtMins(doneStats.totalMins)}</div>
-                    <div className="text-[10px] text-[#6B6B6B] uppercase tracking-wide">Total time</div>
+                    <div className="text-lg font-bold text-accent">{fmtMins(doneStats.totalMins)}</div>
+                    <div className="text-[10px] text-muted uppercase tracking-wide">Total time</div>
                   </div>
                 </div>
               )}
 
               {tickets.length === 0 ? (
-                <div className="text-center py-16 text-[#6B6B6B]">
+                <div className="text-center py-16 text-muted">
                   <div className="text-3xl mb-3">🎫</div>
                   <p className="font-medium">{filterStatus === 'done' ? 'No completed tickets' : 'No tickets yet'}</p>
                   <p className="text-sm mt-1">{filterStatus === 'done' ? 'Completed tickets will appear here.' : 'Create a ticket to track a piece of work from start to finish.'}</p>
@@ -1581,7 +1582,7 @@ export default function WorkPage() {
           {view === 'log' && (
             <div className="space-y-6">
               {logs.length === 0 ? (
-                <div className="text-center py-16 text-[#6B6B6B]">
+                <div className="text-center py-16 text-muted">
                   <div className="text-3xl mb-3">📝</div>
                   <p className="font-medium">No work logs yet</p>
                   <p className="text-sm mt-1">Log a quick work session — no ticket needed.</p>
@@ -1589,26 +1590,26 @@ export default function WorkPage() {
               ) : sortedLogDates.map(date => (
                 <div key={date}>
                   <div className="flex items-center gap-3 mb-3">
-                    <h2 className="text-[11px] font-bold text-[#1A1A1A] uppercase tracking-widest">{fmtDate(date)}</h2>
-                    <span className="flex-1 border-t border-[#E8E3DB]" />
-                    <span className="text-[11px] text-[#6B6B6B] font-medium">
+                    <h2 className="text-[11px] font-bold text-ink uppercase tracking-widest">{fmtDate(date)}</h2>
+                    <span className="flex-1 border-t border-border" />
+                    <span className="text-[11px] text-muted font-medium">
                       {fmtMins(groupedLogs[date].reduce((s, l) => s + (l.duration_minutes || 0), 0))}
                     </span>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {groupedLogs[date].map(log => (
-                      <div key={log.id} className={`bg-white border rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.07)] ${
-                        log.status === 'done' ? 'border-[#E8E3DB] opacity-80' : 'border-[#E8E3DB] hover:border-[#2D7A6B]/30'
+                      <div key={log.id} className={`bg-surface border rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.07)] ${
+                        log.status === 'done' ? 'border-border opacity-80' : 'border-border hover:border-accent/30'
                       }`}>
                         <div className="flex items-start gap-2 mb-2">
                           <TypeBadge type={log.type} />
                           <div className="flex-1" />
-                          <span className="text-sm font-bold text-[#1A1A1A]">{fmtMins(log.duration_minutes)}</span>
+                          <span className="text-sm font-bold text-ink">{fmtMins(log.duration_minutes)}</span>
                         </div>
-                        <h3 className="font-semibold text-sm text-[#1A1A1A] mb-1">{log.title}</h3>
+                        <h3 className="font-semibold text-sm text-ink mb-1">{log.title}</h3>
                         <div className="flex items-center gap-1.5 mb-2">
                           <span className="w-1.5 h-1.5 rounded-full" style={{ background: log.company_color }} />
-                          <span className="text-[11px] text-[#6B6B6B]">{log.company_name}</span>
+                          <span className="text-[11px] text-muted">{log.company_name}</span>
                         </div>
                         {log.proofs?.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mb-2">
@@ -1618,14 +1619,14 @@ export default function WorkPage() {
                         <div className="flex items-center gap-1 mt-2">
                           <button onClick={() => handleLogTimerToggle(log)}
                             className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${
-                              log.timer_running ? 'bg-[#2D7A6B] text-white border-[#2D7A6B]' : 'border-[#E8E3DB] text-[#6B6B6B] hover:border-[#2D7A6B]'
+                              log.timer_running ? 'bg-brand text-white border-accent' : 'border-border text-muted hover:border-accent'
                             }`}>
                             {log.timer_running ? '⏹ Stop' : '▶'}
                           </button>
                           <button onClick={() => setEditLog(log)}
-                            className="text-xs px-2 py-1 rounded-lg border border-[#E8E3DB] text-[#6B6B6B] hover:border-[#2D7A6B]">✎</button>
+                            className="text-xs px-2 py-1 rounded-lg border border-border text-muted hover:border-accent">✎</button>
                           <button onClick={() => handleDeleteLog(log.id)}
-                            className="text-xs px-2 py-1 rounded-lg border border-[#E8E3DB] text-[#b5a08a] hover:text-red-400">✕</button>
+                            className="text-xs px-2 py-1 rounded-lg border border-border text-muted hover:text-red-400">✕</button>
                         </div>
                       </div>
                     ))}
@@ -1716,12 +1717,12 @@ function WorkLogModal({ companies, initial, onSave, onClose }) {
     <Modal title={initial ? 'Edit Work Log' : 'Log Work'} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Company</label>
+          <label className="text-xs font-semibold text-muted uppercase tracking-wide">Company</label>
           <div className="flex flex-wrap gap-2 mt-1.5">
             {companies.map(c => (
               <button key={c.id} type="button" onClick={() => setForm(f => ({ ...f, company_id: c.id }))}
                 className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
-                  form.company_id === c.id ? 'text-white border-transparent' : 'border-[#E8E3DB] text-[#6B6B6B]'
+                  form.company_id === c.id ? 'text-white border-transparent' : 'border-border text-muted'
                 }`}
                 style={form.company_id === c.id ? { background: c.color } : {}}>
                 {c.name}
@@ -1730,50 +1731,50 @@ function WorkLogModal({ companies, initial, onSave, onClose }) {
           </div>
         </div>
         <div>
-          <label className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">What did you work on?</label>
+          <label className="text-xs font-semibold text-muted uppercase tracking-wide">What did you work on?</label>
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required
             placeholder="e.g. Fixed login redirect bug"
-            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-[#E8E3DB] text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30 bg-white" />
+            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-surface" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Type</label>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wide">Type</label>
             <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-              className="w-full mt-1.5 px-2 py-2 rounded-xl border border-[#E8E3DB] text-xs bg-white focus:outline-none">
+              className="w-full mt-1.5 px-2 py-2 rounded-xl border border-border text-xs bg-surface focus:outline-none">
               {Object.entries(WORK_TYPES).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Duration (min)</label>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wide">Duration (min)</label>
             <input type="number" min="0" value={form.duration_minutes}
               onChange={e => setForm(f => ({ ...f, duration_minutes: e.target.value }))}
               placeholder="e.g. 90"
-              className="w-full mt-1.5 px-3 py-2 rounded-xl border border-[#E8E3DB] text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30 bg-white" />
-            {form.duration_minutes && <p className="text-[10px] text-[#2D7A6B] mt-0.5">= {fmtMins(parseInt(form.duration_minutes) || 0)}</p>}
+              className="w-full mt-1.5 px-3 py-2 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-surface" />
+            {form.duration_minutes && <p className="text-[10px] text-accent mt-0.5">= {fmtMins(parseInt(form.duration_minutes) || 0)}</p>}
           </div>
         </div>
         <div>
-          <label className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Date</label>
+          <label className="text-xs font-semibold text-muted uppercase tracking-wide">Date</label>
           <input type="date" value={form.logged_at} onChange={e => setForm(f => ({ ...f, logged_at: e.target.value }))}
-            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-[#E8E3DB] text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30 bg-white" />
+            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-surface" />
         </div>
         <div>
-          <label className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Notes</label>
+          <label className="text-xs font-semibold text-muted uppercase tracking-wide">Notes</label>
           <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
             rows={3} placeholder="Research findings, approach taken..."
-            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-[#E8E3DB] text-xs focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30 bg-white resize-none font-mono" />
+            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-border text-xs focus:outline-none focus:ring-2 focus:ring-accent/30 bg-surface resize-none font-mono" />
         </div>
         <div>
-          <label className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wide">Proof Links (one per line)</label>
+          <label className="text-xs font-semibold text-muted uppercase tracking-wide">Proof Links (one per line)</label>
           <textarea value={form.proofs} onChange={e => setForm(f => ({ ...f, proofs: e.target.value }))}
             rows={2} placeholder="https://github.com/org/repo/pull/456"
-            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-[#E8E3DB] text-xs focus:outline-none focus:ring-2 focus:ring-[#2D7A6B]/30 bg-white resize-none font-mono" />
+            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-border text-xs focus:outline-none focus:ring-2 focus:ring-accent/30 bg-surface resize-none font-mono" />
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" onClick={onClose}
-            className="px-4 py-2 text-sm text-[#6B6B6B] hover:text-[#1A1A1A]">Cancel</button>
+            className="px-4 py-2 text-sm text-muted hover:text-ink">Cancel</button>
           <button type="submit" disabled={saving || !form.title.trim() || !form.company_id}
-            className="bg-[#1B3A2D] text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-[#2a5240] disabled:opacity-40">
+            className="bg-forest text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-forest-hover disabled:opacity-40">
             {saving ? 'Saving…' : initial ? 'Save Changes' : 'Log Work'}
           </button>
         </div>

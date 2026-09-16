@@ -1,3 +1,4 @@
+import { notify } from './components/Notice'
 import { useEffect, useState } from 'react'
 import { addProof, completeTask, createTask, deleteTask, getGoal, getGoals, getTimerToday, logManualTime, pinTask, reorderTasks, updateTask, uploadProofFile, uploadProofImage } from './api'
 import { useTimer } from './TimerContext'
@@ -73,7 +74,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
       for (const e of (timerData.tasks || [])) secs[e.task_id] = e.seconds
       setTodaySeconds(secs)
     }
-    catch (err) { alert(err.message) }
+    catch (err) { notify(err.message) }
     finally { setLoading(false) }
   }
 
@@ -104,7 +105,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
       setTaskForm({ title: '', requires_proof: true, due_date: '', habit_frequency: 'daily', is_urgent: false, is_important: false, estimated_minutes: null })
       setShowNewTask(false)
       load()
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setSubmitting(false) }
   }
 
@@ -115,7 +116,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
     try {
       await createTask({ title: subtaskTitle.trim(), goal_id: goalId, requires_proof: false, parent_task_id: parentTaskId })
       setAddingSubtaskFor(null); setSubtaskTitle(''); load()
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setSubmitting(false) }
   }
 
@@ -136,7 +137,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
       })
       setEditingTask(null)
       load()
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setSubmitting(false) }
   }
 
@@ -148,7 +149,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
     // Ask for time if no timer was logged today for this task
     if (task && !todaySeconds[taskId]) { setTimeLogFor(task); return }
     try { await completeTask(taskId); load() }
-    catch (err) { alert(err.message) }
+    catch (err) { notify(err.message) }
   }
 
   async function handleCompleteWithTime(task, minutes) {
@@ -157,19 +158,19 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
       await completeTask(task.id)
       setTimeLogFor(null)
       load()
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
   }
 
   async function handlePinSubtask(subtaskId) {
     const today = new Date().toISOString().split('T')[0]
     try { await pinTask(subtaskId, today); load() }
-    catch (err) { alert(err.message) }
+    catch (err) { notify(err.message) }
   }
 
   async function handleDeleteTask(taskId) {
     if (!confirm('Delete this task?')) return
     try { await deleteTask(taskId); load() }
-    catch (err) { alert(err.message) }
+    catch (err) { notify(err.message) }
   }
 
   async function handleAddProof(e) {
@@ -190,7 +191,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
       setProofFor(null)
       setProofForm({ type: 'text', content: '', imageFile: null, imagePreview: null })
       load()
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setSubmitting(false) }
   }
 
@@ -206,7 +207,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
     setProofForm(p => ({ ...p, imageFile: file }))
   }
 
-  if (loading) return <p className="text-[#6B6B6B] text-sm">Loading…</p>
+  if (loading) return <p className="text-muted text-sm">Loading…</p>
   if (!goal) return <p className="text-terra-400 text-sm">Goal not found.</p>
 
   const isResolution = goal.type === 'resolution'
@@ -240,14 +241,14 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
 
   return (
     <div>
-      <button onClick={onBack} className="text-sm text-[#2D7A6B] hover:text-[#1B3A2D] mb-5 flex items-center gap-1 font-medium">
+      <button onClick={onBack} className="text-sm text-accent hover:text-accent mb-5 flex items-center gap-1 font-medium">
         ← Back to Goals
       </button>
 
       {/* Parent breadcrumb */}
       {goal.parent_id && goal.parent_title && onGoToGoal && (
         <button onClick={() => onGoToGoal(goal.parent_id)}
-          className="flex items-center gap-1.5 text-xs text-[#6B6B6B] hover:text-[#2D7A6B] transition-colors mb-3 -mt-2">
+          className="flex items-center gap-1.5 text-xs text-muted hover:text-accent transition-colors mb-3 -mt-2">
           <span className="text-[10px]">◈</span>
           <span>{goal.parent_title}</span>
           <span>→</span>
@@ -258,14 +259,14 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
         <div className="flex items-start gap-3">
           {goal.icon && <GoalIcon icon={goal.icon} size="xl" className="mt-0.5" />}
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold text-[#1A1A1A]">{goal.title}</h1>
-            {goal.description && <p className="text-[#6B6B6B] mt-0.5 text-sm">{goal.description}</p>}
+            <h1 className="text-xl font-bold text-ink">{goal.title}</h1>
+            {goal.description && <p className="text-muted mt-0.5 text-sm">{goal.description}</p>}
             {allTaskCount > 0 && (
               <div className="mt-3 flex items-center gap-3">
-                <div className="flex-1 bg-[#E8E3DB] rounded-full h-1">
-                  <div className={`h-1 rounded-full transition-all ${pct === 100 ? 'bg-[#2D7A6B]' : 'bg-[#2D7A6B]'}`} style={{ width: `${pct}%` }} />
+                <div className="flex-1 bg-border rounded-full h-1">
+                  <div className={`h-1 rounded-full transition-all ${pct === 100 ? 'bg-brand' : 'bg-brand'}`} style={{ width: `${pct}%` }} />
                 </div>
-                <span className="text-xs text-[#6B6B6B] font-medium flex-shrink-0">
+                <span className="text-xs text-muted font-medium flex-shrink-0">
                   {allDoneCount}/{allTaskCount} · {pct}%
                 </span>
               </div>
@@ -278,31 +279,31 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
       {isUmbrella && (
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="font-semibold text-[#1A1A1A]">Sub-projects</h2>
+            <h2 className="font-semibold text-ink">Sub-projects</h2>
           </div>
           <div className="space-y-2">
             {goal.sub_goals.map(sg => {
               const sgPct = sg.task_count > 0 ? Math.round((sg.done_count / sg.task_count) * 100) : 0
               return (
                 <button key={sg.id} onClick={() => onGoToGoal?.(sg.id)}
-                  className="w-full bg-white border border-[#E8E3DB] rounded-2xl p-4 text-left hover:shadow-md hover:border-[#2D7A6B]/30 transition-all group shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                  className="w-full bg-surface border border-border rounded-2xl p-4 text-left hover:shadow-md hover:border-accent/30 transition-all group shadow-card">
                   <div className="flex items-center gap-3">
                     <GoalIcon icon={sg.icon} size="sm" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-[#1A1A1A] group-hover:text-[#1B3A2D] transition-colors">{sg.title}</p>
+                      <p className="text-sm font-semibold text-ink group-hover:text-accent transition-colors">{sg.title}</p>
                       {sg.task_count > 0 && (
-                        <p className="text-xs text-[#6B6B6B] mt-0.5">{sg.done_count}/{sg.task_count} tasks · {sgPct}%</p>
+                        <p className="text-xs text-muted mt-0.5">{sg.done_count}/{sg.task_count} tasks · {sgPct}%</p>
                       )}
                     </div>
                     {sg.task_count > 0 && (
                       <div className="w-20 flex-shrink-0">
-                        <div className="w-full bg-[#E8E3DB] rounded-full h-1">
-                          <div className={`h-1 rounded-full ${sgPct === 100 ? 'bg-sage-400' : 'bg-[#2D7A6B]'}`}
+                        <div className="w-full bg-border rounded-full h-1">
+                          <div className={`h-1 rounded-full ${sgPct === 100 ? 'bg-sage-400' : 'bg-brand'}`}
                             style={{ width: `${sgPct}%` }} />
                         </div>
                       </div>
                     )}
-                    <span className="text-[#b5a08a] group-hover:text-[#2D7A6B] text-sm transition-colors flex-shrink-0">→</span>
+                    <span className="text-muted group-hover:text-accent text-sm transition-colors flex-shrink-0">→</span>
                   </div>
                 </button>
               )
@@ -310,29 +311,29 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
           </div>
           {goal.tasks.length > 0 && (
             <div className="flex items-center gap-3 mt-5 mb-2">
-              <span className="flex-1 border-t border-[#E8E3DB]" />
-              <span className="text-[10px] font-bold text-[#6B6B6B] uppercase tracking-widest whitespace-nowrap">Tasks on this project</span>
-              <span className="flex-1 border-t border-[#E8E3DB]" />
+              <span className="flex-1 border-t border-border" />
+              <span className="text-[10px] font-bold text-muted uppercase tracking-widest whitespace-nowrap">Tasks on this project</span>
+              <span className="flex-1 border-t border-border" />
             </div>
           )}
         </div>
       )}
 
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-[11px] font-semibold text-[#b5a08a] uppercase tracking-widest">{isResolution ? 'Habits' : 'Tasks'}</h2>
+        <h2 className="text-[11px] font-semibold text-muted uppercase tracking-widest">{isResolution ? 'Habits' : 'Tasks'}</h2>
         <button onClick={() => setShowNewTask(true)}
-          className="bg-[#1B3A2D] text-white px-3 py-1.5 rounded-xl text-xs font-medium hover:bg-[#2a5240] transition-colors">
+          className="bg-forest text-white px-3 py-1.5 rounded-xl text-xs font-medium hover:bg-forest-hover transition-colors">
           + {isResolution ? 'Add Habit' : 'Add Task'}
         </button>
       </div>
 
       {isResolution && (
-        <p className="text-xs text-[#6B6B6B] mb-3">Check in on habits daily from the <strong>Today</strong> tab.</p>
+        <p className="text-xs text-muted mb-3">Check in on habits daily from the <strong>Today</strong> tab.</p>
       )}
 
       {goal.tasks.length === 0 ? (
-        <div className="text-center py-16 text-[#6B6B6B]">
-          <div className="text-3xl mb-3 text-[#E8C334]">{isResolution ? '✦' : '◈'}</div>
+        <div className="text-center py-16 text-muted">
+          <div className="text-3xl mb-3 text-highlight">{isResolution ? '✦' : '◈'}</div>
           <p className="font-medium">No {isResolution ? 'habits' : 'tasks'} yet</p>
         </div>
       ) : (
@@ -371,7 +372,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
           {doneTasks.length > 0 && (
             <div className="pt-3">
               {todoTasks.length > 0 && (
-                <p className="text-[11px] font-semibold text-[#b5a08a] uppercase tracking-widest mb-2">Completed</p>
+                <p className="text-[11px] font-semibold text-muted uppercase tracking-widest mb-2">Completed</p>
               )}
               <div className="space-y-1.5 opacity-60">
               {doneTasks.map((task) => (
@@ -391,30 +392,30 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
           onClose={() => { setShowNewTask(false); setTaskForm({ title: '', requires_proof: true, due_date: '' }) }}>
           <form onSubmit={handleCreateTask} className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-[#1A1A1A]">Title</label>
+              <label className="text-sm font-medium text-ink">Title</label>
               <input autoFocus value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
                 placeholder={isResolution ? 'e.g. Study 20 min' : 'e.g. Complete application'}
-                className="mt-1.5 w-full border border-[#E8E3DB] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] focus:border-transparent bg-white placeholder:text-[#b5a08a]" />
+                className="mt-1.5 w-full border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent bg-surface placeholder:text-muted" />
             </div>
             {isResolution && (
               <>
                 <div>
-                  <label className="text-sm font-medium text-[#1A1A1A]">Frequency</label>
+                  <label className="text-sm font-medium text-ink">Frequency</label>
                   <div className="mt-1.5 grid grid-cols-4 gap-1.5">
                     {FREQ_OPTIONS.map(o => (
                       <button key={o.value} type="button"
                         onClick={() => setTaskForm({ ...taskForm, habit_frequency: o.value })}
-                        className={`px-2 py-2 rounded-xl border text-xs font-medium transition-colors text-center ${taskForm.habit_frequency === o.value ? 'bg-[#1B3A2D] text-white border-[#1B3A2D]' : 'border-[#E8E3DB] text-[#6B6B6B] hover:border-[#2D7A6B]'}`}>
+                        className={`px-2 py-2 rounded-xl border text-xs font-medium transition-colors text-center ${taskForm.habit_frequency === o.value ? 'bg-forest text-white border-forest' : 'border-border text-muted hover:border-accent'}`}>
                         {o.label}
                       </button>
                     ))}
                   </div>
-                  <p className="text-xs text-[#6B6B6B] mt-1">{FREQ_OPTIONS.find(o => o.value === taskForm.habit_frequency)?.desc}</p>
+                  <p className="text-xs text-muted mt-1">{FREQ_OPTIONS.find(o => o.value === taskForm.habit_frequency)?.desc}</p>
                 </div>
-                <label className="flex items-center gap-2.5 text-sm text-[#1A1A1A] cursor-pointer select-none">
+                <label className="flex items-center gap-2.5 text-sm text-ink cursor-pointer select-none">
                   <input type="checkbox" checked={taskForm.requires_proof}
                     onChange={(e) => setTaskForm({ ...taskForm, requires_proof: e.target.checked })}
-                    className="w-4 h-4 rounded accent-[#2D7A6B]" />
+                    className="w-4 h-4 rounded accent-accent" />
                   Requires proof to check in
                 </label>
               </>
@@ -422,21 +423,21 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
             {!isResolution && (
               <>
                 <div>
-                  <label className="text-sm font-medium text-[#1A1A1A]">Due date <span className="text-[#6B6B6B] font-normal">(optional)</span></label>
+                  <label className="text-sm font-medium text-ink">Due date <span className="text-muted font-normal">(optional)</span></label>
                   <input type="date" value={taskForm.due_date} onChange={(e) => setTaskForm({ ...taskForm, due_date: e.target.value })}
-                    className="mt-1.5 w-full border border-[#E8E3DB] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] focus:border-transparent bg-white" />
+                    className="mt-1.5 w-full border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent bg-surface" />
                 </div>
-                <label className="flex items-center gap-2.5 text-sm text-[#1A1A1A] cursor-pointer select-none">
+                <label className="flex items-center gap-2.5 text-sm text-ink cursor-pointer select-none">
                   <input type="checkbox" checked={taskForm.requires_proof}
                     onChange={(e) => setTaskForm({ ...taskForm, requires_proof: e.target.checked })}
-                    className="w-4 h-4 rounded accent-[#2D7A6B]" />
+                    className="w-4 h-4 rounded accent-accent" />
                   Requires proof to complete
                 </label>
               </>
             )}
             {!isResolution && (
               <div>
-                <label className="text-sm font-medium text-[#1A1A1A] block mb-1.5">Tags</label>
+                <label className="text-sm font-medium text-ink block mb-1.5">Tags</label>
                 <TagToggles urgent={taskForm.is_urgent} important={taskForm.is_important}
                   onToggleUrgent={() => setTaskForm(f => ({ ...f, is_urgent: !f.is_urgent }))}
                   onToggleImportant={() => setTaskForm(f => ({ ...f, is_important: !f.is_important }))} />
@@ -450,9 +451,9 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
             )}
             <div className="flex justify-end gap-2 pt-1">
               <button type="button" onClick={() => { setShowNewTask(false); setTaskForm({ title: '', requires_proof: true, due_date: '', is_urgent: false, is_important: false, estimated_minutes: null }) }}
-                className="px-4 py-2 text-sm text-[#6B6B6B] hover:text-[#1A1A1A]">Cancel</button>
+                className="px-4 py-2 text-sm text-muted hover:text-ink">Cancel</button>
               <button type="submit" disabled={submitting || !taskForm.title.trim()}
-                className="bg-[#1B3A2D] text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-[#2a5240] disabled:opacity-40">
+                className="bg-forest text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-forest-hover disabled:opacity-40">
                 {isResolution ? 'Add Habit' : 'Add Task'}
               </button>
             </div>
@@ -465,16 +466,16 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
         <Modal title={isResolution ? 'Edit Habit' : 'Edit Task'} onClose={() => setEditingTask(null)}>
           <form onSubmit={handleEditTask} className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-[#1A1A1A]">Title</label>
+              <label className="text-sm font-medium text-ink">Title</label>
               <input autoFocus value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                className="mt-1.5 w-full border border-[#E8E3DB] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] focus:border-transparent bg-white" />
+                className="mt-1.5 w-full border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent bg-surface" />
             </div>
             {allGoals.length > 1 && (
               <div>
-                <label className="text-sm font-medium text-[#1A1A1A]">Project</label>
+                <label className="text-sm font-medium text-ink">Project</label>
                 <select value={editForm.goal_id}
                   onChange={e => setEditForm({ ...editForm, goal_id: e.target.value })}
-                  className="mt-1.5 w-full border border-[#E8E3DB] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] bg-white text-[#1A1A1A]">
+                  className="mt-1.5 w-full border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent bg-surface text-ink">
                   {allGoals.map(g => (
                     <option key={g.id} value={g.id}>{g.title}</option>
                   ))}
@@ -483,38 +484,38 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
             )}
             {isResolution ? (
               <div>
-                <label className="text-sm font-medium text-[#1A1A1A]">Frequency</label>
+                <label className="text-sm font-medium text-ink">Frequency</label>
                 <div className="mt-1.5 grid grid-cols-4 gap-1.5">
                   {FREQ_OPTIONS.map(o => (
                     <button key={o.value} type="button"
                       onClick={() => setEditForm({ ...editForm, habit_frequency: o.value })}
-                      className={`px-2 py-2 rounded-xl border text-xs font-medium transition-colors text-center ${editForm.habit_frequency === o.value ? 'bg-[#1B3A2D] text-white border-[#1B3A2D]' : 'border-[#E8E3DB] text-[#6B6B6B] hover:border-[#2D7A6B]'}`}>
+                      className={`px-2 py-2 rounded-xl border text-xs font-medium transition-colors text-center ${editForm.habit_frequency === o.value ? 'bg-forest text-white border-forest' : 'border-border text-muted hover:border-accent'}`}>
                       {o.label}
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-[#6B6B6B] mt-1">{FREQ_OPTIONS.find(o => o.value === editForm.habit_frequency)?.desc}</p>
+                <p className="text-xs text-muted mt-1">{FREQ_OPTIONS.find(o => o.value === editForm.habit_frequency)?.desc}</p>
               </div>
             ) : (
               <div>
-                <label className="text-sm font-medium text-[#1A1A1A]">Due date <span className="text-[#6B6B6B] font-normal">(optional)</span></label>
+                <label className="text-sm font-medium text-ink">Due date <span className="text-muted font-normal">(optional)</span></label>
                 <input type="date" value={editForm.due_date} onChange={(e) => setEditForm({ ...editForm, due_date: e.target.value })}
-                  className="mt-1.5 w-full border border-[#E8E3DB] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] focus:border-transparent bg-white" />
+                  className="mt-1.5 w-full border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent bg-surface" />
                 {editForm.due_date && (
                   <button type="button" onClick={() => setEditForm({ ...editForm, due_date: '' })}
-                    className="text-xs text-[#6B6B6B] hover:text-[#1A1A1A] mt-1">Clear date</button>
+                    className="text-xs text-muted hover:text-ink mt-1">Clear date</button>
                 )}
               </div>
             )}
-            <label className="flex items-center gap-2.5 text-sm text-[#1A1A1A] cursor-pointer select-none">
+            <label className="flex items-center gap-2.5 text-sm text-ink cursor-pointer select-none">
               <input type="checkbox" checked={editForm.requires_proof}
                 onChange={(e) => setEditForm({ ...editForm, requires_proof: e.target.checked })}
-                className="w-4 h-4 rounded accent-[#2D7A6B]" />
+                className="w-4 h-4 rounded accent-accent" />
               Requires proof to {isResolution ? 'check in' : 'complete'}
             </label>
             {!isResolution && (
               <div>
-                <label className="text-sm font-medium text-[#1A1A1A] block mb-1.5">Tags</label>
+                <label className="text-sm font-medium text-ink block mb-1.5">Tags</label>
                 <TagToggles urgent={editForm.is_urgent} important={editForm.is_important}
                   onToggleUrgent={() => setEditForm(f => ({ ...f, is_urgent: !f.is_urgent }))}
                   onToggleImportant={() => setEditForm(f => ({ ...f, is_important: !f.is_important }))} />
@@ -527,9 +528,9 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
               />
             )}
             <div className="flex justify-end gap-2 pt-1">
-              <button type="button" onClick={() => setEditingTask(null)} className="px-4 py-2 text-sm text-[#6B6B6B] hover:text-[#1A1A1A]">Cancel</button>
+              <button type="button" onClick={() => setEditingTask(null)} className="px-4 py-2 text-sm text-muted hover:text-ink">Cancel</button>
               <button type="submit" disabled={submitting || !editForm.title.trim()}
-                className="bg-[#1B3A2D] text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-[#2a5240] disabled:opacity-40">
+                className="bg-forest text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-forest-hover disabled:opacity-40">
                 Save
               </button>
             </div>
@@ -579,11 +580,11 @@ export function TagToggles({ urgent, important, onToggleUrgent, onToggleImportan
   return (
     <div className="flex gap-2">
       <button type="button" onClick={onToggleUrgent}
-        className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${urgent ? 'bg-terra-400 text-white border-terra-400' : 'border-[#E8E3DB] text-[#6B6B6B] hover:border-terra-400 hover:text-terra-400'}`}>
+        className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${urgent ? 'bg-terra-400 text-white border-terra-400' : 'border-border text-muted hover:border-terra-400 hover:text-terra-400'}`}>
         ↑ Urgent
       </button>
       <button type="button" onClick={onToggleImportant}
-        className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${important ? 'bg-[#E8C334] text-[#1A1A1A] border-[#E8C334]' : 'border-[#E8E3DB] text-[#6B6B6B] hover:border-[#E8C334] hover:text-[#E8C334]'}`}>
+        className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${important ? 'bg-highlight text-on-gold border-highlight' : 'border-border text-muted hover:border-highlight hover:text-highlight'}`}>
         ★ Important
       </button>
     </div>
@@ -628,12 +629,12 @@ export function ProofForm({ proofForm, setProofForm, onSubmit, submitting, onCan
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div>
-        <label className="text-sm font-medium text-[#1A1A1A]">Type</label>
+        <label className="text-sm font-medium text-ink">Type</label>
         <div className="mt-1.5 flex gap-2 flex-wrap">
           {TYPES.map(({ key, label }) => (
             <button key={key} type="button"
               onClick={() => setProofForm({ ...proofForm, type: key, content: '', imageFile: null, imagePreview: null })}
-              className={`px-3 py-1.5 rounded-xl text-sm font-medium border transition-colors ${proofForm.type === key ? 'bg-[#1B3A2D] text-white border-[#1B3A2D]' : 'border-[#E8E3DB] text-[#6B6B6B] hover:border-[#2D7A6B]'}`}>
+              className={`px-3 py-1.5 rounded-xl text-sm font-medium border transition-colors ${proofForm.type === key ? 'bg-forest text-white border-forest' : 'border-border text-muted hover:border-accent'}`}>
               {label}
             </button>
           ))}
@@ -647,12 +648,12 @@ export function ProofForm({ proofForm, setProofForm, onSubmit, submitting, onCan
               <img src={proofForm.imagePreview} alt="Preview" className="max-h-48 w-full rounded-xl object-cover" />
               <button type="button"
                 onClick={() => setProofForm(p => ({ ...p, imageFile: null, imagePreview: null }))}
-                className="absolute top-1.5 right-1.5 bg-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow hover:text-terra-400 transition-colors">✕</button>
+                className="absolute top-1.5 right-1.5 bg-surface rounded-full w-6 h-6 flex items-center justify-center text-xs shadow hover:text-terra-400 transition-colors">✕</button>
             </div>
           ) : (
-            <label className="block border-2 border-dashed border-[#E8E3DB] rounded-xl px-4 py-8 text-center cursor-pointer hover:border-[#2D7A6B] transition-colors">
-              <p className="text-sm text-[#6B6B6B] mb-1">Click to browse or paste a screenshot</p>
-              <p className="text-xs text-[#b5a08a]">⌘V to paste · JPG, PNG, GIF, WebP</p>
+            <label className="block border-2 border-dashed border-border rounded-xl px-4 py-8 text-center cursor-pointer hover:border-accent transition-colors">
+              <p className="text-sm text-muted mb-1">Click to browse or paste a screenshot</p>
+              <p className="text-xs text-muted">⌘V to paste · JPG, PNG, GIF, WebP</p>
               <input type="file" accept="image/*" className="hidden" onChange={onImageSelect} />
             </label>
           )}
@@ -662,21 +663,21 @@ export function ProofForm({ proofForm, setProofForm, onSubmit, submitting, onCan
       {isFile && (
         <div>
           {proofForm.imageFile ? (
-            <div className="flex items-center gap-3 border border-[#E8E3DB] rounded-xl px-4 py-3 bg-[#F2EDE4]">
+            <div className="flex items-center gap-3 border border-border rounded-xl px-4 py-3 bg-raised">
               <span className="text-2xl">{fileIcon(proofForm.imageFile.name)}</span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[#1A1A1A] truncate">{proofForm.imageFile.name}</p>
-                <p className="text-xs text-[#6B6B6B]">{(proofForm.imageFile.size / 1024).toFixed(0)} KB</p>
+                <p className="text-sm font-medium text-ink truncate">{proofForm.imageFile.name}</p>
+                <p className="text-xs text-muted">{(proofForm.imageFile.size / 1024).toFixed(0)} KB</p>
               </div>
               <button type="button"
                 onClick={() => setProofForm(p => ({ ...p, imageFile: null, imagePreview: null }))}
-                className="text-[#b5a08a] hover:text-terra-400 transition-colors text-sm">✕</button>
+                className="text-muted hover:text-terra-400 transition-colors text-sm">✕</button>
             </div>
           ) : (
-            <label className="block border-2 border-dashed border-[#E8E3DB] rounded-xl px-4 py-8 text-center cursor-pointer hover:border-[#2D7A6B] transition-colors">
+            <label className="block border-2 border-dashed border-border rounded-xl px-4 py-8 text-center cursor-pointer hover:border-accent transition-colors">
               <p className="text-2xl mb-2">📎</p>
-              <p className="text-sm text-[#6B6B6B] mb-1">Click to attach a document</p>
-              <p className="text-xs text-[#b5a08a]">PDF, DOC, DOCX, TXT, MD, Pages, CSV, XLSX</p>
+              <p className="text-sm text-muted mb-1">Click to attach a document</p>
+              <p className="text-xs text-muted">PDF, DOC, DOCX, TXT, MD, Pages, CSV, XLSX</p>
               <input type="file"
                 accept=".pdf,.doc,.docx,.txt,.md,.pages,.rtf,.csv,.xlsx,.xls"
                 className="hidden" onChange={onFileSelect} />
@@ -687,17 +688,17 @@ export function ProofForm({ proofForm, setProofForm, onSubmit, submitting, onCan
 
       {!isImage && !isFile && (
         <div>
-          <label className="text-sm font-medium text-[#1A1A1A]">{proofForm.type === 'link' ? 'URL' : 'What did you do?'}</label>
+          <label className="text-sm font-medium text-ink">{proofForm.type === 'link' ? 'URL' : 'What did you do?'}</label>
           <textarea autoFocus value={proofForm.content} onChange={(e) => setProofForm({ ...proofForm, content: e.target.value })}
             placeholder={proofForm.type === 'link' ? 'https://…' : 'Describe what you completed…'} rows={3}
-            className="mt-1.5 w-full border border-[#E8E3DB] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] resize-none bg-white placeholder:text-[#b5a08a]" />
+            className="mt-1.5 w-full border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent resize-none bg-surface placeholder:text-muted" />
         </div>
       )}
 
       <div className="flex justify-end gap-2 pt-1">
-        <button type="button" onClick={onCancel} className="px-4 py-2 text-sm text-[#6B6B6B] hover:text-[#1A1A1A]">Cancel</button>
+        <button type="button" onClick={onCancel} className="px-4 py-2 text-sm text-muted hover:text-ink">Cancel</button>
         <button type="submit" disabled={submitting || !canSubmit}
-          className="bg-[#1B3A2D] text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-[#2a5240] disabled:opacity-40">
+          className="bg-forest text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-forest-hover disabled:opacity-40">
           {submitLabel}
         </button>
       </div>
@@ -715,7 +716,7 @@ function extIcon(name) {
 function ProofDisplay({ proof }) {
   if (proof.type === 'image') {
     return (
-      <div className="flex items-start gap-2 text-xs bg-[#F2EDE4] rounded-xl px-3 py-2">
+      <div className="flex items-start gap-2 text-xs bg-raised rounded-xl px-3 py-2">
         <img src={proof.content} alt="Proof" className="max-h-32 rounded-lg object-cover" />
       </div>
     )
@@ -725,25 +726,25 @@ function ProofDisplay({ proof }) {
     try { const p = JSON.parse(proof.content); url = p.url; name = p.name } catch {}
     return (
       <a href={url} target="_blank" rel="noopener noreferrer"
-        className="flex items-center gap-2 text-xs bg-[#F2EDE4] rounded-xl px-3 py-2 hover:bg-[#2D7A6B]/10 transition-colors group">
+        className="flex items-center gap-2 text-xs bg-raised rounded-xl px-3 py-2 hover:bg-brand/10 transition-colors group">
         <span className="text-base">{extIcon(name)}</span>
-        <span className="text-[#2D7A6B] group-hover:underline truncate flex-1">{name}</span>
-        <span className="text-[#6B6B6B] flex-shrink-0">↗</span>
+        <span className="text-accent group-hover:underline truncate flex-1">{name}</span>
+        <span className="text-muted flex-shrink-0">↗</span>
       </a>
     )
   }
   if (proof.type === 'link') {
     return (
-      <div className="flex items-start gap-2 text-xs bg-[#F2EDE4] rounded-xl px-3 py-2">
-        <span className="font-semibold text-[#6B6B6B] uppercase tracking-wide flex-shrink-0 pt-px">link</span>
-        <a href={proof.content} target="_blank" rel="noopener noreferrer" className="text-[#2D7A6B] hover:underline truncate">{proof.content}</a>
+      <div className="flex items-start gap-2 text-xs bg-raised rounded-xl px-3 py-2">
+        <span className="font-semibold text-muted uppercase tracking-wide flex-shrink-0 pt-px">link</span>
+        <a href={proof.content} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline truncate">{proof.content}</a>
       </div>
     )
   }
   return (
-    <div className="flex items-start gap-2 text-xs bg-[#F2EDE4] rounded-xl px-3 py-2">
-      <span className="font-semibold text-[#6B6B6B] uppercase tracking-wide flex-shrink-0 pt-px">note</span>
-      <span className="text-[#1A1A1A]">{proof.content}</span>
+    <div className="flex items-start gap-2 text-xs bg-raised rounded-xl px-3 py-2">
+      <span className="font-semibold text-muted uppercase tracking-wide flex-shrink-0 pt-px">note</span>
+      <span className="text-ink">{proof.content}</span>
     </div>
   )
 }
@@ -768,13 +769,13 @@ function TaskCard({ task, onComplete, onDelete, onAddProof, onEdit, isHabit, onC
     : ''
 
   return (
-    <div className={`bg-white border rounded-2xl transition-all shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden group/card ${isDone ? 'border-[#E8E3DB]/60' : `border-[#E8E3DB] ${accentBorder}`}`}>
+    <div className={`bg-surface border rounded-2xl transition-all shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden group/card ${isDone ? 'border-border/60' : `border-border ${accentBorder}`}`}>
       <div className="flex items-start gap-2.5 p-4">
         {dragListeners && !isDone && (
           <button
             {...dragListeners}
             type="button"
-            className="cursor-grab active:cursor-grabbing text-[#E8E3DB] hover:text-[#b5a08a] flex-shrink-0 mt-0.5 touch-none select-none text-sm leading-none"
+            className="cursor-grab active:cursor-grabbing text-border hover:text-muted flex-shrink-0 mt-0.5 touch-none select-none text-sm leading-none"
             title="Drag to reorder"
           >⠿</button>
         )}
@@ -784,12 +785,12 @@ function TaskCard({ task, onComplete, onDelete, onAddProof, onEdit, isHabit, onC
           <button onClick={onComplete} disabled={!canComplete}
             title={!canComplete ? 'Add proof first' : 'Mark as done'}
             className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${
-              canComplete ? 'border-[#2D7A6B] hover:bg-[#2D7A6B] hover:text-white text-transparent' : 'border-[#E8E3DB] text-transparent cursor-not-allowed'
+              canComplete ? 'border-accent hover:bg-brand hover:text-white text-transparent' : 'border-border text-transparent cursor-not-allowed'
             }`}>
             <span className="text-[10px] leading-none">✓</span>
           </button>
         ) : isDone ? (
-          <span className="w-5 h-5 rounded-full bg-[#2D7A6B] flex items-center justify-center flex-shrink-0 mt-0.5">
+          <span className="w-5 h-5 rounded-full bg-brand flex items-center justify-center flex-shrink-0 mt-0.5">
             <span className="text-white text-[10px] leading-none">✓</span>
           </span>
         ) : null}
@@ -797,7 +798,7 @@ function TaskCard({ task, onComplete, onDelete, onAddProof, onEdit, isHabit, onC
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <span className={`text-sm font-medium leading-snug ${isDone ? 'text-[#b5a08a] line-through' : 'text-[#1A1A1A]'}`}>
+              <span className={`text-sm font-medium leading-snug ${isDone ? 'text-muted line-through' : 'text-ink'}`}>
                 {task.title}
               </span>
               {dueMeta && !isDone && (
@@ -808,35 +809,35 @@ function TaskCard({ task, onComplete, onDelete, onAddProof, onEdit, isHabit, onC
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
               {!isDone && !isHabit && task.estimated_minutes && (
-                <span className="text-[11px] text-[#b5a08a] font-medium">
+                <span className="text-[11px] text-muted font-medium">
                   {formatDuration(task.estimated_minutes)}
                 </span>
               )}
               {isHabit && !isDone && (
-                <span className="text-[11px] text-[#2D7A6B] font-medium bg-[#2D7A6B]/8 px-2 py-0.5 rounded-full">
+                <span className="text-[11px] text-accent font-medium bg-brand/8 px-2 py-0.5 rounded-full">
                   {freqLabel(task.habit_frequency)}
                 </span>
               )}
               {needsProof && !isHabit && (
                 <button onClick={onAddProof}
-                  className="text-[11px] text-[#2D7A6B] px-2 py-0.5 rounded-lg hover:bg-[#2D7A6B]/10 transition-colors font-medium">
+                  className="text-[11px] text-accent px-2 py-0.5 rounded-lg hover:bg-brand/10 transition-colors font-medium">
                   + Proof
                 </button>
               )}
               {!isDone && !isHabit && onStartTimer && (
                 <button onClick={onStartTimer} title="Start timer"
-                  className="text-[11px] px-2 py-0.5 rounded-lg text-[#b5a08a] hover:text-[#2D7A6B] hover:bg-[#2D7A6B]/10 transition-colors font-medium">
+                  className="text-[11px] px-2 py-0.5 rounded-lg text-muted hover:text-accent hover:bg-brand/10 transition-colors font-medium">
                   ▶
                 </button>
               )}
               {!isDone && onEdit && (
-                <button onClick={onEdit} className="text-[#b5a08a] hover:text-[#2D7A6B] transition-colors w-5 h-5 flex items-center justify-center opacity-0 group-hover/card:opacity-100 text-xs" title="Edit">✎</button>
+                <button onClick={onEdit} className="text-muted hover:text-accent transition-colors w-5 h-5 flex items-center justify-center opacity-0 group-hover/card:opacity-100 text-xs" title="Edit">✎</button>
               )}
-              <button onClick={onDelete} className="text-[#E8E3DB] hover:text-terra-400 transition-colors w-5 h-5 flex items-center justify-center opacity-0 group-hover/card:opacity-100 text-xs" title="Delete">✕</button>
+              <button onClick={onDelete} className="text-border hover:text-terra-400 transition-colors w-5 h-5 flex items-center justify-center opacity-0 group-hover/card:opacity-100 text-xs" title="Delete">✕</button>
               <button onClick={() => setExpanded(v => !v)}
-                className={`text-xs w-5 h-5 flex items-center justify-center rounded-md transition-colors ${expanded ? 'text-[#2D7A6B] bg-[#2D7A6B]/10' : 'text-[#b5a08a] hover:text-[#6B6B6B]'}`}>
+                className={`text-xs w-5 h-5 flex items-center justify-center rounded-md transition-colors ${expanded ? 'text-accent bg-brand/10' : 'text-muted hover:text-muted'}`}>
                 {activityCount > 0 && !expanded
-                  ? <span className="font-semibold text-[10px] text-[#2D7A6B]">{activityCount}</span>
+                  ? <span className="font-semibold text-[10px] text-accent">{activityCount}</span>
                   : <span className="text-[10px]">{expanded ? '▴' : '▾'}</span>}
               </button>
             </div>
@@ -850,16 +851,16 @@ function TaskCard({ task, onComplete, onDelete, onAddProof, onEdit, isHabit, onC
       </div>
 
       {expanded && (
-        <div className="border-t border-[#F2EDE4] px-4 pt-3 pb-4 space-y-3">
+        <div className="border-t border-raised px-4 pt-3 pb-4 space-y-3">
           {task.proofs?.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-[10px] font-semibold text-[#6B6B6B] uppercase tracking-widest">Proof</p>
+              <p className="text-[10px] font-semibold text-muted uppercase tracking-widest">Proof</p>
               {task.proofs.map(proof => <ProofDisplay key={proof.id} proof={proof} />)}
             </div>
           )}
           {!isDone && !isHabit && onAddProof && (
             <button onClick={onAddProof}
-              className="text-xs text-[#2D7A6B] border border-dashed border-[#2D7A6B]/30 px-3 py-1.5 rounded-xl hover:bg-[#2D7A6B]/10 transition-colors w-full text-center">
+              className="text-xs text-accent border border-dashed border-accent/30 px-3 py-1.5 rounded-xl hover:bg-brand/10 transition-colors w-full text-center">
               + Attach Proof
             </button>
           )}
@@ -869,54 +870,54 @@ function TaskCard({ task, onComplete, onDelete, onAddProof, onEdit, isHabit, onC
 
       {/* Sub-tasks */}
       {!isHabit && (task.sub_tasks?.length > 0 || addingSubtask) && (
-        <div className="border-t border-[#F2EDE4] px-4 py-2 space-y-0.5">
+        <div className="border-t border-raised px-4 py-2 space-y-0.5">
           {task.sub_tasks?.map(st => {
             const today = new Date().toISOString().split('T')[0]
             const isInFocus = st.pinned_date === today
             return (
               <div key={st.id} className={`flex items-start gap-2 py-1.5 group rounded-lg px-1 -mx-1 transition-colors
-                ${st.status === 'done' ? 'opacity-50' : isInFocus ? 'bg-[#E8C334]/10' : 'hover:bg-[#F2EDE4]'}`}>
+                ${st.status === 'done' ? 'opacity-50' : isInFocus ? 'bg-highlight/10' : 'hover:bg-raised'}`}>
                 {onCompleteSubtask && st.status !== 'done' ? (
                   <button onClick={() => onCompleteSubtask(st.id)}
-                    className="w-4 h-4 rounded-full border border-[#E8E3DB] hover:border-[#2D7A6B] hover:bg-[#2D7A6B]/10 flex items-center justify-center flex-shrink-0 transition-all mt-0.5">
+                    className="w-4 h-4 rounded-full border border-border hover:border-accent hover:bg-brand/10 flex items-center justify-center flex-shrink-0 transition-all mt-0.5">
                   </button>
                 ) : (
-                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ml-0.5 mt-1 ${st.status === 'done' ? 'bg-sage-400' : 'bg-[#E8E3DB]'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ml-0.5 mt-1 ${st.status === 'done' ? 'bg-sage-400' : 'bg-border'}`} />
                 )}
                 <div className="flex-1 min-w-0">
-                  <span className={`text-sm ${st.status === 'done' ? 'line-through text-[#b5a08a]' : 'text-[#1A1A1A]'}`}>{st.title}</span>
+                  <span className={`text-sm ${st.status === 'done' ? 'line-through text-muted' : 'text-ink'}`}>{st.title}</span>
                   {st.status !== 'done' && (st.is_urgent || st.is_important) && (
                     <div className="mt-1"><TaskTags urgent={st.is_urgent} important={st.is_important} small /></div>
                   )}
                 </div>
                 {isInFocus && (
-                  <span className="text-[10px] font-semibold text-[#E8C334] bg-[#E8C334]/10 border border-[#E8C334]/30 px-1.5 py-0.5 rounded-md flex-shrink-0 flex items-center gap-0.5">
+                  <span className="text-[10px] font-semibold text-highlight bg-highlight/10 border border-highlight/30 px-1.5 py-0.5 rounded-md flex-shrink-0 flex items-center gap-0.5">
                     ✦ Focus
                   </span>
                 )}
                 {st.status !== 'done' && !isInFocus && onPinSubtask && (
                   <button onClick={() => onPinSubtask(st.id)}
                     title="Pin to today's focus"
-                    className="opacity-0 group-hover:opacity-100 transition-all text-xs w-5 h-5 flex items-center justify-center flex-shrink-0 rounded text-[#b5a08a] hover:text-[#E8C334]">
+                    className="opacity-0 group-hover:opacity-100 transition-all text-xs w-5 h-5 flex items-center justify-center flex-shrink-0 rounded text-muted hover:text-highlight">
                     ✦
                   </button>
                 )}
                 {onDeleteSubtask && (
                   <button onClick={() => onDeleteSubtask(st.id)}
-                    className="opacity-0 group-hover:opacity-100 text-[#b5a08a] hover:text-terra-400 transition-all text-xs w-5 h-5 flex items-center justify-center flex-shrink-0">✕</button>
+                    className="opacity-0 group-hover:opacity-100 text-muted hover:text-terra-400 transition-all text-xs w-5 h-5 flex items-center justify-center flex-shrink-0">✕</button>
                 )}
               </div>
             )
           })}
           {addingSubtask && (
             <form onSubmit={onSubtaskSubmit} className="flex items-center gap-2 pt-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#E8E3DB] flex-shrink-0" />
+              <span className="w-1.5 h-1.5 rounded-full bg-border flex-shrink-0" />
               <input autoFocus value={subtaskTitle} onChange={e => onSubtaskTitleChange(e.target.value)}
                 placeholder="Subtask title…"
-                className="flex-1 text-sm border-b border-[#E8E3DB] focus:border-[#2D7A6B] focus:outline-none bg-transparent py-0.5 placeholder:text-[#b5a08a]" />
+                className="flex-1 text-sm border-b border-border focus:border-accent focus:outline-none bg-transparent py-0.5 placeholder:text-muted" />
               <button type="submit" disabled={!subtaskTitle.trim() || parentSubmitting}
-                className="text-xs text-[#2D7A6B] font-medium disabled:opacity-40">Add</button>
-              <button type="button" onClick={onSubtaskCancel} className="text-xs text-[#6B6B6B]">✕</button>
+                className="text-xs text-accent font-medium disabled:opacity-40">Add</button>
+              <button type="button" onClick={onSubtaskCancel} className="text-xs text-muted">✕</button>
             </form>
           )}
         </div>
@@ -924,7 +925,7 @@ function TaskCard({ task, onComplete, onDelete, onAddProof, onEdit, isHabit, onC
       {!isHabit && !isDone && onAddSubtask && !addingSubtask && (
         <div className="px-4 pb-2">
           <button onClick={onAddSubtask}
-            className="text-xs text-[#6B6B6B] hover:text-[#2D7A6B] transition-colors flex items-center gap-1">
+            className="text-xs text-muted hover:text-accent transition-colors flex items-center gap-1">
             <span>+</span> Add subtask
           </button>
         </div>

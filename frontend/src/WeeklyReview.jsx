@@ -1,3 +1,4 @@
+import { notify } from './components/Notice'
 import { useEffect, useState } from 'react'
 import { getWeeklyReview } from './api'
 import Modal from './components/Modal'
@@ -22,7 +23,7 @@ function HabitRow({ habit, weekDates }) {
   const fractionColor = isOnTrack ? 'text-sage-600' : 'text-sand-500'
 
   return (
-    <div className={`rounded-xl border px-3 py-3 ${isOnTrack ? 'border-sage-100 bg-sage-50/40' : 'border-sand-200 bg-white'}`}>
+    <div className={`rounded-xl border px-3 py-3 ${isOnTrack ? 'border-sage-100 bg-sage-50/40' : 'border-sand-200 bg-surface'}`}>
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1 min-w-0">
           <span className="text-sm font-medium text-sand-800">{habit.title}</span>
@@ -78,7 +79,7 @@ export default function WeeklyReview({ onClose }) {
   useEffect(() => {
     getWeeklyReview()
       .then(setData)
-      .catch(err => alert(err.message))
+      .catch(err => notify(err.message))
       .finally(() => setLoading(false))
   }, [])
 
@@ -109,7 +110,7 @@ export default function WeeklyReview({ onClose }) {
       <div className="space-y-5 max-h-[75vh] overflow-y-auto pr-1 -mr-1">
 
         {/* ── Score banner ── */}
-        <div className="bg-white border border-sand-200 rounded-2xl px-4 py-4 shadow-sm">
+        <div className="bg-surface border border-sand-200 rounded-2xl px-4 py-4 shadow-sm">
           <div className="flex items-start justify-between mb-3">
             <div>
               <p className="text-[11px] font-semibold text-sand-400 uppercase tracking-widest mb-0.5">Week of {data.week_start}</p>

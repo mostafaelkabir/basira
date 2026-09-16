@@ -1,0 +1,156 @@
+/* ─────────────────────────────────────────────────────────────
+   Basira design tokens
+   Every colour is stored as bare RGB channels so Tailwind can add
+   alpha: rgb(var(--accent) / .4). Light is the daylight ivory
+   workspace; dark is the "deep ink" luminous workspace.
+   ───────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --canvas: 244 245 240;
+  --surface: 255 255 253;
+  --raised: 236 240 234;
+  --overlay: 255 255 253;
+
+  /* Text */
+  --ink: 21 40 33;
+  --muted: 88 105 96;
+  --faint: 150 164 156;
+
+  /* Lines */
+  --border: 216 224 215;
+  --border-strong: 190 202 191;
+
+  /* Brand */
+  --accent: 23 110 78;
+  --accent-strong: 15 86 60;
+  --accent-soft: 225 240 229;
+  --on-accent: 255 255 255;
+  --glow: 42 190 126;
+  --gold: 178 140 43;
+  --gold-soft: 250 243 220;
+  --forest: 24 58 44;
+  --forest-hover: 31 78 58;
+  --ai-solid: 108 74 214;
+
+  /* Shell (always dark, both themes) */
+  --shell: 12 28 22;
+  --shell-raised: 20 42 33;
+  --shell-line: 255 255 255;
+  --shell-text: 172 190 176;
+  --shell-bright: 232 240 226;
+  --shell-accent: 143 224 174;
+
+  /* Signal colours */
+  --success: 24 138 92;
+  --success-soft: 223 242 231;
+  --warning: 176 118 22;
+  --warning-soft: 252 240 214;
+  --danger: 190 56 48;
+  --danger-soft: 251 230 227;
+  --info: 39 98 170;
+  --info-soft: 226 236 250;
+  --ai: 108 74 214;
+  --ai-strong: 84 52 184;
+  --ai-soft: 240 235 253;
+  --ai-line: 214 202 247;
+
+  /* Charts */
+  --chart-1: 23 110 78;
+  --chart-2: 42 190 126;
+  --chart-3: 178 140 43;
+  --chart-4: 39 98 170;
+  --chart-5: 108 74 214;
+  --heat-0: 226 232 226;
+  --heat-1: 178 220 200;
+  --heat-2: 92 186 140;
+  --heat-3: 23 110 78;
+  --heat-4: 15 62 44;
+
+  --focus: 42 190 126;
+  --shadow: 0 1px 2px rgb(21 40 33 / .04), 0 8px 30px rgb(21 40 33 / .05);
+  --shadow-float: 0 20px 60px rgb(21 40 33 / .16);
+  --card-alpha: 1;
+  --grid-line: 21 40 33;
+  --grid-alpha: .045;
+  --aurora-1: 42 190 126;
+  --aurora-2: 178 140 43;
+  --aurora-alpha: .10;
+
+  --font-sans: 'Inter Variable', 'Inter', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-arabic: 'Noto Sans Arabic Variable', 'Noto Sans Arabic', 'Geeza Pro', sans-serif;
+
+  --radius-card: 18px;
+  --radius-control: 10px;
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: 7 13 11;
+  --surface: 15 24 21;
+  --raised: 22 35 30;
+  --overlay: 17 28 24;
+
+  --ink: 233 241 234;
+  --muted: 156 176 163;
+  --faint: 104 122 111;
+
+  --border: 34 50 43;
+  --border-strong: 54 76 64;
+
+  --accent: 124 232 176;
+  --accent-strong: 160 245 200;
+  --accent-soft: 21 48 36;
+  --on-accent: 6 22 15;
+  --glow: 96 240 168;
+  --gold: 228 199 118;
+  --gold-soft: 48 40 20;
+  --forest: 24 92 64;
+  --forest-hover: 30 112 78;
+  --ai-solid: 124 92 230;
+
+  --shell: 5 10 9;
+  --shell-raised: 14 24 20;
+  --shell-line: 255 255 255;
+  --shell-text: 150 170 156;
+  --shell-bright: 236 244 234;
+  --shell-accent: 124 232 176;
+
+  --success: 96 224 158;
+  --success-soft: 18 44 33;
+  --warning: 240 188 84;
+  --warning-soft: 50 38 14;
+  --danger: 255 118 106;
+  --danger-soft: 58 24 22;
+  --info: 112 172 255;
+  --info-soft: 18 34 58;
+  --ai: 178 150 255;
+  --ai-strong: 200 178 255;
+  --ai-soft: 32 26 56;
+  --ai-line: 70 56 118;
+
+  --chart-1: 124 232 176;
+  --chart-2: 60 170 122;
+  --chart-3: 228 199 118;
+  --chart-4: 112 172 255;
+  --chart-5: 178 150 255;
+  --heat-0: 22 35 30;
+  --heat-1: 26 70 50;
+  --heat-2: 34 118 78;
+  --heat-3: 72 190 126;
+  --heat-4: 150 245 196;
+
+  --focus: 124 232 176;
+  --shadow: 0 1px 0 rgb(255 255 255 / .03) inset, 0 10px 40px rgb(0 0 0 / .35);
+  --shadow-float: 0 30px 80px rgb(0 0 0 / .6);
+  --card-alpha: .82;
+  --grid-line: 124 232 176;
+  --grid-alpha: .05;
+  --aurora-1: 96 240 168;
+  --aurora-2: 112 172 255;
+  --aurora-alpha: .13;
+}

@@ -1,3 +1,4 @@
+import { notify } from './components/Notice'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createContact, deleteCall, deleteContact, getContacts, logCall, polishText, updateContact, uploadContactPhoto } from './api'
 import Modal from './components/Modal'
@@ -115,7 +116,7 @@ function VoiceCallLogger({ value, onChange }) {
           className={`w-full flex items-center justify-center gap-3 py-3.5 rounded-2xl font-semibold text-sm transition-all ${
             listening
               ? 'bg-red-50 border-2 border-red-300 text-red-600 animate-pulse'
-              : 'bg-[#F2EDE4] border-2 border-dashed border-[#E8E3DB] text-[#6B6B6B] hover:border-[#2D7A6B] hover:text-[#2D7A6B]'
+              : 'bg-raised border-2 border-dashed border-border text-muted hover:border-accent hover:text-accent'
           }`}>
           {listening ? (
             <>
@@ -141,8 +142,8 @@ function VoiceCallLogger({ value, onChange }) {
           onChange={e => { if (!listening) { baseRef.current = e.target.value; onChange(e.target.value) } }}
           placeholder={supported ? 'Or type your notes here…' : 'What did you talk about?'}
           rows={5}
-          className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] resize-none bg-white placeholder:text-[#b5a08a] transition-colors ${
-            listening ? 'border-red-200 text-[#6B6B6B] italic' : 'border-[#E8E3DB] text-[#1A1A1A]'
+          className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent resize-none bg-surface placeholder:text-muted transition-colors ${
+            listening ? 'border-red-200 text-muted italic' : 'border-border text-ink'
           }`} />
         {listening && (
           <div className="absolute bottom-2 right-2 flex items-center gap-1 text-[10px] text-red-400 font-medium">
@@ -155,7 +156,7 @@ function VoiceCallLogger({ value, onChange }) {
       {/* AI Polish */}
       {value.trim() && !listening && (
         <div className="flex items-center justify-between">
-          <span className="text-[11px] text-[#b5a08a]">
+          <span className="text-[11px] text-muted">
             {polished ? '✦ AI polished' : 'Spoken notes can be messy — clean them up:'}
           </span>
           <button
@@ -193,7 +194,7 @@ export default function ContactsPage() {
 
   async function load() {
     try { setContacts(await getContacts()) }
-    catch (err) { alert(err.message) }
+    catch (err) { notify(err.message) }
     finally { setLoading(false) }
   }
 
@@ -222,7 +223,7 @@ export default function ContactsPage() {
       const { url } = await uploadContactPhoto(file)
       setForm(f => ({ ...f, photo: url }))
       setPhotoPreview(url)
-    } catch (err) { alert(err.message); setPhotoPreview(null) }
+    } catch (err) { notify(err.message); setPhotoPreview(null) }
     finally { setPhotoUploading(false) }
   }
 
@@ -238,7 +239,7 @@ export default function ContactsPage() {
       }
       closeModal()
       load()
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setSubmitting(false) }
   }
 
@@ -246,7 +247,7 @@ export default function ContactsPage() {
     e.stopPropagation()
     if (!confirm('Remove this person?')) return
     try { await deleteContact(id); load() }
-    catch (err) { alert(err.message) }
+    catch (err) { notify(err.message) }
   }
 
   async function handleLogCall(e) {
@@ -257,28 +258,28 @@ export default function ContactsPage() {
       await logCall(logFor.id, { called_at: logForm.called_at, summary: logForm.summary.trim() })
       closeModal()
       load()
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setSubmitting(false) }
   }
 
   async function handleDeleteCall(contactId, callId) {
     if (!confirm('Delete this call log?')) return
     try { await deleteCall(callId); load() }
-    catch (err) { alert(err.message) }
+    catch (err) { notify(err.message) }
   }
 
-  if (loading) return <p className="text-[#6B6B6B] text-sm">Loading…</p>
+  if (loading) return <p className="text-muted text-sm">Loading…</p>
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <p className="text-[11px] font-bold text-[#6B6B6B] uppercase tracking-widest mb-1">Relationship Tracker</p>
-          <h1 className="text-3xl font-bold text-[#1A1A1A]">Connections</h1>
-          <p className="text-sm text-[#6B6B6B] mt-0.5">Stay in touch with the people who matter</p>
+          <p className="text-[11px] font-bold text-muted uppercase tracking-widest mb-1">Relationship Tracker</p>
+          <h1 className="text-3xl font-bold text-ink">Connections</h1>
+          <p className="text-sm text-muted mt-0.5">Stay in touch with the people who matter</p>
         </div>
         <button onClick={openNew}
-          className="bg-[#1B3A2D] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#2a5240] transition-colors shadow-sm">
+          className="bg-forest text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-forest-hover transition-colors shadow-sm">
           + Log Interaction
         </button>
       </div>
@@ -288,7 +289,7 @@ export default function ContactsPage() {
         <span className="text-violet-500 text-lg">⚡</span>
         <div>
           <p className="text-[10px] font-bold text-violet-500 uppercase tracking-widest mb-1">AI INSIGHT</p>
-          <p className="text-sm text-[#1A1A1A]">Stay connected — check in with people you haven't spoken to in over 2 weeks.</p>
+          <p className="text-sm text-ink">Stay connected — check in with people you haven't spoken to in over 2 weeks.</p>
         </div>
       </div>
 
@@ -298,24 +299,24 @@ export default function ContactsPage() {
         const touchpointsCount = contacts.filter(c => c.days_since_call !== null && c.days_since_call <= 7).length
         return (
           <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="bg-white border border-[#E8E3DB] rounded-2xl p-4 text-center">
-              <p className="text-[10px] font-bold text-[#6B6B6B] uppercase tracking-widest mb-1">ACTIVE LINKS</p>
-              <p className="text-3xl font-bold text-[#1A1A1A]">{contacts.length}</p>
+            <div className="bg-surface border border-border rounded-2xl p-4 text-center">
+              <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">ACTIVE LINKS</p>
+              <p className="text-3xl font-bold text-ink">{contacts.length}</p>
             </div>
-            <div className="bg-white border border-[#E8E3DB] rounded-2xl p-4 text-center">
-              <p className="text-[10px] font-bold text-[#6B6B6B] uppercase tracking-widest mb-1">TOUCHPOINTS</p>
-              <p className="text-3xl font-bold text-[#1A1A1A]">{touchpointsCount}</p>
+            <div className="bg-surface border border-border rounded-2xl p-4 text-center">
+              <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">TOUCHPOINTS</p>
+              <p className="text-3xl font-bold text-ink">{touchpointsCount}</p>
             </div>
-            <div className="bg-white border border-[#E8E3DB] rounded-2xl p-4 text-center">
-              <p className="text-[10px] font-bold text-[#6B6B6B] uppercase tracking-widest mb-1">DUE CATCH-UP</p>
-              <p className="text-3xl font-bold text-[#1A1A1A]">{overdueCount}</p>
+            <div className="bg-surface border border-border rounded-2xl p-4 text-center">
+              <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">DUE CATCH-UP</p>
+              <p className="text-3xl font-bold text-ink">{overdueCount}</p>
             </div>
           </div>
         )
       })()}
 
       {contacts.length === 0 ? (
-        <div className="text-center py-24 text-[#6B6B6B]">
+        <div className="text-center py-24 text-muted">
           <div className="text-4xl mb-3">📞</div>
           <p className="font-medium">No contacts yet</p>
           <p className="text-sm mt-1">Add people you want to stay connected with.</p>
@@ -338,9 +339,9 @@ export default function ContactsPage() {
 
             return (
               <div key={contact.id}
-                className={`relative bg-white border rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden transition-all ${
-                  ds.urgent ? 'border-l-[3px] border-terra-400 border-t-[#E8E3DB] border-r-[#E8E3DB] border-b-[#E8E3DB]'
-                            : 'border-[#E8E3DB]'
+                className={`relative bg-surface border rounded-2xl shadow-card overflow-hidden transition-all ${
+                  ds.urgent ? 'border-l-[3px] border-terra-400 border-t-border border-r-border border-b-border'
+                            : 'border-border'
                 }`}>
 
                 {/* Status badge — absolute top-right */}
@@ -353,10 +354,10 @@ export default function ContactsPage() {
 
                   <div className="flex-1 min-w-0 pr-16">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-[#1A1A1A] text-sm">{contact.name}</span>
+                      <span className="font-semibold text-ink text-sm">{contact.name}</span>
                     </div>
                     {contact.notes && (
-                      <p className="text-xs text-[#6B6B6B] mt-0.5 truncate">{contact.notes}</p>
+                      <p className="text-xs text-muted mt-0.5 truncate">{contact.notes}</p>
                     )}
                   </div>
 
@@ -367,44 +368,44 @@ export default function ContactsPage() {
                       {ds.label}
                     </div>
                     <button onClick={(e) => { e.stopPropagation(); setLogFor(contact); setLogForm({ called_at: today(), summary: '' }) }}
-                      className="text-xs px-2.5 py-1 rounded-lg border border-[#2D7A6B]/30 text-[#2D7A6B] hover:bg-[#2D7A6B]/10 transition-colors font-medium flex-shrink-0">
+                      className="text-xs px-2.5 py-1 rounded-lg border border-accent/30 text-accent hover:bg-brand/10 transition-colors font-medium flex-shrink-0">
                       📞 Log
                     </button>
                     <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={(e) => openEdit(e, contact)}
-                        className="w-6 h-6 flex items-center justify-center text-[#6B6B6B] hover:text-[#2D7A6B] transition-colors">✎</button>
+                        className="w-6 h-6 flex items-center justify-center text-muted hover:text-accent transition-colors">✎</button>
                       <button onClick={(e) => handleDelete(e, contact.id)}
-                        className="w-6 h-6 flex items-center justify-center text-[#b5a08a] hover:text-terra-400 transition-colors text-sm">✕</button>
+                        className="w-6 h-6 flex items-center justify-center text-muted hover:text-terra-400 transition-colors text-sm">✕</button>
                     </div>
                   </div>
                 </div>
 
                 {/* Expanded call history */}
                 {isOpen && (
-                  <div className="border-t border-[#F2EDE4] px-4 pt-3 pb-4">
+                  <div className="border-t border-raised px-4 pt-3 pb-4">
                     {contact.calls.length === 0 ? (
-                      <p className="text-sm text-[#6B6B6B] italic py-2">No calls logged yet — click 📞 Log to add the first one.</p>
+                      <p className="text-sm text-muted italic py-2">No calls logged yet — click 📞 Log to add the first one.</p>
                     ) : (
                       <div className="space-y-3">
-                        <p className="text-[10px] font-semibold text-[#6B6B6B] uppercase tracking-widest">
+                        <p className="text-[10px] font-semibold text-muted uppercase tracking-widest">
                           Call history · {contact.call_count} {contact.call_count === 1 ? 'call' : 'calls'}
                         </p>
                         {contact.calls.map((call, idx) => (
                           <div key={call.id} className="flex gap-3 group/call">
                             {/* Timeline dot */}
                             <div className="flex flex-col items-center flex-shrink-0 pt-1">
-                              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${idx === 0 ? 'bg-[#2D7A6B]' : 'bg-[#E8E3DB]'}`} />
-                              {idx < contact.calls.length - 1 && <div className="w-px flex-1 bg-[#E8E3DB] mt-1 min-h-[1rem]" />}
+                              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${idx === 0 ? 'bg-brand' : 'bg-border'}`} />
+                              {idx < contact.calls.length - 1 && <div className="w-px flex-1 bg-border mt-1 min-h-[1rem]" />}
                             </div>
                             <div className="flex-1 min-w-0 pb-1">
                               <div className="flex items-center justify-between gap-2 mb-1">
-                                <span className={`text-xs font-semibold ${idx === 0 ? 'text-[#2D7A6B]' : 'text-[#6B6B6B]'}`}>
+                                <span className={`text-xs font-semibold ${idx === 0 ? 'text-accent' : 'text-muted'}`}>
                                   {formatCallDate(call.called_at)}
                                 </span>
                                 <button onClick={() => handleDeleteCall(contact.id, call.id)}
-                                  className="opacity-0 group-hover/call:opacity-100 text-[#b5a08a] hover:text-terra-400 transition-all text-xs flex-shrink-0">✕</button>
+                                  className="opacity-0 group-hover/call:opacity-100 text-muted hover:text-terra-400 transition-all text-xs flex-shrink-0">✕</button>
                               </div>
-                              <p className="text-sm text-[#1A1A1A] leading-relaxed whitespace-pre-wrap">{call.summary}</p>
+                              <p className="text-sm text-ink leading-relaxed whitespace-pre-wrap">{call.summary}</p>
                             </div>
                           </div>
                         ))}
@@ -427,16 +428,16 @@ export default function ContactsPage() {
           return (
             <div className="mt-6">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-bold text-[#1A1A1A]">Recent Activity</h3>
-                <button className="text-sm text-[#2D7A6B]">View All Log</button>
+                <h3 className="font-bold text-ink">Recent Activity</h3>
+                <button className="text-sm text-accent">View All Log</button>
               </div>
-              <div className="bg-white border border-[#E8E3DB] rounded-2xl px-4 shadow-sm">
+              <div className="bg-surface border border-border rounded-2xl px-4 shadow-sm">
                 {recentLogs.map((log, i) => (
-                  <div key={log.id || i} className="flex items-start gap-3 py-3 border-b border-[#E8E3DB] last:border-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#2D7A6B] flex-shrink-0 mt-2" />
+                  <div key={log.id || i} className="flex items-start gap-3 py-3 border-b border-border last:border-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand flex-shrink-0 mt-2" />
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-[#1A1A1A]">{log.contactName}: {log.summary}</p>
-                      <p className="text-xs text-[#6B6B6B]">{formatCallDate(log.called_at)}</p>
+                      <p className="text-sm font-medium text-ink">{log.contactName}: {log.summary}</p>
+                      <p className="text-xs text-muted">{formatCallDate(log.called_at)}</p>
                     </div>
                   </div>
                 ))}
@@ -457,40 +458,40 @@ export default function ContactsPage() {
                 {photoPreview ? (
                   <img src={photoPreview} alt="" className="w-16 h-16 rounded-full object-cover" />
                 ) : (
-                  <div className="w-16 h-16 rounded-full bg-[#F2EDE4] border-2 border-dashed border-[#E8E3DB] flex items-center justify-center text-[#6B6B6B] text-xl">
+                  <div className="w-16 h-16 rounded-full bg-raised border-2 border-dashed border-border flex items-center justify-center text-muted text-xl">
                     👤
                   </div>
                 )}
                 <button type="button" onClick={() => fileRef.current?.click()}
                   disabled={photoUploading}
-                  className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#1B3A2D] text-white rounded-full text-xs flex items-center justify-center hover:bg-[#2a5240] transition-colors shadow-sm">
+                  className="absolute -bottom-1 -right-1 w-6 h-6 bg-forest text-white rounded-full text-xs flex items-center justify-center hover:bg-forest-hover transition-colors shadow-sm">
                   {photoUploading ? '…' : '+'}
                 </button>
                 <input ref={fileRef} type="file" accept="image/*" className="hidden"
                   onChange={e => handlePhotoFile(e.target.files?.[0])} />
               </div>
               <div className="flex-1">
-                <label className="text-sm font-medium text-[#1A1A1A]">Name</label>
+                <label className="text-sm font-medium text-ink">Name</label>
                 <input autoFocus value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                   placeholder="e.g. Grandma Fatima"
-                  className="mt-1 w-full border border-[#E8E3DB] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] bg-white placeholder:text-[#b5a08a]" />
+                  className="mt-1 w-full border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent bg-surface placeholder:text-muted" />
               </div>
             </div>
 
             {/* Notes / context */}
             <div>
-              <label className="text-sm font-medium text-[#1A1A1A]">
-                Context <span className="text-[#6B6B6B] font-normal">(optional)</span>
+              <label className="text-sm font-medium text-ink">
+                Context <span className="text-muted font-normal">(optional)</span>
               </label>
               <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                 placeholder="Who are they? Things to remember…" rows={2}
-                className="mt-1.5 w-full border border-[#E8E3DB] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] resize-none bg-white placeholder:text-[#b5a08a]" />
+                className="mt-1.5 w-full border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent resize-none bg-surface placeholder:text-muted" />
             </div>
 
             <div className="flex justify-end gap-2 pt-1">
-              <button type="button" onClick={closeModal} className="px-4 py-2 text-sm text-[#6B6B6B] hover:text-[#1A1A1A]">Cancel</button>
+              <button type="button" onClick={closeModal} className="px-4 py-2 text-sm text-muted hover:text-ink">Cancel</button>
               <button type="submit" disabled={submitting || !form.name.trim() || photoUploading}
-                className="bg-[#1B3A2D] text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-[#2a5240] disabled:opacity-40 transition-colors">
+                className="bg-forest text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-forest-hover disabled:opacity-40 transition-colors">
                 {editing ? 'Save' : 'Add Person'}
               </button>
             </div>
@@ -505,22 +506,22 @@ export default function ContactsPage() {
             <div className="flex items-center gap-3 mb-2">
               <Avatar contact={logFor} size="sm" />
               <div>
-                <p className="font-semibold text-[#1A1A1A] text-sm">{logFor.name}</p>
+                <p className="font-semibold text-ink text-sm">{logFor.name}</p>
                 {logFor.last_called && (
-                  <p className="text-xs text-[#6B6B6B]">Last call: {formatCallDate(logFor.last_called)}</p>
+                  <p className="text-xs text-muted">Last call: {formatCallDate(logFor.last_called)}</p>
                 )}
               </div>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-[#1A1A1A]">Date of call</label>
+              <label className="text-sm font-medium text-ink">Date of call</label>
               <input type="date" value={logForm.called_at}
                 onChange={e => setLogForm(f => ({ ...f, called_at: e.target.value }))}
-                className="mt-1.5 w-full border border-[#E8E3DB] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] bg-white" />
+                className="mt-1.5 w-full border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent bg-surface" />
             </div>
 
             <div>
-              <label className="text-sm font-medium text-[#1A1A1A] block mb-1.5">What did you talk about?</label>
+              <label className="text-sm font-medium text-ink block mb-1.5">What did you talk about?</label>
               <VoiceCallLogger
                 value={logForm.summary}
                 onChange={v => setLogForm(f => ({ ...f, summary: v }))}
@@ -528,9 +529,9 @@ export default function ContactsPage() {
             </div>
 
             <div className="flex justify-end gap-2 pt-1">
-              <button type="button" onClick={closeModal} className="px-4 py-2 text-sm text-[#6B6B6B] hover:text-[#1A1A1A]">Cancel</button>
+              <button type="button" onClick={closeModal} className="px-4 py-2 text-sm text-muted hover:text-ink">Cancel</button>
               <button type="submit" disabled={submitting || !logForm.summary.trim()}
-                className="bg-[#1B3A2D] text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-[#2a5240] disabled:opacity-40 transition-colors">
+                className="bg-forest text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-forest-hover disabled:opacity-40 transition-colors">
                 Save Log
               </button>
             </div>

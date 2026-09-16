@@ -1,3 +1,4 @@
+import { notify } from './components/Notice'
 import { useEffect, useRef, useState } from 'react'
 import { getGoals, batchCreateSchedule } from './api'
 
@@ -66,7 +67,7 @@ export default function DayPlanner({ onItemsAdded }) {
       setItems([])
       setExpanded(false)
       onItemsAdded?.()
-    } catch (err) { alert(err.message) }
+    } catch (err) { notify(err.message) }
     finally { setSubmitting(false) }
   }
 
@@ -87,12 +88,12 @@ export default function DayPlanner({ onItemsAdded }) {
   if (!expanded) {
     return (
       <button onClick={() => setExpanded(true)}
-        className="w-full text-left bg-white border-2 border-dashed border-[#E8E3DB] rounded-2xl px-5 py-4 hover:border-[#2D7A6B] hover:bg-[#F9F6F1] transition-all group">
+        className="w-full text-left bg-surface border-2 border-dashed border-border rounded-2xl px-5 py-4 hover:border-accent hover:bg-canvas transition-all group">
         <div className="flex items-center gap-3">
-          <span className="w-8 h-8 rounded-xl bg-[#1B3A2D] text-white flex items-center justify-center text-sm font-bold group-hover:bg-[#2D7A6B] transition-colors">+</span>
+          <span className="w-8 h-8 rounded-xl bg-forest text-white flex items-center justify-center text-sm font-bold group-hover:bg-brand transition-colors">+</span>
           <div>
-            <p className="text-sm font-semibold text-[#1A1A1A]">Plan your day</p>
-            <p className="text-xs text-[#b5a08a]">Write what you'll work on today</p>
+            <p className="text-sm font-semibold text-ink">Plan your day</p>
+            <p className="text-xs text-muted">Write what you'll work on today</p>
           </div>
         </div>
       </button>
@@ -100,9 +101,9 @@ export default function DayPlanner({ onItemsAdded }) {
   }
 
   return (
-    <div className="bg-white border border-[#E8E3DB] rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] overflow-hidden">
+    <div className="bg-surface border border-border rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] overflow-hidden">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#1B3A2D] to-[#2D7A6B] px-5 py-3.5 flex items-center justify-between">
+      <div className="bg-gradient-to-r from-forest to-brand px-5 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <span className="text-white/80 text-sm">✦</span>
           <h3 className="text-white font-bold text-sm">Plan Your Day</h3>
@@ -126,9 +127,9 @@ export default function DayPlanner({ onItemsAdded }) {
             onChange={e => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type a task and press Enter…"
-            className="w-full text-sm border border-[#E8E3DB] rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#2D7A6B] bg-[#F9F6F1] placeholder:text-[#b5a08a] transition-shadow"
+            className="w-full text-sm border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent bg-canvas placeholder:text-muted transition-shadow"
           />
-          <p className="text-[10px] text-[#b5a08a] mt-1.5 ml-1">Press Enter to add each task. Tag goals and set times below.</p>
+          <p className="text-[10px] text-muted mt-1.5 ml-1">Press Enter to add each task. Tag goals and set times below.</p>
         </div>
 
         {/* Staged Items */}
@@ -151,14 +152,14 @@ export default function DayPlanner({ onItemsAdded }) {
         {/* Empty state */}
         {items.length === 0 && (
           <div className="text-center py-6">
-            <p className="text-[#b5a08a] text-sm">Start typing above to build your plan</p>
+            <p className="text-muted text-sm">Start typing above to build your plan</p>
           </div>
         )}
 
         {/* Submit */}
         {items.length > 0 && (
           <button onClick={handleSubmit} disabled={submitting}
-            className="w-full py-3 rounded-xl bg-[#1B3A2D] text-white text-sm font-bold hover:bg-[#2a5240] disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+            className="w-full py-3 rounded-xl bg-forest text-white text-sm font-bold hover:bg-forest-hover disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
             {submitting ? (
               'Adding…'
             ) : (
@@ -210,10 +211,10 @@ function PlanItem({ item, index, goals, goalGroups, onUpdate, onRemove }) {
   }
 
   return (
-    <div className="group bg-[#F9F6F1] rounded-xl border border-[#E8E3DB] px-4 py-3 hover:border-[#2D7A6B]/30 transition-colors">
+    <div className="group bg-canvas rounded-xl border border-border px-4 py-3 hover:border-accent/30 transition-colors">
       <div className="flex items-start gap-3">
         {/* Number */}
-        <span className="text-[10px] font-bold text-[#b5a08a] mt-1.5 w-4 text-right flex-shrink-0">
+        <span className="text-[10px] font-bold text-muted mt-1.5 w-4 text-right flex-shrink-0">
           {index + 1}
         </span>
 
@@ -226,10 +227,10 @@ function PlanItem({ item, index, goals, goalGroups, onUpdate, onRemove }) {
               onChange={e => setTitleDraft(e.target.value)}
               onBlur={commitTitle}
               onKeyDown={e => { if (e.key === 'Enter') commitTitle(); if (e.key === 'Escape') { setTitleDraft(item.title); setEditingTitle(false) } }}
-              className="w-full text-sm font-medium text-[#1A1A1A] bg-white border border-[#2D7A6B] rounded-lg px-2 py-1 focus:outline-none"
+              className="w-full text-sm font-medium text-ink bg-surface border border-accent rounded-lg px-2 py-1 focus:outline-none"
             />
           ) : (
-            <p className="text-sm font-medium text-[#1A1A1A] cursor-text leading-snug"
+            <p className="text-sm font-medium text-ink cursor-text leading-snug"
               onClick={() => setEditingTitle(true)}>
               {item.title}
             </p>
@@ -242,28 +243,28 @@ function PlanItem({ item, index, goals, goalGroups, onUpdate, onRemove }) {
               <button onClick={() => setShowGoalPicker(!showGoalPicker)}
                 className={`text-[11px] font-medium px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 ${
                   goal
-                    ? 'bg-[#2D7A6B]/10 text-[#2D7A6B] hover:bg-[#2D7A6B]/20'
-                    : 'bg-[#E8E3DB] text-[#6B6B6B] hover:bg-[#E8E3DB]/80'
+                    ? 'bg-brand/10 text-accent hover:bg-brand/20'
+                    : 'bg-border text-muted hover:bg-border/80'
                 }`}>
                 {goalLabel}
                 <span className="text-[8px]">▾</span>
               </button>
 
               {showGoalPicker && (
-                <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-[#E8E3DB] rounded-xl shadow-lg py-1.5 w-56 max-h-48 overflow-y-auto">
+                <div className="absolute left-0 top-full mt-1 z-20 bg-surface border border-border rounded-xl shadow-lg py-1.5 w-56 max-h-48 overflow-y-auto">
                   {['project', 'daily', 'resolution'].map(type => {
                     const group = goalGroups[type]
                     if (!group?.length) return null
                     return (
                       <div key={type}>
-                        <p className="text-[9px] font-bold text-[#b5a08a] uppercase tracking-wider px-3 py-1">
+                        <p className="text-[9px] font-bold text-muted uppercase tracking-wider px-3 py-1">
                           {type === 'project' ? 'Projects' : type === 'daily' ? 'Daily' : 'Resolutions'}
                         </p>
                         {group.map(g => (
                           <button key={g.id}
                             onClick={() => { onUpdate({ goalId: g.id }); setShowGoalPicker(false) }}
-                            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-[#F2EDE4] transition-colors ${
-                              item.goalId === g.id ? 'text-[#2D7A6B] font-semibold bg-[#2D7A6B]/5' : 'text-[#1A1A1A]'
+                            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-raised transition-colors ${
+                              item.goalId === g.id ? 'text-accent font-semibold bg-brand/5' : 'text-ink'
                             }`}>
                             {g.title}
                           </button>
@@ -282,8 +283,8 @@ function PlanItem({ item, index, goals, goalGroups, onUpdate, onRemove }) {
                   onClick={() => onUpdate({ estimatedMinutes: item.estimatedMinutes === chip.value ? null : chip.value })}
                   className={`text-[10px] font-semibold px-2 py-0.5 rounded-lg transition-colors ${
                     item.estimatedMinutes === chip.value
-                      ? 'bg-[#E8C334] text-[#1A1A1A]'
-                      : 'bg-white text-[#b5a08a] hover:text-[#6B6B6B] hover:bg-[#E8E3DB] border border-[#E8E3DB]'
+                      ? 'bg-highlight text-on-gold'
+                      : 'bg-surface text-muted hover:text-muted hover:bg-border border border-border'
                   }`}>
                   {chip.label}
                 </button>
@@ -298,16 +299,16 @@ function PlanItem({ item, index, goals, goalGroups, onUpdate, onRemove }) {
                 onChange={e => onUpdate({ scheduledTime: e.target.value })}
                 onBlur={() => { if (!item.scheduledTime) setShowTimePicker(false) }}
                 autoFocus
-                className="text-[11px] border border-[#2D7A6B] rounded-lg px-1.5 py-0.5 w-[88px] focus:outline-none"
+                className="text-[11px] border border-accent rounded-lg px-1.5 py-0.5 w-[88px] focus:outline-none"
               />
             ) : item.scheduledTime ? (
               <button onClick={() => setShowTimePicker(true)}
-                className="text-[10px] font-semibold bg-[#1B3A2D] text-white rounded-lg px-2 py-0.5">
+                className="text-[10px] font-semibold bg-forest text-white rounded-lg px-2 py-0.5">
                 {formatTime12(item.scheduledTime)}
               </button>
             ) : (
               <button onClick={() => setShowTimePicker(true)}
-                className="text-[10px] text-[#b5a08a] hover:text-[#6B6B6B] hover:bg-[#E8E3DB] rounded-lg px-2 py-0.5 border border-dashed border-[#E8E3DB] transition-colors">
+                className="text-[10px] text-muted hover:text-muted hover:bg-border rounded-lg px-2 py-0.5 border border-dashed border-border transition-colors">
                 + time
               </button>
             )}
@@ -316,7 +317,7 @@ function PlanItem({ item, index, goals, goalGroups, onUpdate, onRemove }) {
 
         {/* Remove */}
         <button onClick={onRemove}
-          className="text-[#b5a08a] hover:text-red-400 transition-colors mt-0.5 opacity-0 group-hover:opacity-100 flex-shrink-0">
+          className="text-muted hover:text-red-400 transition-colors mt-0.5 opacity-0 group-hover:opacity-100 flex-shrink-0">
           <span className="text-sm">✕</span>
         </button>
       </div>

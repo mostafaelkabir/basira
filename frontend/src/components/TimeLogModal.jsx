@@ -53,7 +53,7 @@ export default function TimeLogModal({ task, onConfirm, onClose }) {
             placeholder="custom min"
             value={custom}
             onChange={e => { setCustom(e.target.value); setSelected(null) }}
-            className="w-24 px-2 py-1.5 rounded-xl text-xs border border-sand-200 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white placeholder:text-sand-300"
+            className="w-24 px-2 py-1.5 rounded-xl text-xs border border-sand-200 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-surface placeholder:text-sand-300"
           />
         </div>
 

@@ -39,7 +39,7 @@ function scoreDotColor(pct) {
 
 function StatCard({ label, value, sub, accent = false }) {
   return (
-    <div className={`rounded-2xl p-4 ${accent ? 'bg-teal-600 text-white' : 'bg-white border border-sand-200'}`}>
+    <div className={`rounded-2xl p-4 ${accent ? 'bg-teal-600 text-white' : 'bg-surface border border-sand-200'}`}>
       <p className={`text-xs font-medium uppercase tracking-wide mb-1 ${accent ? 'text-teal-100' : 'text-sand-400'}`}>{label}</p>
       <p className={`text-3xl font-bold leading-none ${accent ? 'text-white' : 'text-sand-800'}`}>{value}</p>
       {sub && <p className={`text-xs mt-1.5 ${accent ? 'text-teal-100' : 'text-sand-400'}`}>{sub}</p>}
@@ -52,7 +52,7 @@ function InsightCard({ icon, title, body, tone = 'neutral' }) {
     good:    'border-l-[3px] border-l-teal-400 bg-teal-50/50',
     warn:    'border-l-[3px] border-l-gold-400 bg-gold-50/50',
     bad:     'border-l-[3px] border-l-terra-400 bg-terra-50/50',
-    neutral: 'border-l-[3px] border-l-sand-200 bg-white',
+    neutral: 'border-l-[3px] border-l-sand-200 bg-surface',
   }
   return (
     <div className={`rounded-2xl border border-sand-200 px-4 py-3.5 ${tones[tone]}`}>
@@ -265,7 +265,7 @@ export default function AnalyticsPage({ onGoToGoal }) {
         <div className="flex gap-1 bg-sand-100 rounded-xl p-1">
           {['7d', '30d'].map(r => (
             <button key={r} onClick={() => setRange(r)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${range === r ? 'bg-white text-sand-800 shadow-sm' : 'text-sand-500 hover:text-sand-700'}`}>
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${range === r ? 'bg-surface text-sand-800 shadow-sm' : 'text-sand-500 hover:text-sand-700'}`}>
               {r === '7d' ? '7 days' : '30 days'}
             </button>
           ))}
@@ -281,7 +281,7 @@ export default function AnalyticsPage({ onGoToGoal }) {
       </div>
 
       {/* Score breakdown */}
-      <div className="bg-white border border-sand-200 rounded-2xl p-5 space-y-4">
+      <div className="bg-surface border border-sand-200 rounded-2xl p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold text-sand-700">Daily score</h2>
@@ -319,7 +319,7 @@ export default function AnalyticsPage({ onGoToGoal }) {
       </div>
 
       {/* Completion heatmap */}
-      <div className="bg-white border border-sand-200 rounded-2xl p-5">
+      <div className="bg-surface border border-sand-200 rounded-2xl p-5">
         <h2 className="text-sm font-semibold text-sand-700 mb-4">Daily completion — last 60 days</h2>
         <HeatmapGrid snapshots={snapshots} />
       </div>
@@ -338,7 +338,7 @@ export default function AnalyticsPage({ onGoToGoal }) {
 
       {/* Two-column: weekly bars + day-of-week */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white border border-sand-200 rounded-2xl p-4">
+        <div className="bg-surface border border-sand-200 rounded-2xl p-4">
           <h2 className="text-xs font-semibold text-sand-500 uppercase tracking-wide mb-4">Weekly output</h2>
           <div className="flex items-end gap-1">
             {weekly_breakdown.slice(-8).map((w, i) => (
@@ -347,7 +347,7 @@ export default function AnalyticsPage({ onGoToGoal }) {
           </div>
           <p className="text-[10px] text-sand-400 mt-2">Tasks completed per week</p>
         </div>
-        <div className="bg-white border border-sand-200 rounded-2xl p-4">
+        <div className="bg-surface border border-sand-200 rounded-2xl p-4">
           <h2 className="text-xs font-semibold text-sand-500 uppercase tracking-wide mb-4">Best days</h2>
           <DowChart completions_by_dow={s.completions_by_dow} best_day={s.best_day_of_week} />
           {s.best_day_of_week && (
@@ -357,7 +357,7 @@ export default function AnalyticsPage({ onGoToGoal }) {
       </div>
 
       {/* Deferrals */}
-      <div className="bg-white border border-sand-200 rounded-2xl p-5">
+      <div className="bg-surface border border-sand-200 rounded-2xl p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-sand-700">Deferrals</h2>
           <span className="text-xs text-sand-400">{deferralsN} {rangeLabel}</span>
@@ -380,7 +380,7 @@ export default function AnalyticsPage({ onGoToGoal }) {
 
       {/* Stale tasks */}
       {stale_tasks.length > 0 && (
-        <div className="bg-white border border-sand-200 rounded-2xl p-5">
+        <div className="bg-surface border border-sand-200 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-1">
             <h2 className="text-sm font-semibold text-sand-700">Stale tasks</h2>
             <span className="text-xs text-sand-400">{s.stale_7d_plus} older than 7d</span>
@@ -413,7 +413,7 @@ export default function AnalyticsPage({ onGoToGoal }) {
       )}
 
       {/* Task health summary */}
-      <div className="bg-white border border-sand-200 rounded-2xl p-5">
+      <div className="bg-surface border border-sand-200 rounded-2xl p-5">
         <h2 className="text-sm font-semibold text-sand-700 mb-4">Task health</h2>
         <div className="space-y-3">
           {[
