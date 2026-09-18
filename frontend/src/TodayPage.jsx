@@ -28,7 +28,7 @@ import DayAgenda from './features/today/DayAgenda'
 import ProjectTimePanel from './features/today/ProjectTimePanel'
 import RoutinePanel from './features/today/RoutinePanel'
 import ActiveSessionBar from './features/today/ActiveSessionBar'
-import FindOrCreateComposer from './features/composer/FindOrCreateComposer'
+import MorningPlanner from './features/today/MorningPlanner'
 import { TicketDrawer } from './WorkPage'
 import { getWorkTicket } from './api'
 import { getDueDateMeta, sortByDueDate } from './utils'
@@ -316,7 +316,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   // Read-only unified day model (recorded/live time by project & client, agenda,
   // routines, active timers). Refreshed after any Today reload; never writes.
   const { data: workspace, refresh: refreshWorkspace } = useDayWorkspace(data?.date)
-  const [showComposer, setShowComposer] = useState(false)
+  const [showPlanner, setShowPlanner] = useState(false)
   const [openTicket, setOpenTicket] = useState(null)   // full ticket shown in the drawer
 
   async function handleOpenTicket(item) {
@@ -539,20 +539,11 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
             <div><h2>Where your time goes</h2><p className="mt-1">One honest ledger — today's plan, and where the hours actually went.</p></div>
             <div className="flex items-center gap-3">
               <DayHeader workspace={workspace} />
-              <button className="secondary-button" onClick={() => setShowComposer(v => !v)} aria-expanded={showComposer}>
-                <Icon name="plus" size={15} /><span>Find or add work</span>
+              <button className="secondary-button" onClick={() => setShowPlanner(true)}>
+                <Icon name="plus" size={15} /><span>Plan my day</span>
               </button>
             </div>
           </div>
-          {showComposer && (
-            <FindOrCreateComposer
-              placeholder="Find an existing ticket/task/habit/goal, or type a new title…"
-              onDone={(result) => {
-                setShowComposer(false)
-                if (result) { load(); refreshWorkspace?.(); window.dispatchEvent(new CustomEvent('basira:schedule-updated')) }
-              }}
-            />
-          )}
           <ActiveSessionBar workspace={workspace} />
           <div className="day-workspace-grid">
             <DayAgenda workspace={workspace}
@@ -647,6 +638,15 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
           task={timeLogFor}
           onConfirm={(minutes) => handleCompleteWithTime(timeLogFor, minutes)}
           onClose={() => setTimeLogFor(null)}
+        />
+      )}
+
+      {/* Single morning planning workspace */}
+      {showPlanner && (
+        <MorningPlanner
+          date={data.date}
+          onClose={() => setShowPlanner(false)}
+          onPlanned={() => { load(); refreshWorkspace?.(); window.dispatchEvent(new CustomEvent('basira:schedule-updated')) }}
         />
       )}
 

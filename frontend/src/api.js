@@ -54,6 +54,15 @@ export const getWorkSuggestions = (q, { limit = 5, showAll = false } = {}) => {
   return request(`/work-suggestions?${params}`)
 }
 
+// Read-only morning-planning suggestions: existing work worth planning today
+// (in-progress, carried over, due), each with an explicit reason. Never moves records.
+export const getMorningSuggestions = (date, timezone) => {
+  const params = new URLSearchParams()
+  if (date) params.set('date', date)
+  params.set('timezone', timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
+  return request(`/morning-suggestions?${params}`)
+}
+
 export const getGoals = (archived = false) => request(`/goals${archived ? '?archived=true' : ''}`)
 export const getGoal = (id) => request(`/goals/${id}`)
 export const createGoal = (data) =>
