@@ -2,6 +2,7 @@ import { notify } from './components/Notice'
 import { useEffect, useState } from 'react'
 import { getWeeklyReview } from './api'
 import Modal from './components/Modal'
+import { DailyCheckinCard } from './TodayPage'
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
@@ -108,6 +109,12 @@ export default function WeeklyReview({ onClose }) {
   return (
     <Modal title="Weekly Review" onClose={onClose}>
       <div className="space-y-5 max-h-[75vh] overflow-y-auto pr-1 -mr-1">
+
+        {/* ── Daily reflection (relocated from Today; optional) ── */}
+        <details className="checkin-disclosure" open>
+          <summary>Today’s reflection <span className="float-right">Optional · {new Date().toLocaleDateString()}</span></summary>
+          <div className="mt-2"><DailyCheckinCard /></div>
+        </details>
 
         {/* ── Score banner ── */}
         <div className="bg-surface border border-sand-200 rounded-2xl px-4 py-4 shadow-sm">

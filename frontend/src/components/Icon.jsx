@@ -18,6 +18,8 @@ const paths = {
   more: <><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></>,
   check: <path d="m5 12 4 4L19 6"/>,
   play: <path d="m8 4 12 8-12 8V4Z"/>,
+  pause: <><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></>,
+  stop: <rect x="5" y="5" width="14" height="14" rx="2"/>,
   clock: <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>,
   proof: <><path d="M6 3h9l4 4v14H5V3h1Zm8 0v5h5m-11 6 2 2 5-5"/></>,
 }

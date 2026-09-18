@@ -16,21 +16,17 @@ import AIPolishButton from './components/AIPolishButton'
 import PostTaskFeedback from './components/PostTaskFeedback'
 import { ProofForm, TaskTags } from './GoalPage'
 import { useTimer } from './TimerContext'
-import PlannerView from './PlannerView'
-import DailySchedule from './DailySchedule'
-import DayPlanner from './DayPlanner'
 import Modal from './components/Modal'
 import { ActivityComments } from './components/ActivityComposer'
 import TimeLogModal from './components/TimeLogModal'
 import { useDayWorkspace } from './features/today/useDayWorkspace'
-import DayHeader from './features/today/DayHeader'
 import DayAgenda from './features/today/DayAgenda'
-import ProjectTimePanel from './features/today/ProjectTimePanel'
-import RoutinePanel from './features/today/RoutinePanel'
-import ActiveSessionBar from './features/today/ActiveSessionBar'
 import MorningPlanner from './features/today/MorningPlanner'
+import TimeDetailDrawer from './features/today/TimeDetailDrawer'
+import FindOrCreateComposer from './features/composer/FindOrCreateComposer'
+import { fmtDuration, fmtMinutes } from './features/today/format'
 import { TicketDrawer } from './WorkPage'
-import { getWorkTicket } from './api'
+import { getWorkTicket, setScheduleTime } from './api'
 import { getDueDateMeta, sortByDueDate } from './utils'
 import { PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
@@ -103,7 +99,7 @@ const MOOD_OPTS = [
   { val: 5, emoji: '🌟', label: 'Amazing' },
 ]
 
-function DailyCheckinCard({ onCheckinSaved }) {
+export function DailyCheckinCard({ onCheckinSaved }) {
   const hour = new Date().getHours()
   const isEvening = hour >= 17
   const [checkin, setCheckin] = useState(null)
@@ -296,7 +292,7 @@ function DailyCheckinCard({ onCheckinSaved }) {
 }
 
 export default function TodayPage({ onGoToGoal, onOpenReview }) {
-  const { startTimer, timer, resumeTimer } = useTimer()
+  const { startTimer, timer, resumeTimer, pauseTimer } = useTimer()
   const [data, setData]   = useState(null)
   const [loading, setLoading] = useState(true)
   const focusOrderRef = useRef([])
@@ -317,6 +313,8 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   // routines, active timers). Refreshed after any Today reload; never writes.
   const { data: workspace, refresh: refreshWorkspace } = useDayWorkspace(data?.date)
   const [showPlanner, setShowPlanner] = useState(false)
+  const [showQuickAdd, setShowQuickAdd] = useState(false)
+  const [showTimeDetail, setShowTimeDetail] = useState(false)
   const [openTicket, setOpenTicket] = useState(null)   // full ticket shown in the drawer
 
   async function handleOpenTicket(item) {
@@ -487,129 +485,87 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   if (loading) return <p className="text-muted text-sm" role="status">Preparing your day…</p>
   if (!data) return <div className="p-8 bg-surface rounded-2xl border border-border"><h1>Your day is still here.</h1><p className="page-subtitle">We couldn't load it. Check the connection and try again.</p><button className="secondary-button mt-4" onClick={load}>Try again</button></div>
 
-  const { focus, daily, habits, projects } = data
-  const focusIds = new Set(focus.map(t => t.id))
+  const { habits } = data
 
-  // Plan = all daily todos + habits/project-tasks explicitly planned for today (merged + sorted)
-  const plannedHabits = habits.filter(h => h.plan_date === data.date)
-  const plannedProjectTasks = projects.flatMap(p =>
-    p.tasks.filter(t => t.plan_date === data.date).map(t => ({ ...t, _goalTitle: p.goal_title, _type: 'project' }))
+  // ── One chronological agenda from the day workspace + habits + completed ──
+  const activeKeys = new Set((workspace?.active_timers || []).map(t => t.key))
+  const workItems = [...(workspace?.agenda || []), ...(workspace?.unscheduled || [])]
+    .map(i => ({ ...i, done: i.status === 'done', active: activeKeys.has(i.key) }))
+  const habitById = new Map(habits.map(h => [h.id, h]))
+  const routines = workspace?.routines || {}
+  const habitItems = ['morning', 'afternoon', 'evening', 'anytime'].flatMap(b =>
+    (routines[b] || []).map(h => ({
+      key: `habit:${h.id}`, source: 'habit', item_id: h.id, title: h.title,
+      scheduled_time: h.scheduled_time, project_title: h.goal_title,
+      habitCount: h.count, habitTarget: h.target, done: h.done, active: false,
+    }))
   )
-  const dailyPlanItems = sortByDueDate(daily).map(t => ({ ...t, _type: 'daily' }))
+  const all = [...workItems, ...habitItems]
+  // Active work that isn't on the plan still shows one truthful entry.
+  const present = new Set(all.map(i => i.key))
+  for (const t of (workspace?.active_timers || [])) {
+    if (!present.has(t.key)) all.push({
+      key: t.key, source: t.source, item_id: t.item_id, title: t.title,
+      scheduled_time: null, project_title: t.project_title, company_name: t.company_name,
+      recorded_seconds: 0, live_seconds: t.elapsed_seconds, done: false, active: true,
+    })
+  }
+  const scheduled = all.filter(i => i.scheduled_time && !i.done)
+    .sort((a, b) => a.scheduled_time.localeCompare(b.scheduled_time))
+  const anytimeItems = all.filter(i => !i.scheduled_time && !i.done)
+  const completedItems = all.filter(i => i.done)
 
-  // Merge all plan items into a single sortable list, ordered by sort_order
-  const rawPlanItems = [
-    ...dailyPlanItems,
-    ...plannedHabits.map(h => ({ ...h, _type: 'habit' })),
-    ...plannedProjectTasks,
-  ].sort((a, b) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999))
+  const planExists = workItems.length > 0 || habitItems.some(h => h.scheduled_time)
+  const planned = workspace?.totals?.planned_minutes || 0
+  const recorded = workspace?.totals?.recorded_seconds || 0
+  const live = workspace?.totals?.live_seconds || 0
 
-  // planItems: use local state if user has dragged, otherwise server-sorted order
-  const allPlanItems = planItems
-    ? planItems.map(item => rawPlanItems.find(r => r.id === item.id) ?? item).filter(Boolean)
-    : rawPlanItems
-
-  const uniqueTasks = [...new Map([...focus, ...allPlanItems.filter(t => t._type !== 'habit')].map(t => [t.id, t])).values()]
-  const taskTotal = uniqueTasks.length
-  const taskDone = uniqueTasks.filter(t => t.status === 'done').length
-  const focusMinutes = Math.floor(Object.values(todaySeconds).reduce((sum, seconds) => sum + seconds, 0) / 60)
+  function findTask(id) {
+    const pools = [...data.focus, ...data.daily, ...data.projects.flatMap(p => p.tasks)]
+    return pools.find(t => t.id === id) || { id, title: '', requires_proof: false, proofs: [] }
+  }
+  async function handleEditTime(item, time) {
+    try { await setScheduleTime(item.source, item.item_id, time || null); refreshWorkspace?.() }
+    catch (err) { notify(err.message) }
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="page-heading">
-        <div><p className="eyebrow">A little intention goes a long way</p><h1>Make room for what matters.</h1><p className="page-subtitle">{formatDate(data.date)} <span className="mx-2">·</span> Your day, with a clearer direction.</p></div>
-        <button onClick={onOpenReview} className="secondary-button"><Icon name="review" size={16}/><span>Review</span></button>
+    <div className="space-y-4">
+      {/* Compact Today header (BAS-022) */}
+      <div className="today-head">
+        <div>
+          <p className="eyebrow">Today</p>
+          <h1 className="today-title">{formatDate(data.date)}</h1>
+        </div>
+        <div className="today-head-actions">
+          <button onClick={onOpenReview} className="ghost-link"><Icon name="review" size={15}/><span>Review</span></button>
+          <button onClick={() => setShowQuickAdd(true)} className="secondary-button"><Icon name="plus" size={15}/><span>Add</span></button>
+          <button onClick={() => setShowPlanner(true)} className="primary-button"><Icon name="goals" size={15}/><span>{planExists ? 'Edit day' : 'Plan my day'}</span></button>
+        </div>
       </div>
-      <div className="today-stats">
-        <div className="today-stat"><div className="today-stat-label"><Icon name="goals" size={14}/>Today's tasks</div><div className="today-stat-value">{taskDone}<small>/ {taskTotal} done</small></div></div>
-        <div className="today-stat"><div className="today-stat-label"><Icon name="clock" size={14}/>Task focus time</div><div className="today-stat-value">{focusMinutes >= 60 ? `${Math.floor(focusMinutes / 60)}h` : `${focusMinutes}m`}<small>{focusMinutes >= 60 ? `${focusMinutes % 60}m logged` : 'logged today'}</small></div></div>
-        <div className="today-stat"><div className="today-stat-label"><Icon name="check" size={14}/>Habit targets</div><div className="today-stat-value">{habits.filter(h => h.checked_today).length}<small>/ {habits.length} met</small></div></div>
-      </div>
-      <section>
-        <div className="section-heading"><h2>Your focus</h2><p>One thing at a time.</p></div>
-        <FocusSection focus={focus} planItems={allPlanItems} today={data.date}
-          onComplete={handleComplete} onUnpin={handleUnpin} onPinTask={handlePin} onRefresh={load}
-          timer={timer} onStartTimer={task => timer?.taskId === task.id ? (timer.running ? undefined : resumeTimer()) : startTimer(task.id, task.title, task.goal_title || '')}/>
-      </section>
 
-      {/* ── Day workspace: where your time goes (read-only unified day model) ── */}
-      {workspace && (
-        <section className="space-y-4">
-          <div className="section-heading">
-            <div><h2>Where your time goes</h2><p className="mt-1">One honest ledger — today's plan, and where the hours actually went.</p></div>
-            <div className="flex items-center gap-3">
-              <DayHeader workspace={workspace} />
-              <button className="secondary-button" onClick={() => setShowPlanner(true)}>
-                <Icon name="plus" size={15} /><span>Plan my day</span>
-              </button>
-            </div>
-          </div>
-          <ActiveSessionBar workspace={workspace} />
-          <div className="day-workspace-grid">
-            <DayAgenda workspace={workspace}
-              onOpenTicket={handleOpenTicket}
-              onStart={item => {
-                startTimer(item.item_id, item.title, item.project_title || '')
-                window.dispatchEvent(new CustomEvent('basira:timer-changed'))
-                setTimeout(() => refreshWorkspace?.(), 400)
-              }} />
-            <div className="space-y-4">
-              <ProjectTimePanel workspace={workspace} />
-              <RoutinePanel workspace={workspace}
-                onToggle={h => {
-                  const full = habits.find(x => x.id === h.id)
-                  if (full) handleToggleHabit(full)
-                }} />
-            </div>
-          </div>
-        </section>
-      )}
+      {/* One compact planned / worked time line (BAS-026) */}
+      <button className="time-line" onClick={() => setShowTimeDetail(true)} aria-label="Open time detail">
+        <span><span className="font-mono tabular-nums text-ink">{fmtMinutes(planned)}</span> planned</span>
+        <span className="text-faint">·</span>
+        <span><span className="font-mono tabular-nums text-ink">{fmtDuration(recorded)}</span> worked</span>
+        {live > 0 && <><span className="text-faint">·</span><span className="text-accent inline-flex items-center gap-1"><span className="status-dot live"/>+{fmtDuration(live)} live</span></>}
+        <span className="ml-auto text-[11px] text-muted">Details →</span>
+      </button>
 
-      {/* ── Daily Check-in ── */}
-      <details className="checkin-disclosure"><summary>Pause & reflect <span className="float-right">Optional check-in</span></summary><DailyCheckinCard /></details>
+      {/* One chronological agenda (BAS-023) */}
+      <DayAgenda
+        scheduled={scheduled} anytime={anytimeItems} completed={completedItems}
+        timer={timer}
+        onStartTask={item => { startTimer(item.item_id, item.title, item.project_title || ''); window.dispatchEvent(new CustomEvent('basira:timer-changed')); setTimeout(() => refreshWorkspace?.(), 400) }}
+        onPauseTask={() => { pauseTimer(); setTimeout(() => refreshWorkspace?.(), 300) }}
+        onResumeTask={() => { resumeTimer(); setTimeout(() => refreshWorkspace?.(), 300) }}
+        onCompleteTask={item => handleComplete(findTask(item.item_id))}
+        onOpenTicket={handleOpenTicket}
+        onCheckHabit={item => { const full = habitById.get(item.item_id); if (full) handleToggleHabit(full) }}
+        onEditTime={handleEditTime}
+      />
 
-{new Date().getHours() >= 14 && new Date().getHours() < 20 && !afternoonCheckin?.energy && <>
-      {/* ── Afternoon Pulse (14:00–20:00 only, if not yet submitted) ── */}
-      <details className="checkin-disclosure"><summary>Afternoon check-in</summary>{(() => {
-        const h = new Date().getHours()
-        if (h < 14 || h >= 20 || afternoonCheckin?.energy) return null
-        return (
-          <div className="bg-gradient-to-br from-forest to-brand rounded-2xl p-4 text-white shadow-sm">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-lg">⚡</span>
-              <p className="font-bold text-sm">Afternoon Pulse</p>
-              <span className="text-xs text-white/50 ml-auto">{new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
-            </div>
-            <p className="text-xs text-white/70 mb-3">Quick mid-day check-in — how are you doing right now?</p>
-            <div className="flex gap-2 mb-3">
-              {[{ v: 1, label: 'Low' }, { v: 2, label: 'Okay' }, { v: 3, label: 'High' }].map(o => (
-                <button key={o.v} onClick={() => setAfternoonForm(f => ({ ...f, energy: o.v }))}
-                  className={`flex-1 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-                    afternoonForm.energy === o.v
-                      ? 'bg-surface text-accent border-white'
-                      : 'border-white/30 text-white/80 hover:bg-white/10'
-                  }`}>
-                  {o.label}
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <input
-                value={afternoonForm.working_on}
-                onChange={e => setAfternoonForm(f => ({ ...f, working_on: e.target.value }))}
-                placeholder="What are you working on? (optional)"
-                className="flex-1 text-xs bg-white/15 border border-white/20 rounded-xl px-3 py-2 text-white placeholder:text-white/40 focus:outline-none focus:border-white/40"
-              />
-              <button onClick={handleAfternoonSubmit} disabled={!afternoonForm.energy || afternoonSaving}
-                className="px-3 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-semibold border border-white/30 transition-colors disabled:opacity-40">
-                {afternoonSaving ? '…' : 'Save'}
-              </button>
-            </div>
-          </div>
-        )
-      })()}</details>
-
-</>}
       {/* ── Post-task feeling popover ── */}
       {feedbackTask && (
         <div className="flex justify-center">
@@ -629,9 +585,23 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
         />
       )}
 
-      <div className="section-heading"><div><h2>The rest of your day</h2><p className="mt-1">Give your intentions a time and a place.</p></div><div className="flex gap-1 bg-raised p-1 rounded-lg" role="group" aria-label="Plan view"><button className={`px-3 py-2 text-xs rounded-md ${viewMode === 'list' ? 'bg-surface text-ink shadow-sm' : 'text-muted'}`} aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')}>Schedule</button><button className={`px-3 py-2 text-xs rounded-md ${viewMode === 'planner' ? 'bg-surface text-ink shadow-sm' : 'text-muted'}`} aria-pressed={viewMode === 'planner'} onClick={() => setViewMode('planner')}>Timeline</button></div></div>
-      <DayPlanner onItemsAdded={() => { window.dispatchEvent(new CustomEvent('basira:schedule-updated')); load() }}/>
-      {viewMode === 'planner' ? <PlannerView items={allPlanItems} focusItems={focus} date={data.date} onItemsReordered={setPlanItems}/> : <DailySchedule/>}
+      {/* Quick capture — opens the shared find-or-create composer (BAS-024) */}
+      {showQuickAdd && (
+        <Modal title="Add to today" onClose={() => setShowQuickAdd(false)}>
+          <FindOrCreateComposer
+            placeholder="Find an existing ticket/task/habit/goal, or type a new title…"
+            onDone={(r) => { setShowQuickAdd(false); if (r) { load(); refreshWorkspace?.() } }}
+          />
+        </Modal>
+      )}
+
+      {/* Time detail (BAS-026) */}
+      {showTimeDetail && workspace && (
+        <TimeDetailDrawer workspace={workspace}
+          onClose={() => setShowTimeDetail(false)}
+          onLogged={() => { refreshWorkspace?.() }} />
+      )}
+
       {/* Time-log modal */}
       {timeLogFor && (
         <TimeLogModal
