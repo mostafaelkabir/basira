@@ -206,7 +206,11 @@ export default function PlannerView({ items: rawItems, focusItems, date }) {
     ])
   }, [rawItems, focusItems, workItems])
 
-  // ── Initialize schedule ──
+  // ── Initialize schedule (render-only; never writes on mount) ──
+  // Auto-laid-out start times are held in memory for display. We deliberately do
+  // NOT persist them here — a generated layout must not masquerade as a committed
+  // plan. Legacy saved positions are read back, and storage is written only when
+  // the user actually drags a block (see onMouseUp).
   useEffect(() => {
     if (!items.length) return
     const existing = loadCal(date)
@@ -217,7 +221,6 @@ export default function PlannerView({ items: rawItems, focusItems, date }) {
     setDurations(durs)
     scheduleRef.current  = init
     durationsRef.current = durs
-    saveCal(date, init)
   }, [items, date])
 
   // ── Timer data ──
