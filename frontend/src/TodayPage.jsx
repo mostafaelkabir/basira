@@ -28,6 +28,7 @@ import DayAgenda from './features/today/DayAgenda'
 import ProjectTimePanel from './features/today/ProjectTimePanel'
 import RoutinePanel from './features/today/RoutinePanel'
 import ActiveSessionBar from './features/today/ActiveSessionBar'
+import FindOrCreateComposer from './features/composer/FindOrCreateComposer'
 import { getDueDateMeta, sortByDueDate } from './utils'
 import { PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
@@ -313,6 +314,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   // Read-only unified day model (recorded/live time by project & client, agenda,
   // routines, active timers). Refreshed after any Today reload; never writes.
   const { data: workspace, refresh: refreshWorkspace } = useDayWorkspace(data?.date)
+  const [showComposer, setShowComposer] = useState(false)
 
   function resetProofForm() { setProofForm({ type: 'text', content: '', imageFile: null, imagePreview: null }) }
   function handleImageSelect(e) {
@@ -527,8 +529,22 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
         <section className="space-y-4">
           <div className="section-heading">
             <div><h2>Where your time goes</h2><p className="mt-1">One honest ledger — today's plan, and where the hours actually went.</p></div>
-            <DayHeader workspace={workspace} />
+            <div className="flex items-center gap-3">
+              <DayHeader workspace={workspace} />
+              <button className="secondary-button" onClick={() => setShowComposer(v => !v)} aria-expanded={showComposer}>
+                <Icon name="plus" size={15} /><span>Find or add work</span>
+              </button>
+            </div>
           </div>
+          {showComposer && (
+            <FindOrCreateComposer
+              placeholder="Find an existing ticket/task/habit/goal, or type a new title…"
+              onDone={(result) => {
+                setShowComposer(false)
+                if (result) { load(); refreshWorkspace?.(); window.dispatchEvent(new CustomEvent('basira:schedule-updated')) }
+              }}
+            />
+          )}
           <ActiveSessionBar workspace={workspace} />
           <div className="day-workspace-grid">
             <DayAgenda workspace={workspace}
