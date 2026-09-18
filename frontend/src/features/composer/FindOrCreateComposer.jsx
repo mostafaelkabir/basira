@@ -18,6 +18,15 @@ const NEW_TYPES = [
 
 const SOURCE_BADGE = { ticket: 'Ticket', task: 'Task', worklog: 'Log' }
 
+// Lightweight ticket templates — each sets a ticket type, a sensible priority and
+// a starter tag. Every inferred default stays visible and editable before save.
+const TICKET_TEMPLATES = [
+  { key: 'bug', label: 'Bug', type: 'code', priority: 'high', tags: ['bug'] },
+  { key: 'feature', label: 'Feature', type: 'code', priority: 'medium', tags: ['feature'] },
+  { key: 'research', label: 'Research', type: 'research', priority: 'medium', tags: [] },
+  { key: 'meeting', label: 'Meeting', type: 'meeting', priority: 'low', tags: [] },
+]
+
 export default function FindOrCreateComposer({ onDone, defaultCompanyId, defaultGoalId, placeholder }) {
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState([])
@@ -36,6 +45,17 @@ export default function FindOrCreateComposer({ onDone, defaultCompanyId, default
   const [priority, setPriority] = useState('medium')
   const [frequency, setFrequency] = useState('daily')
   const [goalType, setGoalType] = useState('project')
+  // Ticket template: sets contextual, still-editable defaults (type/priority/tags).
+  const [template, setTemplate] = useState('feature')
+  const [ticketType, setTicketType] = useState('code')
+  const [ticketTags, setTicketTags] = useState(['feature'])
+
+  function applyTemplate(t) {
+    setTemplate(t.key)
+    setTicketType(t.type)
+    setPriority(t.priority)
+    setTicketTags(t.tags)
+  }
 
   useEffect(() => { inputRef.current?.focus() }, [])
   useEffect(() => {
@@ -76,7 +96,10 @@ export default function FindOrCreateComposer({ onDone, defaultCompanyId, default
       let created, kind
       if (createType === 'ticket') {
         if (!companyId) throw new Error('Choose a client for the ticket')
-        created = await createWorkTicket({ company_id: companyId, title, priority, linked_goal_id: goalId || null })
+        created = await createWorkTicket({
+          company_id: companyId, title, priority, linked_goal_id: goalId || null,
+          type: ticketType, tags: ticketTags,
+        })
         kind = 'ticket'
       } else if (createType === 'task') {
         if (!goalId) throw new Error('Choose a project/goal for the task')
@@ -183,10 +206,23 @@ export default function FindOrCreateComposer({ onDone, defaultCompanyId, default
           <div className="flex flex-wrap gap-2">
             {createType === 'ticket' && (
               <>
+                <div className="w-full flex items-center gap-1 flex-wrap">
+                  <span className="text-[10px] font-mono uppercase text-muted mr-1">Template:</span>
+                  {TICKET_TEMPLATES.map(t => (
+                    <button key={t.key} type="button" onClick={() => applyTemplate(t)}
+                      aria-pressed={template === t.key}
+                      className={`px-2 py-0.5 text-[11px] rounded-lg transition-colors ${
+                        template === t.key ? 'bg-accent-soft text-accent' : 'bg-raised text-muted hover:text-ink'}`}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
                 <Select label="Client" value={companyId} onChange={setCompanyId}
                   options={[{ v: '', l: 'Select client…' }, ...companies.map(c => ({ v: c.id, l: c.name }))]} />
                 <Select label="Project" value={goalId} onChange={setGoalId}
                   options={[{ v: '', l: 'No project' }, ...goalOpts.map(g => ({ v: g.id, l: g.title }))]} />
+                <Select label="Type" value={ticketType} onChange={setTicketType}
+                  options={['code', 'research', 'planning', 'review', 'meeting'].map(t => ({ v: t, l: t }))} />
                 <Select label="Priority" value={priority} onChange={setPriority}
                   options={['low', 'medium', 'high', 'urgent'].map(p => ({ v: p, l: p }))} />
               </>
