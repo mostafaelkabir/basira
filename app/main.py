@@ -34,6 +34,11 @@ from app.routes.reflections import router as reflections_router
 from app.routes.plans import router as plans_router
 from app.routes.schedule import router as schedule_router
 from app.routes.work_reports import router as work_reports_router
+from app.routes.day_workspace import router as day_workspace_router
+from app.routes.day_plan import router as day_plan_router
+from app.routes.day_timer import router as day_timer_router
+from app.routes.work_suggestions import router as work_suggestions_router
+from app.routes.morning_planner import router as morning_planner_router
 from app.scheduler import start_scheduler
 
 
@@ -251,6 +256,21 @@ def run_migrations():
             generated_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )""",
+        # Durable day-planning blocks (additive; no existing data touched).
+        """CREATE TABLE IF NOT EXISTS day_blocks (
+            id TEXT PRIMARY KEY,
+            date TEXT NOT NULL,
+            start_time TEXT,
+            duration_minutes INTEGER DEFAULT 30,
+            kind TEXT NOT NULL,
+            source_ref TEXT,
+            title TEXT DEFAULT '',
+            note TEXT DEFAULT '',
+            revision INTEGER DEFAULT 1,
+            created_at TIMESTAMP,
+            updated_at TIMESTAMP
+        )""",
+        "CREATE INDEX IF NOT EXISTS ix_day_blocks_date ON day_blocks (date)",
     ]
     with engine.connect() as conn:
         for sql in migrations:
@@ -298,6 +318,11 @@ app.include_router(reflections_router)
 app.include_router(plans_router)
 app.include_router(schedule_router)
 app.include_router(work_reports_router)
+app.include_router(day_workspace_router)
+app.include_router(day_plan_router)
+app.include_router(day_timer_router)
+app.include_router(work_suggestions_router)
+app.include_router(morning_planner_router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

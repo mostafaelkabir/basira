@@ -14,6 +14,55 @@ export const getWorkReport = (dateFrom, dateTo, companyId) => {
   return request(`/work-reports?${params}`)
 }
 
+// Read-only unified day model: recorded/live time by project & client, agenda,
+// routines, and active timers for a single local day. Never writes.
+export const getDayWorkspace = (date, timezone) => {
+  const params = new URLSearchParams()
+  if (date) params.set('date', date)
+  params.set('timezone', timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
+  return request(`/day-workspace?${params}`)
+}
+
+// Durable day-planning blocks. Blocks reserve a slot; they never change a task's
+// or ticket's estimate/recorded time. previewBlock is a dry-run (validate + report
+// conflicts, no save); moveBlock passes the last-seen revision for conflict safety.
+export const getDayPlan = (date) => request(`/day-plan?date=${date}`)
+export const previewBlock = (data) =>
+  request('/day-plan/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+export const createBlock = (data) =>
+  request('/day-plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+export const moveBlock = (id, data) =>
+  request(`/day-plan/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+export const deleteBlock = (id) => request(`/day-plan/${id}`, { method: 'DELETE' })
+
+// Unified timer across task/ticket/worklog sources. switchTimer stops whatever is
+// running (writing each source's ledger) then starts the requested item — one
+// active session, server-enforced. logDayTime records a missed session by
+// source + minutes + date. These are additive; per-source timers still work.
+export const getActiveDayTimer = () => request('/day-timer/active')
+export const switchDayTimer = (source, itemId) =>
+  request('/day-timer/switch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source, item_id: itemId }) })
+export const stopDayTimer = () => request('/day-timer/stop', { method: 'POST' })
+export const logDayTime = (data) =>
+  request('/day-timer/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+
+// Read-only "suggest existing work": rank existing tickets/tasks/work-logs for a
+// partial query so a planner reuses a real ID instead of creating a duplicate.
+export const getWorkSuggestions = (q, { limit = 5, showAll = false } = {}) => {
+  const params = new URLSearchParams({ q: q || '', limit: String(limit) })
+  if (showAll) params.set('show_all', 'true')
+  return request(`/work-suggestions?${params}`)
+}
+
+// Read-only morning-planning suggestions: existing work worth planning today
+// (in-progress, carried over, due), each with an explicit reason. Never moves records.
+export const getMorningSuggestions = (date, timezone) => {
+  const params = new URLSearchParams()
+  if (date) params.set('date', date)
+  params.set('timezone', timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
+  return request(`/morning-suggestions?${params}`)
+}
+
 export const getGoals = (archived = false) => request(`/goals${archived ? '?archived=true' : ''}`)
 export const getGoal = (id) => request(`/goals/${id}`)
 export const createGoal = (data) =>
