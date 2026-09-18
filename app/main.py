@@ -34,6 +34,7 @@ from app.routes.reflections import router as reflections_router
 from app.routes.plans import router as plans_router
 from app.routes.schedule import router as schedule_router
 from app.routes.work_reports import router as work_reports_router
+from app.routes.day_workspace import router as day_workspace_router
 from app.scheduler import start_scheduler
 
 
@@ -298,6 +299,7 @@ app.include_router(reflections_router)
 app.include_router(plans_router)
 app.include_router(schedule_router)
 app.include_router(work_reports_router)
+app.include_router(day_workspace_router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
