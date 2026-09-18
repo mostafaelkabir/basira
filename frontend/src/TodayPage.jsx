@@ -29,6 +29,8 @@ import ProjectTimePanel from './features/today/ProjectTimePanel'
 import RoutinePanel from './features/today/RoutinePanel'
 import ActiveSessionBar from './features/today/ActiveSessionBar'
 import FindOrCreateComposer from './features/composer/FindOrCreateComposer'
+import { TicketDrawer } from './WorkPage'
+import { getWorkTicket } from './api'
 import { getDueDateMeta, sortByDueDate } from './utils'
 import { PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
@@ -315,6 +317,12 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   // routines, active timers). Refreshed after any Today reload; never writes.
   const { data: workspace, refresh: refreshWorkspace } = useDayWorkspace(data?.date)
   const [showComposer, setShowComposer] = useState(false)
+  const [openTicket, setOpenTicket] = useState(null)   // full ticket shown in the drawer
+
+  async function handleOpenTicket(item) {
+    try { setOpenTicket(await getWorkTicket(item.item_id)) }
+    catch (err) { notify(err.message) }
+  }
 
   function resetProofForm() { setProofForm({ type: 'text', content: '', imageFile: null, imagePreview: null }) }
   function handleImageSelect(e) {
@@ -548,6 +556,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
           <ActiveSessionBar workspace={workspace} />
           <div className="day-workspace-grid">
             <DayAgenda workspace={workspace}
+              onOpenTicket={handleOpenTicket}
               onStart={item => {
                 startTimer(item.item_id, item.title, item.project_title || '')
                 window.dispatchEvent(new CustomEvent('basira:timer-changed'))
@@ -638,6 +647,15 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
           task={timeLogFor}
           onConfirm={(minutes) => handleCompleteWithTime(timeLogFor, minutes)}
           onClose={() => setTimeLogFor(null)}
+        />
+      )}
+
+      {/* Ticket drawer — reuse Work's drawer so tickets are actionable from Today */}
+      {openTicket && (
+        <TicketDrawer
+          ticket={openTicket}
+          onClose={() => { setOpenTicket(null); refreshWorkspace?.() }}
+          onUpdate={updated => { setOpenTicket(updated); refreshWorkspace?.(); window.dispatchEvent(new CustomEvent('basira:schedule-updated')) }}
         />
       )}
 

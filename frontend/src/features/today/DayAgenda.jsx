@@ -7,10 +7,11 @@ const SOURCE_META = {
   worklog: { label: 'Log', dot: 'rgb(var(--chart-3, 167 139 250))' },
 }
 
-function AgendaRow({ item, onStart, live }) {
+function AgendaRow({ item, onStart, onOpenTicket, live }) {
   const meta = SOURCE_META[item.source] || SOURCE_META.task
   const recorded = item.recorded_seconds + (live ? item.live_seconds : 0)
   const isDone = item.status === 'done'
+  const openable = item.source === 'ticket' && onOpenTicket
   return (
     <div className="flex items-start gap-3 py-2.5">
       <div className="w-14 flex-shrink-0 text-right">
@@ -20,7 +21,10 @@ function AgendaRow({ item, onStart, live }) {
       </div>
       <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: meta.dot }} />
       <div className="flex-1 min-w-0">
-        <p className={`text-sm truncate ${isDone ? 'text-muted line-through' : 'text-ink'}`}>{item.title}</p>
+        {openable
+          ? <button onClick={() => onOpenTicket(item)}
+              className={`text-sm truncate text-left hover:text-accent transition-colors ${isDone ? 'text-muted line-through' : 'text-ink'}`}>{item.title}</button>
+          : <p className={`text-sm truncate ${isDone ? 'text-muted line-through' : 'text-ink'}`}>{item.title}</p>}
         <p className="text-[11px] text-muted mt-0.5 flex items-center gap-1.5 flex-wrap">
           <span>{item.project_title}</span>
           {item.company_name && item.company_name !== 'Personal' && (
@@ -42,6 +46,12 @@ function AgendaRow({ item, onStart, live }) {
           <Icon name="play" size={13} />Start
         </button>
       )}
+      {openable && (
+        <button onClick={() => onOpenTicket(item)}
+          className="text-xs text-muted flex items-center gap-1 py-1 px-2 rounded-lg hover:bg-raised hover:text-accent transition-colors flex-shrink-0">
+          Open
+        </button>
+      )}
     </div>
   )
 }
@@ -49,7 +59,7 @@ function AgendaRow({ item, onStart, live }) {
 // The day's scheduled items (from existing plan_date/scheduled_time fields), plus
 // today's items that have no time yet. Single-block scheduling only — durable
 // multi-block planning arrives in a later step.
-export default function DayAgenda({ workspace, onStart }) {
+export default function DayAgenda({ workspace, onStart, onOpenTicket }) {
   if (!workspace) return null
   const { agenda = [], unscheduled = [] } = workspace
 
@@ -71,7 +81,7 @@ export default function DayAgenda({ workspace, onStart }) {
       {agenda.length > 0 && (
         <div className="divide-y divide-border">
           {agenda.map(item => (
-            <AgendaRow key={item.key} item={item} onStart={onStart} live />
+            <AgendaRow key={item.key} item={item} onStart={onStart} onOpenTicket={onOpenTicket} live />
           ))}
         </div>
       )}
@@ -81,7 +91,7 @@ export default function DayAgenda({ workspace, onStart }) {
           <p className="text-[11px] font-mono uppercase tracking-wide text-muted mb-1">Unscheduled today</p>
           <div className="divide-y divide-border">
             {unscheduled.map(item => (
-              <AgendaRow key={item.key} item={item} onStart={onStart} live />
+              <AgendaRow key={item.key} item={item} onStart={onStart} onOpenTicket={onOpenTicket} live />
             ))}
           </div>
         </div>
