@@ -13,5 +13,6 @@ from app.models.work_session import WorkSession
 from app.models.company import Company
 from app.models.work_log import WorkLog
 from app.models.work_ticket import WorkTicket, WorkTimeEntry, WorkTicketComment
+from app.models.day_block import DayBlock
 
-__all__ = ["Goal", "Task", "Proof", "Comment", "ExecutionLog", "HabitLog", "Setting", "Contact", "CallLog", "DailySnapshot", "DeferLog", "WorkSession", "Company", "WorkLog", "WorkTicket", "WorkTimeEntry", "WorkTicketComment"]
+__all__ = ["Goal", "Task", "Proof", "Comment", "ExecutionLog", "HabitLog", "Setting", "Contact", "CallLog", "DailySnapshot", "DeferLog", "WorkSession", "Company", "WorkLog", "WorkTicket", "WorkTimeEntry", "WorkTicketComment", "DayBlock"]
