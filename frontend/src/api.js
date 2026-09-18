@@ -35,6 +35,17 @@ export const moveBlock = (id, data) =>
   request(`/day-plan/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
 export const deleteBlock = (id) => request(`/day-plan/${id}`, { method: 'DELETE' })
 
+// Unified timer across task/ticket/worklog sources. switchTimer stops whatever is
+// running (writing each source's ledger) then starts the requested item — one
+// active session, server-enforced. logDayTime records a missed session by
+// source + minutes + date. These are additive; per-source timers still work.
+export const getActiveDayTimer = () => request('/day-timer/active')
+export const switchDayTimer = (source, itemId) =>
+  request('/day-timer/switch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source, item_id: itemId }) })
+export const stopDayTimer = () => request('/day-timer/stop', { method: 'POST' })
+export const logDayTime = (data) =>
+  request('/day-timer/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+
 export const getGoals = (archived = false) => request(`/goals${archived ? '?archived=true' : ''}`)
 export const getGoal = (id) => request(`/goals/${id}`)
 export const createGoal = (data) =>
