@@ -23,6 +23,18 @@ export const getDayWorkspace = (date, timezone) => {
   return request(`/day-workspace?${params}`)
 }
 
+// Durable day-planning blocks. Blocks reserve a slot; they never change a task's
+// or ticket's estimate/recorded time. previewBlock is a dry-run (validate + report
+// conflicts, no save); moveBlock passes the last-seen revision for conflict safety.
+export const getDayPlan = (date) => request(`/day-plan?date=${date}`)
+export const previewBlock = (data) =>
+  request('/day-plan/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+export const createBlock = (data) =>
+  request('/day-plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+export const moveBlock = (id, data) =>
+  request(`/day-plan/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+export const deleteBlock = (id) => request(`/day-plan/${id}`, { method: 'DELETE' })
+
 export const getGoals = (archived = false) => request(`/goals${archived ? '?archived=true' : ''}`)
 export const getGoal = (id) => request(`/goals/${id}`)
 export const createGoal = (data) =>
