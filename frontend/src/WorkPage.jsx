@@ -270,7 +270,7 @@ function buildFeed(ticket) {
   return [...entries, ...comments].sort((a, b) => b.ts.localeCompare(a.ts))
 }
 
-function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
+export function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
   const [compose, setCompose] = useState('')
   const [logMode, setLogMode] = useState(false)  // true = time-log sub-form
   const [logForm, setLogForm] = useState({ duration_minutes: '', logged_at: todayStr(), note: '' })
@@ -425,11 +425,15 @@ function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
               </div>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
-              <button onClick={() => onEdit?.(ticket)}
-                title="Edit ticket"
-                className="w-7 h-7 flex items-center justify-center text-muted hover:text-accent transition-colors text-sm">✏️</button>
-              <button onClick={() => { if (confirm('Delete ticket?')) deleteWorkTicket(ticket.id).then(onDelete).catch(e => notify(e.message)) }}
-                className="w-7 h-7 flex items-center justify-center text-muted hover:text-red-400 transition-colors text-sm">🗑</button>
+              {onEdit && (
+                <button onClick={() => onEdit(ticket)}
+                  title="Edit ticket"
+                  className="w-7 h-7 flex items-center justify-center text-muted hover:text-accent transition-colors text-sm">✏️</button>
+              )}
+              {onDelete && (
+                <button onClick={() => { if (confirm('Delete ticket?')) deleteWorkTicket(ticket.id).then(onDelete).catch(e => notify(e.message)) }}
+                  className="w-7 h-7 flex items-center justify-center text-muted hover:text-red-400 transition-colors text-sm">🗑</button>
+              )}
               <button onClick={onClose}
                 className="w-7 h-7 flex items-center justify-center text-muted hover:text-ink transition-colors text-lg">✕</button>
             </div>
