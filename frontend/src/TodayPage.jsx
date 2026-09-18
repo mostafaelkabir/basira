@@ -22,6 +22,12 @@ import DayPlanner from './DayPlanner'
 import Modal from './components/Modal'
 import { ActivityComments } from './components/ActivityComposer'
 import TimeLogModal from './components/TimeLogModal'
+import { useDayWorkspace } from './features/today/useDayWorkspace'
+import DayHeader from './features/today/DayHeader'
+import DayAgenda from './features/today/DayAgenda'
+import ProjectTimePanel from './features/today/ProjectTimePanel'
+import RoutinePanel from './features/today/RoutinePanel'
+import ActiveSessionBar from './features/today/ActiveSessionBar'
 import { getDueDateMeta, sortByDueDate } from './utils'
 import { PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
@@ -304,6 +310,9 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   const [afternoonCheckin, setAfternoonCheckin] = useState(null)
   const [afternoonForm, setAfternoonForm]   = useState({ energy: null, working_on: '' })
   const [afternoonSaving, setAfternoonSaving] = useState(false)
+  // Read-only unified day model (recorded/live time by project & client, agenda,
+  // routines, active timers). Refreshed after any Today reload; never writes.
+  const { data: workspace, refresh: refreshWorkspace } = useDayWorkspace(data?.date)
 
   function resetProofForm() { setProofForm({ type: 'text', content: '', imageFile: null, imagePreview: null }) }
   function handleImageSelect(e) {
@@ -338,7 +347,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
       for (const e of (timerData.tasks || [])) secs[e.task_id] = e.seconds
       setTodaySeconds(secs)
     } catch (err) { notify(err.message) }
-    finally { setLoading(false) }
+    finally { setLoading(false); refreshWorkspace?.() }
   }
   useEffect(() => { load() }, [])
 
@@ -512,6 +521,34 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
           onComplete={handleComplete} onUnpin={handleUnpin} onPinTask={handlePin} onRefresh={load}
           timer={timer} onStartTimer={task => timer?.taskId === task.id ? (timer.running ? undefined : resumeTimer()) : startTimer(task.id, task.title, task.goal_title || '')}/>
       </section>
+
+      {/* ── Day workspace: where your time goes (read-only unified day model) ── */}
+      {workspace && (
+        <section className="space-y-4">
+          <div className="section-heading">
+            <div><h2>Where your time goes</h2><p className="mt-1">One honest ledger — today's plan, and where the hours actually went.</p></div>
+            <DayHeader workspace={workspace} />
+          </div>
+          <ActiveSessionBar workspace={workspace} />
+          <div className="day-workspace-grid">
+            <DayAgenda workspace={workspace}
+              onStart={item => {
+                startTimer(item.item_id, item.title, item.project_title || '')
+                window.dispatchEvent(new CustomEvent('basira:timer-changed'))
+                setTimeout(() => refreshWorkspace?.(), 400)
+              }} />
+            <div className="space-y-4">
+              <ProjectTimePanel workspace={workspace} />
+              <RoutinePanel workspace={workspace}
+                onToggle={h => {
+                  const full = habits.find(x => x.id === h.id)
+                  if (full) handleToggleHabit(full)
+                }} />
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── Daily Check-in ── */}
       <details className="checkin-disclosure"><summary>Pause & reflect <span className="float-right">Optional check-in</span></summary><DailyCheckinCard /></details>
 
@@ -610,13 +647,16 @@ function FocusSection({ focus, planItems, today, onComplete, onUnpin, onPinTask,
   const focusIds = new Set(focus.map(t => t.id))
   const pending = focus.filter(t => t.status !== 'done')
   const primary = pending[0]
+  // True only when a timer is running for the current focus task. Guards against
+  // timer/primary both being null (undefined === undefined) reading timer.running.
+  const isActive = Boolean(timer?.taskId && primary && timer.taskId === primary.id)
   return <>
     <div className="focus-layout">
-      <div className={`focus-primary ${timer?.taskId && timer.taskId === primary?.id && timer.running ? 'live' : ''}`}>
-        <p className="eyebrow"><span className={`status-dot ${timer?.taskId === primary?.id && timer.running ? 'live' : ''}`}/>{timer?.taskId === primary?.id ? 'Your active focus' : 'In your line of sight'}</p>
+      <div className={`focus-primary ${isActive && timer.running ? 'live' : ''}`}>
+        <p className="eyebrow"><span className={`status-dot ${isActive && timer.running ? 'live' : ''}`}/>{isActive ? 'Your active focus' : 'In your line of sight'}</p>
         <h3>{primary?.title || 'What deserves your attention?'}</h3>
         <p className="focus-goal">{primary?.goal_title || (primary ? 'Connected to your daily goals' : 'Choose one meaningful step. The rest can wait.')}</p>
-        <div className="focus-actions">{primary ? <><button className="focus-start" onClick={() => onStartTimer(primary)} disabled={timer?.taskId === primary.id && timer.running}><Icon name="play" size={15}/>{timer?.taskId === primary.id ? timer.running ? 'Focus in progress' : 'Resume focus' : 'Begin focus'}</button><button className="focus-proof" onClick={() => onComplete(primary)}><Icon name="check" size={15}/>Complete</button><button className="text-xs text-white/70 ml-auto p-2" aria-label={`Remove ${primary.title} from focus`} onClick={() => onUnpin(primary.id)}>Unpin</button></> : <button className="focus-start" onClick={() => setShowPicker(true)}><Icon name="plus" size={16}/>Choose your focus</button>}</div>
+        <div className="focus-actions">{primary ? <><button className="focus-start" onClick={() => onStartTimer(primary)} disabled={isActive && timer.running}><Icon name="play" size={15}/>{isActive ? timer.running ? 'Focus in progress' : 'Resume focus' : 'Begin focus'}</button><button className="focus-proof" onClick={() => onComplete(primary)}><Icon name="check" size={15}/>Complete</button><button className="text-xs text-white/70 ml-auto p-2" aria-label={`Remove ${primary.title} from focus`} onClick={() => onUnpin(primary.id)}>Unpin</button></> : <button className="focus-start" onClick={() => setShowPicker(true)}><Icon name="plus" size={16}/>Choose your focus</button>}</div>
       </div>
       <div className="focus-next"><p className="eyebrow">Up next</p>{pending.slice(1).map((task, i) => <div key={task.id} className="focus-next-row"><span className="focus-number">0{i + 2}</span><div className="flex-1 min-w-0"><p className="focus-next-title">{task.title}</p><p className="text-xs text-muted mt-1">{task.goal_title || 'Daily goal'}</p><div className="flex gap-3 mt-2"><button className="text-xs text-accent py-1" onClick={() => onStartTimer(task)}>Start</button><button className="text-xs text-muted py-1" onClick={() => onComplete(task)}>Complete</button><button className="text-xs text-muted py-1" aria-label={`Remove ${task.title} from focus`} onClick={() => onUnpin(task.id)}>Unpin</button></div></div></div>)}{pending.length < 2 && <p className="text-sm text-muted leading-relaxed">A little space is a good thing. Keep your priorities intentional.</p>}{focus.length < 3 && <button className="focus-empty mt-auto" onClick={() => setShowPicker(true)}><Icon name="plus" size={14}/>Add a priority</button>}{focus.some(t => t.status === 'done') && <div className="text-xs text-accent">{focus.filter(t => t.status === 'done').map(t => <div key={t.id} className="flex justify-between gap-2 py-2"><span>✓ {t.title}</span><button className="text-muted" onClick={() => onUnpin(t.id)} aria-label={`Clear completed focus ${t.title}`}>Clear</button></div>)}</div>}</div>
     </div>
