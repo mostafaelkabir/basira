@@ -163,6 +163,8 @@ button:active:not(:disabled) { transform: translateY(0) scale(.99); }
 .today-stat-value small { color: rgb(var(--muted)); font-size: 12px; letter-spacing: 0; font-weight: 400; font-family: var(--font-sans); }
 
 .focus-layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(240px, 1fr); gap: 18px; }
+.day-workspace-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 900px) { .day-workspace-grid { grid-template-columns: 1fr; } }
 .focus-primary {
   position: relative; isolation: isolate; overflow: hidden; border-radius: 20px; padding: 28px; min-height: 250px; display: flex; flex-direction: column;
   color: #edf5ea; background: linear-gradient(140deg, #123528 0%, #0b241a 55%, #071a13 100%);

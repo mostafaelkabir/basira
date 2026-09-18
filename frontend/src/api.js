@@ -14,6 +14,15 @@ export const getWorkReport = (dateFrom, dateTo, companyId) => {
   return request(`/work-reports?${params}`)
 }
 
+// Read-only unified day model: recorded/live time by project & client, agenda,
+// routines, and active timers for a single local day. Never writes.
+export const getDayWorkspace = (date, timezone) => {
+  const params = new URLSearchParams()
+  if (date) params.set('date', date)
+  params.set('timezone', timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
+  return request(`/day-workspace?${params}`)
+}
+
 export const getGoals = (archived = false) => request(`/goals${archived ? '?archived=true' : ''}`)
 export const getGoal = (id) => request(`/goals/${id}`)
 export const createGoal = (data) =>
