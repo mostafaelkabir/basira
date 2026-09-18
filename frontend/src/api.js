@@ -46,6 +46,14 @@ export const stopDayTimer = () => request('/day-timer/stop', { method: 'POST' })
 export const logDayTime = (data) =>
   request('/day-timer/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
 
+// Read-only "suggest existing work": rank existing tickets/tasks/work-logs for a
+// partial query so a planner reuses a real ID instead of creating a duplicate.
+export const getWorkSuggestions = (q, { limit = 5, showAll = false } = {}) => {
+  const params = new URLSearchParams({ q: q || '', limit: String(limit) })
+  if (showAll) params.set('show_all', 'true')
+  return request(`/work-suggestions?${params}`)
+}
+
 export const getGoals = (archived = false) => request(`/goals${archived ? '?archived=true' : ''}`)
 export const getGoal = (id) => request(`/goals/${id}`)
 export const createGoal = (data) =>
