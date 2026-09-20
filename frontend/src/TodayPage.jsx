@@ -19,6 +19,7 @@ import MorningPlanner from './features/today/MorningPlanner'
 import TimeDetailDrawer from './features/today/TimeDetailDrawer'
 import CapacityLine from './features/today/CapacityLine'
 import RoutineStrip from './features/today/RoutineStrip'
+import NowStrip from './features/today/NowStrip'
 import FindOrCreateComposer from './features/composer/FindOrCreateComposer'
 import { TicketDrawer } from './WorkPage'
 
@@ -216,6 +217,16 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
           <button onClick={() => setShowPlanner(true)} className="primary-button"><Icon name="goals" size={15}/><span>{planExists ? 'Edit day' : 'Plan my day'}</span></button>
         </div>
       </div>
+
+      {/* Now / Next strip (BAS-032) */}
+      <NowStrip workspace={workspace} timer={timer}
+        onPause={() => { pauseTimer(); setTimeout(() => refreshWorkspace?.(), 300) }}
+        onResume={() => { resumeTimer(); setTimeout(() => refreshWorkspace?.(), 300) }}
+        onStart={item => { startTimer(item.item_id, item.title, item.project_title || ''); window.dispatchEvent(new CustomEvent('basira:timer-changed')); setTimeout(() => refreshWorkspace?.(), 400) }}
+        onSwitch={item => { if (item.source === 'task') { startTimer(item.item_id, item.title, item.project_title || ''); window.dispatchEvent(new CustomEvent('basira:timer-changed')); setTimeout(() => refreshWorkspace?.(), 400) } else handleOpenTicket(item) }}
+        onDone={item => handleComplete(findTask(item.item_id))}
+        onOpenTicket={handleOpenTicket}
+        onOpenPlanner={() => setShowPlanner(true)} />
 
       {/* One capacity-aware planned / worked line (BAS-031) */}
       <CapacityLine workspace={workspace}

@@ -97,7 +97,7 @@ export default function App() {
     {showAddTask && <AddTaskModal initialGoalId={goalId} onClose={() => setShowAddTask(false)} onCreateGoal={() => { setShowAddTask(false); navigate('goals') }}/>}
     {showCommand && <CommandMenu onClose={() => setShowCommand(false)} onNavigate={navigate} onAdd={() => { setShowCommand(false); setShowAddTask(true) }} onReview={() => { setShowCommand(false); setShowReview(true) }} onSettings={() => { setShowCommand(false); setShowSettings(true) }} onTheme={() => { setShowCommand(false); toggleTheme() }} theme={theme}/>}
     {showMore && <Modal title="Your workspace" onClose={() => setShowMore(false)}><div className="command-list">{NAV_ITEMS.filter(n => !['today', 'goals', 'work'].includes(n.id)).map(n => <button key={n.id} onClick={() => navigate(n.id)}><Icon name={n.id}/>{n.label}</button>)}<button onClick={() => { setShowMore(false); setShowReview(true) }}><Icon name="review"/>Weekly review</button><button onClick={() => { setShowMore(false); setShowSettings(true) }}><Icon name="settings"/>Settings</button></div></Modal>}
-    <TimerWidget/>
+    {tab !== 'today' && <TimerWidget/>}
     <Notice/>
   </div></TimerProvider>
 }
