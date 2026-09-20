@@ -2,7 +2,7 @@ import { notify } from './components/Notice'
 import { useEffect, useState } from 'react'
 import { getWeeklyReview } from './api'
 import Modal from './components/Modal'
-import { DailyCheckinCard } from './TodayPage'
+import { DailyCheckinCard } from './features/today/DailyCheckinCard'
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
