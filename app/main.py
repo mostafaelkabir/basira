@@ -271,6 +271,8 @@ def run_migrations():
             updated_at TIMESTAMP
         )""",
         "CREATE INDEX IF NOT EXISTS ix_day_blocks_date ON day_blocks (date)",
+        # Snooze a ticket out of morning suggestions until a date (BAS-030).
+        "ALTER TABLE work_tickets ADD COLUMN snoozed_until TEXT",
     ]
     with engine.connect() as conn:
         for sql in migrations:

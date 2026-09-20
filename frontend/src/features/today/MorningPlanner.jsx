@@ -6,7 +6,7 @@ import { CSS } from '@dnd-kit/utilities'
 import Modal from '../../components/Modal'
 import Icon from '../../components/Icon'
 import { notify } from '../../components/Notice'
-import { getMorningSuggestions, getDayWorkspace, addToSchedule } from '../../api'
+import { getMorningSuggestions, getDayWorkspace, addToSchedule, snoozeSuggestion } from '../../api'
 import { fmtMinutes, fmtDuration } from './format'
 import FindOrCreateComposer from '../composer/FindOrCreateComposer'
 import { useTimer } from '../../TimerContext'
@@ -23,17 +23,25 @@ export default function MorningPlanner({ date, onClose, onPlanned }) {
   const [ws, setWs] = useState(null)
   const [busyKey, setBusyKey] = useState(null)
   const [dragging, setDragging] = useState(null)
+  const [includeOlder, setIncludeOlder] = useState(false)
 
   // A click and a drag must not be confused: require a small movement to start a drag.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
   function refresh() {
     return Promise.all([
-      getMorningSuggestions(date).then(setSugg).catch(() => {}),
+      getMorningSuggestions(date, { includeOlder }).then(setSugg).catch(() => {}),
       getDayWorkspace(date).then(setWs).catch(() => {}),
     ])
   }
-  useEffect(() => { refresh() }, [date])
+  useEffect(() => { refresh() }, [date, includeOlder])
+
+  async function snooze(s) {
+    setBusyKey(s.key)
+    try { await snoozeSuggestion(s.source, s.item_id); notify(`“${s.title}” — not today`); await refresh() }
+    catch (e) { notify(e.message) }
+    finally { setBusyKey(null) }
+  }
 
   async function add(s, start = false) {
     setBusyKey(s.key)
@@ -55,7 +63,6 @@ export default function MorningPlanner({ date, onClose, onPlanned }) {
     if (over?.id === DROP_ID && active?.data?.current) add(active.data.current)
   }
 
-  const suggestions = sugg?.suggestions || []
   const plannedMin = ws?.totals?.planned_minutes || 0
   const recorded = ws?.totals?.recorded_seconds || 0
   const planItems = [...(ws?.agenda || []), ...(ws?.unscheduled || [])]
@@ -83,25 +90,29 @@ export default function MorningPlanner({ date, onClose, onPlanned }) {
                   onDone={(r) => { if (r) { onPlanned?.(); refresh() } }}
                 />
               </div>
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="eyebrow">Suggested for today</p>
-                  {sugg && (
-                    <span className="text-[11px] text-muted">
-                      {sugg.counts.due} due · {sugg.counts.in_progress} in progress · {sugg.counts.carried_over} carried
-                    </span>
-                  )}
-                </div>
+              <div className="space-y-3 max-h-[26rem] overflow-y-auto pr-0.5">
                 {!sugg && <p className="text-sm text-muted">Loading…</p>}
-                {sugg && suggestions.length === 0 && (
+                {sugg && sugg.groups.every(g => g.total === 0) && (
                   <p className="text-sm text-muted italic">Nothing outstanding — add work above.</p>
                 )}
-                <div className="space-y-1.5 max-h-64 overflow-y-auto pr-0.5">
-                  {suggestions.map(s => (
-                    <SuggestionCard key={s.key} s={s} busy={busyKey === s.key}
-                      onPlan={() => add(s)} onStart={() => add(s, true)} />
-                  ))}
-                </div>
+                {sugg?.groups.filter(g => g.total > 0).map(group => (
+                  <div key={group.key}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="eyebrow">{group.label}</p>
+                      <span className="text-[11px] text-muted">{group.total}</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {group.items.map(s => (
+                        <SuggestionCard key={s.key} s={s} busy={busyKey === s.key}
+                          onPlan={() => add(s)} onStart={() => add(s, true)} onSnooze={() => snooze(s)} />
+                      ))}
+                    </div>
+                    {group.key === 'older' && group.collapsed && (
+                      <button onClick={() => setIncludeOlder(true)}
+                        className="text-[11px] text-accent mt-1 hover:underline">Show all {group.total} →</button>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -118,10 +129,8 @@ export default function MorningPlanner({ date, onClose, onPlanned }) {
   )
 }
 
-function SuggestionCard({ s, busy, onPlan, onStart }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: s.key, data: s,
-  })
+function SuggestionCard({ s, busy, onPlan, onStart, onSnooze }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: s.key, data: s })
   const style = {
     transform: CSS.Translate.toString(transform),
     zIndex: isDragging ? 50 : undefined,
@@ -138,8 +147,11 @@ function SuggestionCard({ s, busy, onPlan, onStart }) {
       </span>
       <div className="flex-1 min-w-0">
         <p className="text-sm text-ink truncate">{s.title}</p>
-        <p className="text-[11px] text-muted truncate">{s.project_title}<span className="text-faint"> · </span>{s.reasons.join(' · ')}</p>
+        <p className="text-[11px] text-muted truncate">
+          {s.project_title}{s.company_name ? ` · ${s.company_name}` : ''}<span className="text-faint"> · </span>{s.reasons.join(' · ')}
+        </p>
       </div>
+      <span className="text-[10px] font-mono text-faint tabular-nums flex-shrink-0">{s.suggested_minutes}m</span>
       <button onClick={onPlan} disabled={busy}
         className="text-xs text-accent px-2 py-1 rounded-lg hover:bg-raised transition-colors flex-shrink-0 disabled:opacity-50">Plan</button>
       {s.source === 'task' && (
@@ -147,6 +159,8 @@ function SuggestionCard({ s, busy, onPlan, onStart }) {
           className="text-xs text-white bg-forest px-2 py-1 rounded-lg hover:bg-forest-hover transition-colors flex-shrink-0 disabled:opacity-50 flex items-center gap-1">
           <Icon name="play" size={12} />Start</button>
       )}
+      <button onClick={onSnooze} disabled={busy} title="Not today"
+        className="text-faint hover:text-amber-600 px-1 flex-shrink-0 disabled:opacity-50" aria-label={`Not today: ${s.title}`}>✕</button>
     </div>
   )
 }

@@ -56,12 +56,17 @@ export const getWorkSuggestions = (q, { limit = 5, showAll = false } = {}) => {
 
 // Read-only morning-planning suggestions: existing work worth planning today
 // (in-progress, carried over, due), each with an explicit reason. Never moves records.
-export const getMorningSuggestions = (date, timezone) => {
+export const getMorningSuggestions = (date, { timezone, includeOlder = false } = {}) => {
   const params = new URLSearchParams()
   if (date) params.set('date', date)
   params.set('timezone', timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
+  if (includeOlder) params.set('include_older', 'true')
   return request(`/morning-suggestions?${params}`)
 }
+// Hide an item from morning suggestions until a date (tasks defer, tickets snooze).
+export const snoozeSuggestion = (source, itemId, until) =>
+  request('/morning-suggestions/snooze', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source, item_id: itemId, until, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' }) })
 
 export const getGoals = (archived = false) => request(`/goals${archived ? '?archived=true' : ''}`)
 export const getGoal = (id) => request(`/goals/${id}`)
