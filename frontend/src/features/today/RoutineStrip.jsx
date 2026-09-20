@@ -18,7 +18,8 @@ export default function RoutineStrip({ routines, onToggle }) {
   return (
     <div>
       <p className="eyebrow mb-1.5">Routine {done}/{items.length}</p>
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mb-1">
+      {/* Collapsed: one scrollable row. Expanded: wrap to multiple rows, all in view. */}
+      <div className={`flex items-center gap-1.5 pb-1 -mb-1 ${expanded ? 'flex-wrap' : 'overflow-x-auto'}`}>
         {shown.map(h => (
           <button key={h.id} onClick={() => onToggle?.(h)}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border flex-shrink-0 transition-colors ${
@@ -33,6 +34,10 @@ export default function RoutineStrip({ routines, onToggle }) {
         {hidden > 0 && (
           <button onClick={() => setExpanded(true)}
             className="text-[11px] text-muted hover:text-ink px-2 py-1.5 flex-shrink-0">▾ {hidden} more</button>
+        )}
+        {expanded && items.length > 6 && (
+          <button onClick={() => setExpanded(false)}
+            className="text-[11px] text-muted hover:text-ink px-2 py-1.5 flex-shrink-0">▴ less</button>
         )}
       </div>
     </div>
