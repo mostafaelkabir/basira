@@ -222,6 +222,15 @@ class DayWorkspaceTests(unittest.TestCase):
             self.assertEqual(db.query(WorkSession).count(), 5)
             self.assertEqual(db.query(HabitLog).count(), 2)
 
+    def test_capacity_available_and_over(self):
+        w = self.workspace()
+        # Default window 09:00–18:00 (540m) with 15% buffer -> 459 available.
+        self.assertEqual(w['totals']['available_minutes'], 459)
+        self.assertEqual(w['totals']['day_start'], '09:00')
+        self.assertEqual(w['totals']['buffer_pct'], 15)
+        # planned 75m (from the redesign task) is under 459 -> not over.
+        self.assertEqual(w['totals']['over_minutes'], 0)
+
     def test_invalid_timezone_rejected(self):
         res = self.client.get('/day-workspace', params={'timezone': 'Mars/Phobos'})
         self.assertEqual(res.status_code, 400)

@@ -17,8 +17,8 @@ import { useDayWorkspace } from './features/today/useDayWorkspace'
 import DayAgenda from './features/today/DayAgenda'
 import MorningPlanner from './features/today/MorningPlanner'
 import TimeDetailDrawer from './features/today/TimeDetailDrawer'
+import CapacityLine from './features/today/CapacityLine'
 import FindOrCreateComposer from './features/composer/FindOrCreateComposer'
-import { fmtDuration, fmtMinutes } from './features/today/format'
 import { TicketDrawer } from './WorkPage'
 
 const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
@@ -197,9 +197,6 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   const completedItems = all.filter(i => i.done)
 
   const planExists = workItems.length > 0 || habitItems.some(h => h.scheduled_time)
-  const planned = workspace?.totals?.planned_minutes || 0
-  const recorded = workspace?.totals?.recorded_seconds || 0
-  const live = workspace?.totals?.live_seconds || 0
 
   function findTask(id) {
     const pools = [...data.focus, ...data.daily, ...data.projects.flatMap(p => p.tasks)]
@@ -225,14 +222,10 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
         </div>
       </div>
 
-      {/* One compact planned / worked time line */}
-      <button className="time-line" onClick={() => setShowTimeDetail(true)} aria-label="Open time detail">
-        <span><span className="font-mono tabular-nums text-ink">{fmtMinutes(planned)}</span> planned</span>
-        <span className="text-faint">·</span>
-        <span><span className="font-mono tabular-nums text-ink">{fmtDuration(recorded)}</span> worked</span>
-        {live > 0 && <><span className="text-faint">·</span><span className="text-accent inline-flex items-center gap-1"><span className="status-dot live"/>+{fmtDuration(live)} live</span></>}
-        <span className="ml-auto text-[11px] text-muted">Details →</span>
-      </button>
+      {/* One capacity-aware planned / worked line (BAS-031) */}
+      <CapacityLine workspace={workspace}
+        onOpenDetail={() => setShowTimeDetail(true)}
+        onSettingsChanged={() => refreshWorkspace?.()} />
 
       {/* One chronological agenda */}
       <DayAgenda
