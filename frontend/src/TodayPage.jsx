@@ -18,6 +18,7 @@ import DayAgenda from './features/today/DayAgenda'
 import MorningPlanner from './features/today/MorningPlanner'
 import TimeDetailDrawer from './features/today/TimeDetailDrawer'
 import CapacityLine from './features/today/CapacityLine'
+import RoutineStrip from './features/today/RoutineStrip'
 import FindOrCreateComposer from './features/composer/FindOrCreateComposer'
 import { TicketDrawer } from './WorkPage'
 
@@ -173,16 +174,10 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   const activeKeys = new Set((workspace?.active_timers || []).map(t => t.key))
   const workItems = [...(workspace?.agenda || []), ...(workspace?.unscheduled || [])]
     .map(i => ({ ...i, done: i.status === 'done', active: activeKeys.has(i.key) }))
+  // Habits are daily check marks in the RoutineStrip only — never schedule rows.
   const habitById = new Map(habits.map(h => [h.id, h]))
   const routines = workspace?.routines || {}
-  const habitItems = ['morning', 'afternoon', 'evening', 'anytime'].flatMap(b =>
-    (routines[b] || []).map(h => ({
-      key: `habit:${h.id}`, source: 'habit', item_id: h.id, title: h.title,
-      scheduled_time: h.scheduled_time, project_title: h.goal_title,
-      habitCount: h.count, habitTarget: h.target, done: h.done, active: false,
-    }))
-  )
-  const all = [...workItems, ...habitItems]
+  const all = [...workItems]
   const present = new Set(all.map(i => i.key))
   for (const t of (workspace?.active_timers || [])) {
     if (!present.has(t.key)) all.push({
@@ -196,7 +191,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   const anytimeItems = all.filter(i => !i.scheduled_time && !i.done)
   const completedItems = all.filter(i => i.done)
 
-  const planExists = workItems.length > 0 || habitItems.some(h => h.scheduled_time)
+  const planExists = workItems.length > 0
 
   function findTask(id) {
     const pools = [...data.focus, ...data.daily, ...data.projects.flatMap(p => p.tasks)]
@@ -226,6 +221,10 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
       <CapacityLine workspace={workspace}
         onOpenDetail={() => setShowTimeDetail(true)}
         onSettingsChanged={() => refreshWorkspace?.()} />
+
+      {/* Habits as daily check marks — off the schedule (BAS-038) */}
+      <RoutineStrip routines={routines}
+        onToggle={h => { const full = habitById.get(h.id); if (full) handleToggleHabit(full) }} />
 
       {/* One chronological agenda */}
       <DayAgenda
