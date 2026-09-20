@@ -48,9 +48,10 @@ export const logDayTime = (data) =>
 
 // Read-only "suggest existing work": rank existing tickets/tasks/work-logs for a
 // partial query so a planner reuses a real ID instead of creating a duplicate.
-export const getWorkSuggestions = (q, { limit = 5, showAll = false } = {}) => {
+export const getWorkSuggestions = (q, { limit = 5, showAll = false, source = null } = {}) => {
   const params = new URLSearchParams({ q: q || '', limit: String(limit) })
   if (showAll) params.set('show_all', 'true')
+  if (source) params.set('source', source)
   return request(`/work-suggestions?${params}`)
 }
 

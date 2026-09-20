@@ -106,19 +106,35 @@ def _candidate(source, item_id, title, score, reasons, *, project, client,
     }
 
 
-def suggest_work(db: Session, query: str, limit: int = 5, show_all: bool = False) -> dict:
+BROWSE_BASE = {"in_progress": 60, "todo": 40, "review": 40, "backlog": 20, "blocked": 10}
+BROWSE_REASON = {"in_progress": "In progress", "todo": "To do", "review": "In review",
+                 "blocked": "Blocked", "backlog": "Backlog"}
+
+
+def _browse(status: str) -> tuple[int, list[str]]:
+    return BROWSE_BASE.get(status, 30), [BROWSE_REASON.get(status, "To do")]
+
+
+def suggest_work(db: Session, query: str, limit: int = 5, show_all: bool = False,
+                 source: str | None = None) -> dict:
+    """Rank existing work for `query`. With an empty query it *browses*: every
+    non-done item of the requested `source` (or all sources), ordered by status —
+    so the picker can list, say, all tasks without typing."""
     q = query.strip()
     qnorm = _normalize(q)
     qtokens = _tokens(q)
     qlower = q.lower()
+    browse = not qnorm
     candidates: list[dict] = []
 
     goal_titles = {g.id: g.title for g in db.query(Goal.id, Goal.title).all()}
     archived_goal_ids = {g.id for g in db.query(Goal.id).filter(Goal.archived_at.isnot(None)).all()}
+    # Habits (resolution-goal tasks) are check marks, not plannable work items.
+    habit_goal_ids = {g.id for g in db.query(Goal.id).filter(Goal.type == "resolution").all()}
     company_names = {c.id: c.name for c in db.query(Company.id, Company.name).all()}
 
     # ── Tickets (primary: ref, tags, status incl. blocked, client, project) ──
-    for t in db.query(WorkTicket).filter(WorkTicket.status.notin_(DONE_TICKET)).all():
+    for t in db.query(WorkTicket).filter(WorkTicket.status.notin_(DONE_TICKET)).all() if source in (None, "ticket") else []:
         reasons: list[str] = []
         score = 0
         if t.ticket_ref and t.ticket_ref.lower() == qlower and qlower:
@@ -138,15 +154,17 @@ def suggest_work(db: Session, query: str, limit: int = 5, show_all: bool = False
         if ctx and score < S_TITLE_CONTAINS:
             score = max(score, S_CONTEXT)
             reasons.append(f"Related to {ctx}")
-        if score <= 0:
-            continue
         blocked = t.status == "blocked"
-        if t.status == "in_progress":
+        if score <= 0:
+            if not browse:
+                continue
+            score, reasons = _browse(t.status)
+        elif t.status == "in_progress":
             score += B_IN_PROGRESS
             reasons.append("In progress")
         elif t.status in ("todo", "review"):
             score += B_RECENT_UNFINISHED
-        if blocked:
+        if blocked and "Blocked" not in reasons:
             reasons.append("Blocked")
         candidates.append(_candidate(
             "ticket", t.id, t.title, score, reasons,
@@ -155,8 +173,8 @@ def suggest_work(db: Session, query: str, limit: int = 5, show_all: bool = False
         ))
 
     # ── Goal-linked tasks (title + project; skip archived goals & done) ──
-    for task in db.query(Task).filter(Task.status != "done").all():
-        if task.goal_id in archived_goal_ids:
+    for task in db.query(Task).filter(Task.status != "done").all() if source in (None, "task") else []:
+        if task.goal_id in archived_goal_ids or task.goal_id in habit_goal_ids or task.parent_task_id:
             continue
         ts, treason = _title_score(qnorm, qtokens, task.title)
         project = goal_titles.get(task.goal_id, "Unassigned")
@@ -168,14 +186,16 @@ def suggest_work(db: Session, query: str, limit: int = 5, show_all: bool = False
             if ctx:
                 score, reasons = S_CONTEXT, [f"Related to {ctx}"]
         if score <= 0:
-            continue
+            if not browse:
+                continue
+            score, reasons = _browse(task.status)
         candidates.append(_candidate(
             "task", task.id, task.title, score, reasons,
             project=project, client=None, status=task.status,
         ))
 
     # ── Work logs (title + client/project) ──
-    for log in db.query(WorkLog).filter(WorkLog.status.notin_(DONE_LOG)).all():
+    for log in db.query(WorkLog).filter(WorkLog.status.notin_(DONE_LOG)).all() if source in (None, "worklog") else []:
         ts, treason = _title_score(qnorm, qtokens, log.title)
         project = goal_titles.get(log.linked_goal_id, "Unassigned")
         client = company_names.get(log.company_id)
@@ -187,7 +207,9 @@ def suggest_work(db: Session, query: str, limit: int = 5, show_all: bool = False
             if ctx:
                 score, reasons = S_CONTEXT, [f"Related to {ctx}"]
         if score <= 0:
-            continue
+            if not browse:
+                continue
+            score, reasons = _browse(log.status)
         candidates.append(_candidate(
             "worklog", log.id, log.title, score, reasons,
             project=project, client=client, status=log.status,

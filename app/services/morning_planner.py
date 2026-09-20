@@ -47,6 +47,7 @@ def morning_suggestions(db: Session, day: date_cls, include_older: bool = False)
 
     goal_titles = {g.id: g.title for g in db.query(Goal.id, Goal.title).all()}
     archived = {g.id for g in db.query(Goal.id).filter(Goal.archived_at.isnot(None)).all()}
+    habit_goals = {g.id for g in db.query(Goal.id).filter(Goal.type == "resolution").all()}
     company_names = {c.id: c.name for c in db.query(Company.id, Company.name).all()}
 
     groups: dict[str, list[dict]] = {"resume": [], "yesterday": [], "due": [], "older": []}
@@ -78,7 +79,7 @@ def morning_suggestions(db: Session, day: date_cls, include_older: bool = False)
 
     # ── Tasks ────────────────────────────────────────────────────────────────
     for task in db.query(Task).filter(Task.status.notin_(DONE)).all():
-        if task.goal_id in archived or task.parent_task_id or task.plan_date == today:
+        if task.goal_id in archived or task.goal_id in habit_goals or task.parent_task_id or task.plan_date == today:
             continue
         if task.deferred_until and task.deferred_until > today:
             continue
