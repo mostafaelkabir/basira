@@ -26,11 +26,66 @@ It is built on a simple idea: **the person who knows themselves best wins**. Mos
 
 | Module | What it tracks |
 |--------|---------------|
-| **Today** | Daily focus — pinned tasks, live timer, drag-and-drop planner |
+| **Today** | The day itself — routine check marks, one agenda, live timer, capacity line |
 | **Goals** | Resolutions, projects, and daily goals with progress tracking |
 | **Work** | Client work — tickets, time per company, proof of work |
 | **People** | Relationships — contacts, interaction logs, overdue-check alerts |
+| **Journal** | Daily entries — mood, energy, wins, and what to do differently |
 | **Progress** | Analytics — weekly velocity, consistency heatmap, AI insights |
+
+---
+
+## How it looks
+
+> Every screenshot below is a throwaway demo database — fictional goals, clients,
+> tickets and contacts. None of it is real personal data.
+
+### Today — one day, one screen
+
+Your routine as check marks, an agenda built from tasks and client tickets, and a
+capacity line that tells you how much of the day you have actually planned.
+
+![Today](docs/screenshots/today.png)
+
+### Goals — resolutions, projects, and the work under them
+
+Resolutions carry the habits that feed them. Projects carry the tasks (and
+sub-projects) that finish them. Progress is counted, not claimed.
+
+![Goals](docs/screenshots/goals.png)
+
+### Work — clients, tickets, and where the hours went
+
+Time per client for today and this week, Jira-style tickets with estimate-vs-actual
+bars, a built-in timer, and a report generator for the end of the month.
+
+![Work](docs/screenshots/work.png)
+
+### Progress — the mirror
+
+Output, consistency, and habit streaks over time — plus a 13-week consistency map
+that makes a skipped week impossible to argue with.
+
+![Progress](docs/screenshots/progress.png)
+
+### People — the relationships you say matter
+
+Each contact ages until you log an interaction. Overdue is overdue, no matter how
+busy the week was.
+
+![People](docs/screenshots/people.png)
+
+### Journal — a sentence a day
+
+Mood, energy, wins, and what to do differently, kept next to the data that explains it.
+
+![Journal](docs/screenshots/journal.png)
+
+### Light and dark
+
+The whole UI is token-themed and follows your system preference by default.
+
+![Today in light mode](docs/screenshots/today-light.png)
 
 ---
 
@@ -218,7 +273,6 @@ Contributions are welcome. Some open directions:
 - [ ] Cross-platform notifications (Linux / Windows)
 - [ ] Mobile-friendly responsive layout
 - [ ] Export to PDF (weekly report, payment summary)
-- [ ] Dark mode
 - [ ] Multi-user / family support
 
 Please open an issue first to discuss larger changes.
