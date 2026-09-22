@@ -308,7 +308,8 @@ def _agenda(db: Session, day: date, recorded_by_key: dict[str, int],
     tasks = (
         db.query(Task).join(Goal, Task.goal_id == Goal.id)
         .filter(
-            Goal.archived_at.is_(None),
+            Goal.archived_at.is_(None), Goal.trashed_at.is_(None),
+            Task.trashed_at.is_(None),
             (Task.plan_date == day_iso) | (Task.pinned_date == day_iso),
             Task.parent_task_id.is_(None),
         ).all()
@@ -384,9 +385,9 @@ def _routines(db: Session, day: date) -> dict[str, list[dict]]:
         "morning": [], "afternoon": [], "evening": [], "anytime": [],
     }
     goals = (
-        db.query(Goal).filter(Goal.type == "resolution", Goal.archived_at.is_(None)).all()
+        db.query(Goal).filter(Goal.type == "resolution", Goal.archived_at.is_(None), Goal.trashed_at.is_(None)).all()
     )
-    goal_task_ids = [t.id for g in goals for t in g.tasks if t.status != "done"]
+    goal_task_ids = [t.id for g in goals for t in g.tasks if t.status != "done" and t.trashed_at is None]
     log_counts: dict[str, int] = {}
     if goal_task_ids:
         for row in (
@@ -396,7 +397,7 @@ def _routines(db: Session, day: date) -> dict[str, list[dict]]:
             log_counts[row.task_id] = row.count or 0
     for g in goals:
         for t in g.tasks:
-            if t.status == "done":
+            if t.status == "done" or t.trashed_at is not None:
                 continue
             target = _per_day(t.habit_frequency)
             count = log_counts.get(t.id, 0)

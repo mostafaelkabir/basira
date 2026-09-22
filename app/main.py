@@ -39,6 +39,7 @@ from app.routes.day_plan import router as day_plan_router
 from app.routes.day_timer import router as day_timer_router
 from app.routes.work_suggestions import router as work_suggestions_router
 from app.routes.morning_planner import router as morning_planner_router
+from app.routes.trash import router as trash_router
 from app.scheduler import start_scheduler
 
 
@@ -273,6 +274,9 @@ def run_migrations():
         "CREATE INDEX IF NOT EXISTS ix_day_blocks_date ON day_blocks (date)",
         # Snooze a ticket out of morning suggestions until a date (BAS-030).
         "ALTER TABLE work_tickets ADD COLUMN snoozed_until TEXT",
+        # Soft-delete (trash) with 30-day retention for goals and tasks.
+        "ALTER TABLE goals ADD COLUMN trashed_at TIMESTAMP",
+        "ALTER TABLE tasks ADD COLUMN trashed_at TIMESTAMP",
     ]
     with engine.connect() as conn:
         for sql in migrations:
@@ -285,6 +289,16 @@ def run_migrations():
 
 run_migrations()
 Base.metadata.create_all(bind=engine)
+
+# Purge trash older than the retention window on startup.
+try:
+    from sqlalchemy.orm import Session as _Session
+    from app.routes.trash import purge_expired as _purge
+    with _Session(engine) as _db:
+        _purge(_db)
+except Exception:
+    pass
+
 start_scheduler()
 
 app = FastAPI(title="Basira API")
@@ -325,6 +339,7 @@ app.include_router(day_plan_router)
 app.include_router(day_timer_router)
 app.include_router(work_suggestions_router)
 app.include_router(morning_planner_router)
+app.include_router(trash_router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

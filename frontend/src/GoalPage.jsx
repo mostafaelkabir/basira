@@ -6,6 +6,7 @@ import EstimatedTimePicker, { formatDuration } from './components/EstimatedTimeP
 import { ActivityComments } from './components/ActivityComposer'
 import { GoalIcon } from './GoalsPage'
 import Modal from './components/Modal'
+import ConfirmDialog from './components/ConfirmDialog'
 import TimeLogModal from './components/TimeLogModal'
 import { getDueDateMeta, sortByDueDate } from './utils'
 import {
@@ -55,6 +56,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
   const [addingSubtaskFor, setAddingSubtaskFor] = useState(null) // parent task id
   const [subtaskTitle, setSubtaskTitle] = useState('')
   const [editingTask, setEditingTask] = useState(null)
+  const [deleteTaskPending, setDeleteTaskPending] = useState(null)  // { id, title }
   const [editForm, setEditForm] = useState({ title: '', goal_id: '', due_date: '', habit_frequency: 'daily', requires_proof: false, is_urgent: false, is_important: false, estimated_minutes: null })
   const [allGoals, setAllGoals] = useState([])
   const [todaySeconds, setTodaySeconds] = useState({})
@@ -167,10 +169,8 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
     catch (err) { notify(err.message) }
   }
 
-  async function handleDeleteTask(taskId) {
-    if (!confirm('Delete this task?')) return
-    try { await deleteTask(taskId); load() }
-    catch (err) { notify(err.message) }
+  function handleDeleteTask(taskId, title) {
+    setDeleteTaskPending({ id: taskId, title: title || 'this item' })
   }
 
   async function handleAddProof(e) {
@@ -347,7 +347,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
               dragListeners={dragListeners}
               onStartTimer={isResolution ? null : () => startTimer(task.id, task.title, goal?.title || '')}
               onComplete={isResolution ? null : () => handleComplete(task.id)}
-              onDelete={() => handleDeleteTask(task.id)}
+              onDelete={() => handleDeleteTask(task.id, task.title)}
               onAddProof={isResolution ? null : () => setProofFor(task.id)}
               onEdit={async () => {
                 setEditingTask(task)
@@ -376,7 +376,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
               )}
               <div className="space-y-1.5 opacity-60">
               {doneTasks.map((task) => (
-                <TaskCard key={task.id} task={task} onDelete={() => handleDeleteTask(task.id)} onCommentAdded={load} />
+                <TaskCard key={task.id} task={task} onDelete={() => handleDeleteTask(task.id, task.title)} onCommentAdded={load} />
               ))}
               </div>
             </div>
@@ -554,6 +554,18 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
             onCancel={() => { setProofFor(null); setProofForm({ type: 'text', content: '', imageFile: null, imagePreview: null }) }}
             onImageSelect={handleImageSelect} onFileSelect={handleFileSelect} submitLabel="Submit Proof" />
         </Modal>
+      )}
+
+      {deleteTaskPending && (
+        <ConfirmDialog
+          title="Move to trash?"
+          message={`“${deleteTaskPending.title}” and any sub-tasks will move to the trash. You can restore them within 30 days.`}
+          confirmLabel="Move to trash" danger
+          onConfirm={async () => {
+            try { await deleteTask(deleteTaskPending.id); setDeleteTaskPending(null); load() }
+            catch (err) { notify(err.message); setDeleteTaskPending(null) }
+          }}
+          onClose={() => setDeleteTaskPending(null)} />
       )}
     </div>
   )

@@ -5,7 +5,7 @@ import Modal from './components/Modal'
 import Icon from './components/Icon'
 import { getThemePreference, setThemePreference } from './theme'
 
-export default function SettingsModal({ onClose }) {
+export default function SettingsModal({ onClose, onOpenTrash }) {
   const [settings, setSettings] = useState(null)
   const [saving, setSaving] = useState(false)
   const [themePref, setThemePref] = useState(getThemePreference)
@@ -52,6 +52,13 @@ export default function SettingsModal({ onClose }) {
               ))}
             </div>
           </div>
+          {onOpenTrash && (
+            <div>
+              <h3 className="text-sm font-semibold text-ink mb-1">Trash</h3>
+              <p className="text-xs text-muted mb-2">Deleted goals, tasks and habits are kept for 30 days.</p>
+              <button type="button" onClick={onOpenTrash} className="secondary-button">Open trash</button>
+            </div>
+          )}
           <div>
             <h3 className="text-sm font-semibold text-ink mb-1">Your day</h3>
             <p className="text-xs text-muted mb-3">Sets available hours for capacity-aware planning on Today.</p>

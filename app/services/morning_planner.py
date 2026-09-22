@@ -46,7 +46,8 @@ def morning_suggestions(db: Session, day: date_cls, include_older: bool = False)
     due_horizon = (day + timedelta(days=7)).isoformat()
 
     goal_titles = {g.id: g.title for g in db.query(Goal.id, Goal.title).all()}
-    archived = {g.id for g in db.query(Goal.id).filter(Goal.archived_at.isnot(None)).all()}
+    archived = {g.id for g in db.query(Goal.id).filter(
+        (Goal.archived_at.isnot(None)) | (Goal.trashed_at.isnot(None))).all()}
     habit_goals = {g.id for g in db.query(Goal.id).filter(Goal.type == "resolution").all()}
     company_names = {c.id: c.name for c in db.query(Company.id, Company.name).all()}
 
@@ -78,7 +79,7 @@ def morning_suggestions(db: Session, day: date_cls, include_older: bool = False)
         # Not in progress, not carried, no due date -> not suggested.
 
     # ── Tasks ────────────────────────────────────────────────────────────────
-    for task in db.query(Task).filter(Task.status.notin_(DONE)).all():
+    for task in db.query(Task).filter(Task.status.notin_(DONE), Task.trashed_at.is_(None)).all():
         if task.goal_id in archived or task.goal_id in habit_goals or task.parent_task_id or task.plan_date == today:
             continue
         if task.deferred_until and task.deferred_until > today:

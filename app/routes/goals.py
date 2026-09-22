@@ -30,7 +30,7 @@ def _goal_to_dict(goal: Goal) -> dict:
 
 @router.get("", response_model=list[GoalRead])
 def list_goals(archived: bool = False, db: Session = Depends(get_db)) -> list[dict]:
-    q = db.query(Goal).options(joinedload(Goal.tasks))
+    q = db.query(Goal).options(joinedload(Goal.tasks)).filter(Goal.trashed_at.is_(None))
     goals = q.filter(Goal.archived_at.isnot(None) if archived else Goal.archived_at.is_(None)).all()
     return [_goal_to_dict(g) for g in goals]
 
@@ -70,7 +70,7 @@ def get_goal(goal_id: str, db: Session = Depends(get_db)) -> dict:
         .filter(Goal.id == goal_id)
         .first()
     )
-    if not goal:
+    if not goal or goal.trashed_at is not None:
         raise HTTPException(status_code=404, detail="Goal not found")
 
     parent_title = None
@@ -85,12 +85,12 @@ def get_goal(goal_id: str, db: Session = Depends(get_db)) -> dict:
         .all()
     )
 
-    # Separate top-level tasks and sub-tasks (sorted by sort_order)
-    top_level = sorted([t for t in goal.tasks if not t.parent_task_id], key=lambda t: t.sort_order or 0)
+    # Separate top-level tasks and sub-tasks (sorted by sort_order); hide trashed.
+    top_level = sorted([t for t in goal.tasks if not t.parent_task_id and t.trashed_at is None], key=lambda t: t.sort_order or 0)
     task_ids   = {t.id for t in top_level}
     sub_tasks_rows = (
         db.query(Task)
-        .filter(Task.parent_task_id.in_(list(task_ids)))
+        .filter(Task.parent_task_id.in_(list(task_ids)), Task.trashed_at.is_(None))
         .all()
     ) if task_ids else []
     sub_tasks_by_parent: dict = {}
@@ -163,8 +163,10 @@ def unarchive_goal(goal_id: str, db: Session = Depends(get_db)) -> dict:
 
 @router.delete("/{goal_id}", status_code=204)
 def delete_goal(goal_id: str, db: Session = Depends(get_db)) -> None:
+    """Soft-delete: move the goal to the trash. Its tasks are hidden with it and
+    it is permanently removed after 30 days (or via the trash). Restorable."""
     goal = db.query(Goal).filter(Goal.id == goal_id).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
-    db.delete(goal)
+    goal.trashed_at = datetime.now(UTC)
     db.commit()

@@ -224,8 +224,13 @@ def complete_task(task_id: str, body: CompleteTaskBody = CompleteTaskBody(), db:
 
 @router.delete("/{task_id}", status_code=204)
 def delete_task(task_id: str, db: Session = Depends(get_db)) -> None:
+    """Soft-delete: move the task (and its sub-tasks) to the trash, restorable and
+    permanently removed after 30 days."""
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    db.delete(task)
+    now = datetime.now(UTC)
+    task.trashed_at = now
+    for sub in db.query(Task).filter(Task.parent_task_id == task_id).all():
+        sub.trashed_at = now
     db.commit()

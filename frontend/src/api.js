@@ -79,6 +79,11 @@ export const archiveGoal = (id) => request(`/goals/${id}/archive`, { method: 'PO
 export const unarchiveGoal = (id) => request(`/goals/${id}/unarchive`, { method: 'POST' })
 export const deleteGoal = (id) => request(`/goals/${id}`, { method: 'DELETE' })
 
+// Trash (soft-delete): goals and tasks move to a 30-day trash, restorable.
+export const getTrash = () => request('/trash')
+export const restoreTrashItem = (kind, id) => request(`/trash/${kind}/${id}/restore`, { method: 'POST' })
+export const deleteTrashItem = (kind, id) => request(`/trash/${kind}/${id}`, { method: 'DELETE' })
+
 export const getTask = (id) => request(`/tasks/${id}`)
 export const taskAiQuery = (taskId, prompt) =>
   request(`/tasks/${taskId}/ai`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt }) })

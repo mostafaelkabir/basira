@@ -15,6 +15,7 @@ class Goal(Base):
     type: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     archived_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    trashed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # soft-delete; purged after 30 days
 
     icon: Mapped[str | None] = mapped_column(String, nullable=True)
     cover: Mapped[bool] = mapped_column(default=False)

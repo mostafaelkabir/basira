@@ -128,7 +128,8 @@ def suggest_work(db: Session, query: str, limit: int = 5, show_all: bool = False
     candidates: list[dict] = []
 
     goal_titles = {g.id: g.title for g in db.query(Goal.id, Goal.title).all()}
-    archived_goal_ids = {g.id for g in db.query(Goal.id).filter(Goal.archived_at.isnot(None)).all()}
+    archived_goal_ids = {g.id for g in db.query(Goal.id).filter(
+        (Goal.archived_at.isnot(None)) | (Goal.trashed_at.isnot(None))).all()}
     # Habits (resolution-goal tasks) are check marks, not plannable work items.
     habit_goal_ids = {g.id for g in db.query(Goal.id).filter(Goal.type == "resolution").all()}
     company_names = {c.id: c.name for c in db.query(Company.id, Company.name).all()}
@@ -173,7 +174,7 @@ def suggest_work(db: Session, query: str, limit: int = 5, show_all: bool = False
         ))
 
     # ── Goal-linked tasks (title + project; skip archived goals & done) ──
-    for task in db.query(Task).filter(Task.status != "done").all() if source in (None, "task") else []:
+    for task in db.query(Task).filter(Task.status != "done", Task.trashed_at.is_(None)).all() if source in (None, "task") else []:
         if task.goal_id in archived_goal_ids or task.goal_id in habit_goal_ids or task.parent_task_id:
             continue
         ts, treason = _title_score(qnorm, qtokens, task.title)

@@ -2,6 +2,7 @@ import { notify } from './components/Notice'
 import { useEffect, useRef, useState } from 'react'
 import { archiveGoal, createGoal, deleteGoal, getGoals, unarchiveGoal, updateGoal, uploadGoalIcon } from './api'
 import Modal from './components/Modal'
+import ConfirmDialog from './components/ConfirmDialog'
 
 const TYPE_META = {
   resolution: { label: 'Resolution', icon: '✦', desc: 'Yearly goals & habits' },
@@ -52,6 +53,7 @@ export default function GoalsPage({ onSelectGoal }) {
   const [editing, setEditing] = useState(null)
   const [showNew, setShowNew] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [deletePending, setDeletePending] = useState(null)  // { id, title }
   const [submitting, setSubmitting] = useState(false)
   const [iconTab, setIconTab] = useState('emoji') // 'emoji' | 'image'
   const [iconUploading, setIconUploading] = useState(false)
@@ -120,11 +122,10 @@ export default function GoalsPage({ onSelectGoal }) {
     catch (err) { notify(err.message) }
   }
 
-  async function handleDelete(e, goalId) {
+  function handleDelete(e, goalId) {
     e.stopPropagation()
-    if (!confirm('Permanently delete this goal and all its tasks?')) return
-    try { await deleteGoal(goalId); load() }
-    catch (err) { notify(err.message) }
+    const goal = goals.find(g => g.id === goalId)
+    setDeletePending({ id: goalId, title: goal?.title || 'this goal' })
   }
 
   if (loading) return <p className="text-muted text-sm">Loading…</p>
@@ -396,6 +397,18 @@ export default function GoalsPage({ onSelectGoal }) {
             </div>
           </form>
         </Modal>
+      )}
+
+      {deletePending && (
+        <ConfirmDialog
+          title="Move to trash?"
+          message={`“${deletePending.title}” and its tasks will move to the trash. You can restore them within 30 days.`}
+          confirmLabel="Move to trash" danger
+          onConfirm={async () => {
+            try { await deleteGoal(deletePending.id); setDeletePending(null); load() }
+            catch (err) { notify(err.message); setDeletePending(null) }
+          }}
+          onClose={() => setDeletePending(null)} />
       )}
     </div>
   )
