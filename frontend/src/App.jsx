@@ -66,6 +66,7 @@ export default function App() {
       <nav aria-label="Main navigation">{['Do', 'Reflect'].map(group => <div className="nav-section" key={group}><p className="nav-caption">{group}</p>{NAV_ITEMS.filter(n => n.group === group).map(navLink)}</div>)}</nav>
       <div className="sidebar-bottom">
         <button className="nav-link" onClick={() => setShowReview(true)}><Icon name="review"/>Weekly review</button>
+        <button className="nav-link" onClick={() => setShowTrash(true)}><Icon name="trash"/>Trash</button>
         <button className="nav-link" onClick={() => setShowSettings(true)}><Icon name="settings"/>Settings</button>
         <div className="sidebar-foot"><BasiraMark className="w-5 h-5"/><span>A little more clarity, every day.</span></div>
       </div>
@@ -99,7 +100,7 @@ export default function App() {
     </Suspense>
     {showAddTask && <AddTaskModal initialGoalId={goalId} onClose={() => setShowAddTask(false)} onCreateGoal={() => { setShowAddTask(false); navigate('goals') }}/>}
     {showCommand && <CommandMenu onClose={() => setShowCommand(false)} onNavigate={navigate} onAdd={() => { setShowCommand(false); setShowAddTask(true) }} onReview={() => { setShowCommand(false); setShowReview(true) }} onSettings={() => { setShowCommand(false); setShowSettings(true) }} onTheme={() => { setShowCommand(false); toggleTheme() }} theme={theme}/>}
-    {showMore && <Modal title="Your workspace" onClose={() => setShowMore(false)}><div className="command-list">{NAV_ITEMS.filter(n => !['today', 'goals', 'work'].includes(n.id)).map(n => <button key={n.id} onClick={() => navigate(n.id)}><Icon name={n.id}/>{n.label}</button>)}<button onClick={() => { setShowMore(false); setShowReview(true) }}><Icon name="review"/>Weekly review</button><button onClick={() => { setShowMore(false); setShowTrash(true) }}><Icon name="close"/>Trash</button><button onClick={() => { setShowMore(false); setShowSettings(true) }}><Icon name="settings"/>Settings</button></div></Modal>}
+    {showMore && <Modal title="Your workspace" onClose={() => setShowMore(false)}><div className="command-list">{NAV_ITEMS.filter(n => !['today', 'goals', 'work'].includes(n.id)).map(n => <button key={n.id} onClick={() => navigate(n.id)}><Icon name={n.id}/>{n.label}</button>)}<button onClick={() => { setShowMore(false); setShowReview(true) }}><Icon name="review"/>Weekly review</button><button onClick={() => { setShowMore(false); setShowTrash(true) }}><Icon name="trash"/>Trash</button><button onClick={() => { setShowMore(false); setShowSettings(true) }}><Icon name="settings"/>Settings</button></div></Modal>}
     {tab !== 'today' && <TimerWidget/>}
     <Notice/>
   </div></TimerProvider>

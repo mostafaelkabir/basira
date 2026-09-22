@@ -1,6 +1,6 @@
-import { notify } from './components/Notice'
+import { notify, notifyAction } from './components/Notice'
 import { useEffect, useState } from 'react'
-import { addProof, completeTask, createTask, deleteTask, getGoal, getGoals, getTimerToday, logManualTime, pinTask, reorderTasks, updateTask, uploadProofFile, uploadProofImage } from './api'
+import { addProof, completeTask, createTask, deleteTask, getGoal, getGoals, getTimerToday, logManualTime, pinTask, reorderTasks, updateTask, uploadProofFile, uploadProofImage, restoreTrashItem } from './api'
 import { useTimer } from './TimerContext'
 import EstimatedTimePicker, { formatDuration } from './components/EstimatedTimePicker'
 import { ActivityComments } from './components/ActivityComposer'
@@ -562,8 +562,11 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
           message={`“${deleteTaskPending.title}” and any sub-tasks will move to the trash. You can restore them within 30 days.`}
           confirmLabel="Move to trash" danger
           onConfirm={async () => {
-            try { await deleteTask(deleteTaskPending.id); setDeleteTaskPending(null); load() }
-            catch (err) { notify(err.message); setDeleteTaskPending(null) }
+            const { id, title } = deleteTaskPending
+            try {
+              await deleteTask(id); setDeleteTaskPending(null); load()
+              notifyAction(`“${title}” moved to trash`, 'Undo', () => restoreTrashItem('task', id).then(load).catch(e => notify(e.message)))
+            } catch (err) { notify(err.message); setDeleteTaskPending(null) }
           }}
           onClose={() => setDeleteTaskPending(null)} />
       )}

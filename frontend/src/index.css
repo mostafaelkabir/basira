@@ -255,6 +255,8 @@ button:active:not(:disabled) { transform: translateY(0) scale(.99); }
 .command-footer { display: flex; gap: 16px; padding: 10px 12px 4px; border-top: 1px solid rgb(var(--border)); margin-top: 6px; font-size: 11px; color: rgb(var(--faint)); }
 .notice { position: fixed; bottom: 25px; right: 25px; max-width: 430px; padding: 16px; border: 1px solid rgb(var(--warning) / .4); border-left: 3px solid rgb(var(--warning)); background: rgb(var(--overlay) / .92); color: rgb(var(--ink)); border-radius: 14px; box-shadow: var(--shadow-float); display: flex; gap: 12px; z-index: 100; font-size: 13px; animation: dialog-in .25s var(--ease-out); }
 .notice p { color: rgb(var(--muted)); margin-top: 5px; }
+.notice-action { align-self: center; flex-shrink: 0; font-size: 12px; font-weight: 600; color: rgb(var(--accent)); padding: 6px 12px; border-radius: 10px; border: 1px solid rgb(var(--accent) / .4); background: rgb(var(--accent) / .08); transition: background .15s; }
+.notice-action:hover { background: rgb(var(--accent) / .16); }
 .field-input { width: 100%; border: 1px solid rgb(var(--border)); background: rgb(var(--canvas)); border-radius: 10px; padding: 12px; font-size: 14px; }
 
 /* ───────────────────────── Timer dock ───────────────────────── */

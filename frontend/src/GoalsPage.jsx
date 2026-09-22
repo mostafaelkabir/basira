@@ -1,6 +1,6 @@
-import { notify } from './components/Notice'
+import { notify, notifyAction } from './components/Notice'
 import { useEffect, useRef, useState } from 'react'
-import { archiveGoal, createGoal, deleteGoal, getGoals, unarchiveGoal, updateGoal, uploadGoalIcon } from './api'
+import { archiveGoal, createGoal, deleteGoal, getGoals, unarchiveGoal, updateGoal, uploadGoalIcon, restoreTrashItem } from './api'
 import Modal from './components/Modal'
 import ConfirmDialog from './components/ConfirmDialog'
 
@@ -405,8 +405,11 @@ export default function GoalsPage({ onSelectGoal }) {
           message={`“${deletePending.title}” and its tasks will move to the trash. You can restore them within 30 days.`}
           confirmLabel="Move to trash" danger
           onConfirm={async () => {
-            try { await deleteGoal(deletePending.id); setDeletePending(null); load() }
-            catch (err) { notify(err.message); setDeletePending(null) }
+            const { id, title } = deletePending
+            try {
+              await deleteGoal(id); setDeletePending(null); load()
+              notifyAction(`“${title}” moved to trash`, 'Undo', () => restoreTrashItem('goal', id).then(load).catch(e => notify(e.message)))
+            } catch (err) { notify(err.message); setDeletePending(null) }
           }}
           onClose={() => setDeletePending(null)} />
       )}
