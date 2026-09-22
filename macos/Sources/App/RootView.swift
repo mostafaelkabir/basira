@@ -22,7 +22,7 @@ struct WebContainer: NSViewRepresentable {
     func updateNSView(_ nsView: WKWebView, context: Context) {}
 }
 
-/// Shown when the launchd backend service is not answering on port 8001.
+/// Shown when the launchd backend service is not answering.
 struct OfflineView: View {
     let retry: () -> Void
     var body: some View {
@@ -32,7 +32,7 @@ struct OfflineView: View {
                 .foregroundStyle(.secondary)
             Text("Basira backend is not running")
                 .font(.headline)
-            Text("Start the service, then retry.\nlaunchctl load ~/Library/LaunchAgents/com.sysgo.backend.plist")
+            Text("Start the service, then retry.\nlaunchctl kickstart -k gui/$UID/com.basira.backend")
                 .font(.system(.caption, design: .monospaced))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)

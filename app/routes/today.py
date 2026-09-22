@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import and_
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
@@ -22,7 +23,7 @@ from app.schemas.today import FocusTaskRead, HabitItem, ProjectSummary, TodayRes
 
 router = APIRouter(prefix="/today", tags=["today"])
 
-ACTIVE = Goal.archived_at.is_(None)
+ACTIVE = and_(Goal.archived_at.is_(None), Goal.trashed_at.is_(None))
 
 
 def _per_day(frequency: str | None) -> int:
@@ -62,6 +63,8 @@ def get_monthly_checkins(task_id: str, db: Session) -> list[str]:
 
 
 def _not_deferred(task: Task, today: str) -> bool:
+    if task.trashed_at is not None:   # trashed tasks are hidden everywhere
+        return False
     return task.deferred_until is None or task.deferred_until <= today
 
 
@@ -204,7 +207,7 @@ def get_today(db: Session = Depends(get_db)):
     focus_rows = (
         db.query(Task)
         .join(Goal, Task.goal_id == Goal.id)
-        .filter(Task.pinned_date == today, ACTIVE)
+        .filter(Task.pinned_date == today, Task.trashed_at.is_(None), ACTIVE)
         .options(joinedload(Task.proofs), joinedload(Task.comments), joinedload(Task.goal))
         .order_by(Task.sort_order)
         .all()
@@ -241,7 +244,7 @@ def get_today(db: Session = Depends(get_db)):
     habits = []
     for goal in resolution_goals:
         for task in goal.tasks:
-            if task.status == "done":
+            if task.status == "done" or task.trashed_at is not None:
                 continue
             per_day = _per_day(task.habit_frequency)
             log = (

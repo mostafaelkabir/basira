@@ -12,8 +12,9 @@ router = APIRouter(prefix="/work-suggestions", tags=["work suggestions"])
 @router.get("")
 def get_work_suggestions(
     q: str = Query("", description="Partial title / reference / client / project / tag"),
-    limit: int = Query(5, ge=1, le=50),
+    limit: int = Query(5, ge=1, le=200),
     show_all: bool = False,
+    source: str | None = Query(None, description="Restrict to one source: ticket | task | worklog"),
     db: Session = Depends(get_db),
 ):
-    return suggest_work(db, q, limit=limit, show_all=show_all)
+    return suggest_work(db, q, limit=limit, show_all=show_all, source=source)

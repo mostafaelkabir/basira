@@ -122,6 +122,22 @@ class WorkSuggestionsTests(unittest.TestCase):
         self.assertFalse(alld['has_more'])
         self.assertEqual(alld['total'], len(alld['suggestions']))
 
+    def test_browse_empty_query_lists_all(self):
+        # Empty query browses everything non-done; in-progress ranks first.
+        data = self.suggest('', show_all=True)
+        keys = {s['key'] for s in data['suggestions']}
+        self.assertIn('ticket:contains', keys)      # in_progress ticket
+        self.assertIn('task:task-live', keys)
+        self.assertNotIn('ticket:done', keys)        # done excluded
+        self.assertNotIn('task:task-old', keys)      # archived goal excluded
+
+    def test_browse_source_filter(self):
+        tasks = self.suggest('', show_all=True, source='task')
+        self.assertTrue(tasks['suggestions'])
+        self.assertTrue(all(s['source'] == 'task' for s in tasks['suggestions']))
+        tickets = self.suggest('', show_all=True, source='ticket')
+        self.assertTrue(all(s['source'] == 'ticket' for s in tickets['suggestions']))
+
     def test_reads_do_not_write(self):
         self.suggest('export', show_all=True)
         with Session(self.engine) as db:

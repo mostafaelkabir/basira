@@ -1,7 +1,15 @@
 import Foundation
 
 enum WidgetBackend {
-    static let baseURL = URL(string: "http://localhost:8001")!
+    /// Installed on a non-default port? The widget is its own process, so it
+    /// reads its own preference domain:
+    ///   defaults write com.sysgo.Basira.Widget BasiraPort -int 8002
+    static let port: Int = {
+        let stored = UserDefaults.standard.integer(forKey: "BasiraPort")
+        return stored > 0 ? stored : 8001
+    }()
+
+    static let baseURL = URL(string: "http://localhost:\(port)")!
 }
 
 /// Minimal subset of a task as returned by /today (focus and daily arrays).

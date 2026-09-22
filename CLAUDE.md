@@ -29,6 +29,11 @@ The backend auto-runs DB migrations on every start — no manual Alembic needed.
 
 The backend runs as a launchd service so it stays alive regardless of terminal state.
 
+> On a fresh machine, `./install.sh` does all of this for you (deps, frontend build,
+> `.env`, and a `com.basira.backend` agent). The plist below is the legacy
+> `com.sysgo.backend` agent on this dev machine — the two share port 8001, so run
+> only one of them.
+
 **Plist location:** `~/Library/LaunchAgents/com.sysgo.backend.plist`
 
 ```xml

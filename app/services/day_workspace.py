@@ -36,6 +36,7 @@ from sqlalchemy.orm import Session
 from app.models.company import Company
 from app.models.goal import Goal
 from app.models.habit_log import HabitLog
+from app.models.setting import Setting
 from app.models.task import Task
 from app.models.work_log import WorkLog
 from app.models.work_session import WorkSession
@@ -307,7 +308,8 @@ def _agenda(db: Session, day: date, recorded_by_key: dict[str, int],
     tasks = (
         db.query(Task).join(Goal, Task.goal_id == Goal.id)
         .filter(
-            Goal.archived_at.is_(None),
+            Goal.archived_at.is_(None), Goal.trashed_at.is_(None),
+            Task.trashed_at.is_(None),
             (Task.plan_date == day_iso) | (Task.pinned_date == day_iso),
             Task.parent_task_id.is_(None),
         ).all()
@@ -383,9 +385,9 @@ def _routines(db: Session, day: date) -> dict[str, list[dict]]:
         "morning": [], "afternoon": [], "evening": [], "anytime": [],
     }
     goals = (
-        db.query(Goal).filter(Goal.type == "resolution", Goal.archived_at.is_(None)).all()
+        db.query(Goal).filter(Goal.type == "resolution", Goal.archived_at.is_(None), Goal.trashed_at.is_(None)).all()
     )
-    goal_task_ids = [t.id for g in goals for t in g.tasks if t.status != "done"]
+    goal_task_ids = [t.id for g in goals for t in g.tasks if t.status != "done" and t.trashed_at is None]
     log_counts: dict[str, int] = {}
     if goal_task_ids:
         for row in (
@@ -395,7 +397,7 @@ def _routines(db: Session, day: date) -> dict[str, list[dict]]:
             log_counts[row.task_id] = row.count or 0
     for g in goals:
         for t in g.tasks:
-            if t.status == "done":
+            if t.status == "done" or t.trashed_at is not None:
                 continue
             target = _per_day(t.habit_frequency)
             count = log_counts.get(t.id, 0)
@@ -409,6 +411,32 @@ def _routines(db: Session, day: date) -> dict[str, list[dict]]:
     for items in buckets.values():
         items.sort(key=lambda h: (h["scheduled_time"] or "99:99", h["title"]))
     return buckets
+
+
+def _hhmm_to_min(hhmm: str, fallback: int) -> int:
+    try:
+        h, m = hhmm.split(":")
+        return int(h) * 60 + int(m)
+    except (ValueError, AttributeError):
+        return fallback
+
+
+def _capacity(db: Session) -> dict:
+    """The configured day window and available minutes after the buffer (BAS-031)."""
+    settings = {s.key: s.value for s in db.query(Setting).all()}
+    day_start = settings.get("day_start", "09:00")
+    day_end = settings.get("day_end", "18:00")
+    start = _hhmm_to_min(day_start, 540)
+    end = _hhmm_to_min(day_end, 1080)
+    try:
+        buffer_pct = float(settings.get("buffer_pct", "15"))
+    except (ValueError, TypeError):
+        buffer_pct = 15.0
+    window = max(0, end - start)
+    return {
+        "available_minutes": int(round(window * (1 - buffer_pct / 100))),
+        "day_start": day_start, "day_end": day_end, "buffer_pct": int(buffer_pct),
+    }
 
 
 def build_day_workspace(db: Session, day: date, tz: ZoneInfo, as_of: datetime) -> dict:
@@ -441,6 +469,7 @@ def build_day_workspace(db: Session, day: date, tz: ZoneInfo, as_of: datetime) -
 
     recorded_seconds = sum(e["seconds"] for e in entries)
     live_seconds = sum(t["elapsed_seconds"] for t in timers)
+    cap = _capacity(db)
 
     return {
         "date": day.isoformat(),
@@ -450,6 +479,11 @@ def build_day_workspace(db: Session, day: date, tz: ZoneInfo, as_of: datetime) -
             "recorded_seconds": recorded_seconds,
             "live_seconds": live_seconds,
             "planned_minutes": planned_minutes,
+            "available_minutes": cap["available_minutes"],
+            "over_minutes": max(0, planned_minutes - cap["available_minutes"]),
+            "day_start": cap["day_start"],
+            "day_end": cap["day_end"],
+            "buffer_pct": cap["buffer_pct"],
         },
         "recorded": entries,
         "by_project": by_project,

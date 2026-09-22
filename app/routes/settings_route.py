@@ -10,6 +10,10 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 DEFAULTS = {
     "reminder_enabled": "true",
     "reminder_time": "21:00",
+    # Capacity-aware planning (BAS-031)
+    "day_start": "09:00",
+    "day_end": "18:00",
+    "buffer_pct": "15",
 }
 
 
@@ -29,6 +33,9 @@ def read_settings(db: Session = Depends(get_db)) -> dict:
 class SettingsUpdate(BaseModel):
     reminder_enabled: bool | None = None
     reminder_time: str | None = None  # HH:MM
+    day_start: str | None = None      # HH:MM
+    day_end: str | None = None        # HH:MM
+    buffer_pct: int | None = None     # 0–100
 
 
 @router.patch("")

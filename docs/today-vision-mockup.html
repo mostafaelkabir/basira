@@ -1,0 +1,478 @@
+<title>Basira Today Vision</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --canvas: #f2f6f3; --surface: #ffffff; --raised: #e9f0ec; --border: #d5dfd9; --border-strong: #b9c8bf;
+    --ink: #0e1f18; --muted: #5b6f66; --faint: #93a59c;
+    --accent: #0f7a55; --accent-soft: rgba(15,122,85,.10); --on-accent: #ffffff;
+    --forest: #0f5a3e; --gold: #a97b1f; --gold-soft: rgba(212,166,74,.16);
+    --amber: #b45309; --amber-soft: rgba(217,119,6,.12);
+    --blue: #2563eb; --violet: #7c3aed;
+    --glow: 0 0 0 1px rgba(15,122,85,.25), 0 8px 24px rgba(15,122,85,.12);
+    --note: #7c3aed; --note-soft: rgba(124,58,237,.10);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --canvas: #0a1410; --surface: #0f1d18; --raised: #15261f; --border: #1f332a; --border-strong: #2c4538;
+      --ink: #e6f0ea; --muted: #8fa79a; --faint: #5c7368;
+      --accent: #34d399; --accent-soft: rgba(52,211,153,.12); --on-accent: #06281c;
+      --forest: #0f5a3e; --gold: #d4a64a; --gold-soft: rgba(212,166,74,.14);
+      --amber: #f59e0b; --amber-soft: rgba(245,158,11,.14);
+      --blue: #60a5fa; --violet: #a78bfa;
+      --glow: 0 0 0 1px rgba(52,211,153,.35), 0 8px 28px rgba(52,211,153,.18);
+      --note: #c4b5fd; --note-soft: rgba(167,139,250,.14);
+    }
+  }
+  :root[data-theme="dark"] {
+    --canvas: #0a1410; --surface: #0f1d18; --raised: #15261f; --border: #1f332a; --border-strong: #2c4538;
+    --ink: #e6f0ea; --muted: #8fa79a; --faint: #5c7368;
+    --accent: #34d399; --accent-soft: rgba(52,211,153,.12); --on-accent: #06281c;
+    --forest: #0f5a3e; --gold: #d4a64a; --gold-soft: rgba(212,166,74,.14);
+    --amber: #f59e0b; --amber-soft: rgba(245,158,11,.14);
+    --blue: #60a5fa; --violet: #a78bfa;
+    --glow: 0 0 0 1px rgba(52,211,153,.35), 0 8px 28px rgba(52,211,153,.18);
+    --note: #c4b5fd; --note-soft: rgba(167,139,250,.14);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--canvas); color: var(--ink); font-family: Inter, system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.45; padding-inline: 16px; padding-block: 24px 64px; }
+  .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+  .wrap { max-width: 1160px; margin: 0 auto; }
+  h1, h2, h3, p { margin: 0; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ── intro ── */
+  .intro { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 28px; align-items: end; margin-bottom: 28px; }
+  .intro h1 { font-size: 26px; font-weight: 700; letter-spacing: -.01em; text-wrap: balance; }
+  .intro p { color: var(--muted); max-width: 62ch; margin-top: 8px; }
+  .legend { display: grid; gap: 6px; font-size: 12px; color: var(--muted); }
+  .legend div { display: flex; gap: 8px; align-items: baseline; }
+  .tag { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 6px; background: var(--note-soft); color: var(--note); font-family: "JetBrains Mono", monospace; font-size: 11px; font-weight: 600; flex-shrink: 0; }
+
+  /* ── frame that pretends to be the app content area ── */
+  .frame { border: 1px solid var(--border); border-radius: 20px; background: var(--surface); box-shadow: 0 1px 0 rgba(0,0,0,.03), 0 20px 50px rgba(0,0,0,.08); overflow: hidden; }
+  .frame-top { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--raised); font-size: 12px; color: var(--muted); }
+  .frame-top .dots { display: flex; gap: 5px; }
+  .frame-top .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--border-strong); display: block; }
+  .frame-top .crumb { flex: 1; }
+  .frame-top .toggle { display: flex; gap: 6px; }
+  .frame-top .toggle button { padding: 4px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 12px; }
+  .frame-top .toggle button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+
+  .page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .page.planning { grid-template-columns: minmax(0, 1fr) 340px; }
+  .main { padding: 24px 24px 28px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+
+  .zone { position: relative; }
+  .zone > .tag { position: absolute; left: -8px; top: -8px; z-index: 2; box-shadow: 0 0 0 3px var(--surface); }
+
+  .eyebrow { font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .eyebrow::before { content: "— "; color: var(--faint); }
+
+  /* A header */
+  .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .head h2 { font-size: 26px; font-weight: 700; letter-spacing: -.01em; margin-top: 2px; }
+  .head-actions { display: flex; gap: 8px; align-items: center; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 12px; font-size: 13px; font-weight: 500; border: 1px solid var(--border); background: var(--surface); }
+  .btn kbd { font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 1px 4px; }
+  .btn.primary { background: var(--forest); color: #fff; border-color: transparent; box-shadow: 0 6px 18px rgba(15,90,62,.25); }
+  .btn.ghost { border-color: transparent; color: var(--muted); }
+
+  /* B now strip */
+  .now { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; padding: 14px 16px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--glow); }
+  .now .left { display: grid; gap: 8px; min-width: 0; }
+  .now .title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .now .title strong { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .now .title .parent { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); flex-shrink: 0; }
+  .dot.live { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 3px var(--accent-soft);} 50% { box-shadow: 0 0 0 6px var(--accent-soft);} }
+  @media (prefers-reduced-motion: reduce) { .dot.live { animation: none; } }
+  .elapsed { display: flex; align-items: center; gap: 12px; }
+  .elapsed .big { font-size: 22px; font-weight: 600; }
+  .elapsed .of { color: var(--muted); font-size: 12px; }
+  .bar { height: 6px; border-radius: 999px; background: var(--raised); overflow: hidden; flex: 1; min-width: 80px; }
+  .bar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+  .bar.warn i { background: var(--amber); }
+  .now .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border-radius: 10px; background: var(--raised); font-size: 12px; font-weight: 500; }
+  .chip.accent { background: var(--accent-soft); color: var(--accent); }
+  .now .right { border-left: 1px solid var(--border); padding-left: 16px; display: grid; gap: 6px; align-content: center; min-width: 0; }
+  .now .right .next { display: flex; align-items: baseline; gap: 8px; }
+  .now .right .next strong { font-weight: 600; }
+  .now .right .in { color: var(--muted); font-size: 12px; }
+
+  /* C capacity */
+  .capacity { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 70%, transparent); font-size: 12px; color: var(--muted); }
+  .capacity .num { color: var(--ink); }
+  .capacity .bar { max-width: 220px; height: 8px; }
+  .capacity .bar i { background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 60%, var(--gold))); }
+  .capacity .details { margin-left: auto; color: var(--accent); }
+
+  /* D routine */
+  .routine { display: flex; align-items: center; gap: 8px; overflow-x: auto; padding: 4px 2px 6px; scrollbar-width: thin; }
+  .routine .eyebrow { flex-shrink: 0; margin-left: 12px; }
+  .habit { display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px 6px 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); font-size: 12px; white-space: nowrap; flex-shrink: 0; }
+  .habit .box { width: 14px; height: 14px; border-radius: 5px; border: 1.5px solid var(--border-strong); display: inline-flex; align-items: center; justify-content: center; font-size: 9px; }
+  .habit.done { color: var(--muted); }
+  .habit.done .box { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .habit .t { color: var(--faint); font-family: "JetBrains Mono", monospace; font-size: 10px; }
+  .habit.more { border-style: dashed; color: var(--muted); }
+
+  /* E plan */
+  .plan { border: 1px solid var(--border); border-radius: 16px; background: var(--surface); padding: 6px 16px 10px; }
+  .plan .group { padding: 8px 0 4px; }
+  .plan .group + .group { border-top: 1px solid var(--border); }
+  .plan .group-title { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+  .plan .group-title .star { color: var(--gold); }
+  .row { display: grid; grid-template-columns: 96px 1fr auto; gap: 12px; align-items: center; padding: 9px 0; position: relative; }
+  .row + .row { border-top: 1px solid var(--border); }
+  .row.active { margin: 0 -12px; padding-inline: 12px; border-radius: 12px; background: var(--accent-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent); }
+  .row.active + .row { border-top: 0; }
+  .row .time { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--ink); line-height: 1.3; }
+  .row .time span { color: var(--faint); display: block; }
+  .row .body { min-width: 0; display: grid; gap: 3px; }
+  .row .name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .row .name strong { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .src { font-family: "JetBrains Mono", monospace; font-size: 9px; letter-spacing: .06em; text-transform: uppercase; padding: 2px 5px; border-radius: 4px; background: var(--raised); color: var(--muted); flex-shrink: 0; }
+  .src.ticket { color: var(--blue); }
+  .src.habit { color: var(--gold); }
+  .row .meta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); flex-wrap: wrap; }
+  .row .meta .bar { max-width: 120px; height: 4px; }
+  .row .meta .rec { color: var(--accent); }
+  .row .acts { display: flex; gap: 4px; }
+  .row .acts button { font-size: 12px; color: var(--muted); padding: 4px 8px; border-radius: 8px; }
+  .row .acts button:hover { background: var(--raised); color: var(--ink); }
+  .row .acts button.go { color: var(--accent); }
+  .gap { display: flex; align-items: center; gap: 10px; color: var(--faint); font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 6px 0 6px 96px; }
+  .gap::before, .gap::after { content: ""; flex: 1; border-top: 1px dashed var(--border-strong); }
+  .gap::before { flex: 0 0 24px; }
+  .nowline { position: relative; height: 0; margin: 10px 0 8px; }
+  .nowline::before { content: "now 9:42"; position: absolute; left: 0; top: -8px; font-family: "JetBrains Mono", monospace; font-size: 9px; color: var(--accent); background: var(--surface); padding-right: 6px; }
+  .nowline::after { content: ""; position: absolute; left: 60px; right: 0; top: -1px; border-top: 1.5px solid var(--accent); opacity: .7; }
+  .row.thin { padding: 5px 0; opacity: .8; }
+  .row.thin .name strong { font-weight: 400; font-size: 13px; }
+  .row.conflict .time { color: var(--amber); }
+  .warn-pill { display: inline-flex; gap: 4px; align-items: center; font-size: 10px; color: var(--amber); background: var(--amber-soft); padding: 2px 6px; border-radius: 6px; }
+  .compose { display: flex; align-items: center; gap: 10px; margin: 8px 0 4px 96px; padding: 9px 12px; border: 1px dashed var(--border-strong); border-radius: 12px; color: var(--faint); font-size: 13px; }
+  .compose .k { margin-left: auto; font-family: "JetBrains Mono", monospace; font-size: 10px; }
+  .done-toggle { display: flex; justify-content: space-between; padding: 8px 0 2px; font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+
+  /* F close */
+  .close { border: 1px solid var(--border); border-radius: 16px; background: linear-gradient(180deg, var(--gold-soft), transparent 70%), var(--surface); padding: 16px; display: grid; gap: 12px; }
+  .close .top { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: baseline; }
+  .close .top h3 { font-size: 15px; font-weight: 600; }
+  .close .top .when { font-size: 11px; color: var(--muted); }
+  .close .sum { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .close .sum b { color: var(--ink); font-weight: 600; }
+  .close .unfinished { display: grid; gap: 6px; }
+  .close .u { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); }
+  .close .u .acts { display: flex; gap: 4px; }
+  .close .u .acts button { font-size: 12px; padding: 4px 8px; border-radius: 8px; background: var(--raised); }
+  .close .u .acts button.carry { background: var(--accent-soft); color: var(--accent); }
+  .close .reflect { display: flex; gap: 8px; align-items: center; }
+  .close .reflect .in { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; color: var(--faint); font-size: 13px; background: var(--surface); }
+
+  /* plan panel */
+  .panel { border-left: 1px solid var(--border); background: var(--raised); padding: 20px 18px; display: grid; gap: 14px; align-content: start; }
+  .panel[hidden] { display: none; }
+  .panel .ph { display: flex; justify-content: space-between; align-items: center; }
+  .panel .ph h3 { font-size: 14px; font-weight: 600; }
+  .panel .ph button { font-size: 12px; color: var(--muted); }
+  .panel .search { display: flex; gap: 8px; align-items: center; padding: 9px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; color: var(--faint); font-size: 13px; }
+  .sg { display: grid; gap: 6px; }
+  .sg .sgt { display: flex; justify-content: space-between; align-items: baseline; }
+  .sg .sgt .n { font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--faint); }
+  .s { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+  .s .st { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .s .sm { font-size: 11px; color: var(--muted); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .s .sm .why { color: var(--accent); }
+  .s .sa { display: flex; gap: 4px; align-items: center; }
+  .s .sa .dur { font-family: "JetBrains Mono", monospace; font-size: 11px; padding: 3px 6px; border: 1px solid var(--border); border-radius: 6px; color: var(--ink); }
+  .s .sa button { font-size: 11px; padding: 4px 7px; border-radius: 7px; color: var(--muted); }
+  .s .sa button.p { color: var(--accent); }
+  .s .sa button.x { color: var(--faint); }
+  .older { display: flex; justify-content: space-between; padding: 8px 10px; border: 1px dashed var(--border-strong); border-radius: 12px; font-size: 12px; color: var(--muted); }
+  .hint { font-size: 11px; color: var(--muted); padding: 8px 10px; border-radius: 10px; background: var(--note-soft); color: var(--note); }
+
+  /* notes below */
+  .notes { margin-top: 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .note { padding: 14px 16px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); display: grid; gap: 6px; align-content: start; }
+  .note .nt { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px; }
+  .note p { font-size: 12.5px; color: var(--muted); }
+  .note p b { color: var(--ink); font-weight: 500; }
+
+  @media (max-width: 860px) {
+    .intro { grid-template-columns: 1fr; }
+    .page.planning { grid-template-columns: 1fr; }
+    .panel { border-left: 0; border-top: 1px solid var(--border); }
+    .now { grid-template-columns: 1fr; }
+    .now .right { border-left: 0; border-top: 1px solid var(--border); padding-left: 0; padding-top: 10px; }
+  }
+  @media (max-width: 560px) {
+    .main { padding: 16px 14px 20px; }
+    .row { grid-template-columns: 64px 1fr; }
+    .row .acts { grid-column: 2; justify-content: flex-start; }
+    .gap, .compose { padding-left: 0; margin-left: 0; }
+    .head h2 { font-size: 22px; }
+    .zone > .tag { left: -4px; }
+  }
+</style>
+
+<div class="wrap">
+  <section class="intro">
+    <div>
+      <p class="eyebrow">Proposal · September 20, 2026</p>
+      <h1>Basira Today, redesigned around the four moments of a day</h1>
+      <p>A static mockup of the future Today page from <code>docs/TODAY_PAGE_VISION.md</code>. Sample data is illustrative. Use the switch in the frame to see the page with the inline planning panel open.</p>
+    </div>
+    <div class="legend">
+      <div><span class="tag">A</span> Header: one composer, one plan toggle</div>
+      <div><span class="tag">B</span> Now / Next strip, sticky, replaces the floating timer</div>
+      <div><span class="tag">C</span> Capacity: planned against available time</div>
+      <div><span class="tag">D</span> Routine strip: habits as chips, not agenda rows</div>
+      <div><span class="tag">E</span> The one schedule: work only, with main outcome, gaps, now marker</div>
+      <div><span class="tag">F</span> Close the day: carry or drop, deliberately</div>
+    </div>
+  </section>
+
+  <div class="frame">
+    <div class="frame-top">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="crumb">Your workspace / Today</div>
+      <div class="toggle" role="group" aria-label="Mockup state">
+        <button id="state-work" aria-pressed="true">Working</button>
+        <button id="state-plan" aria-pressed="false">Plan mode</button>
+      </div>
+    </div>
+
+    <div class="page" id="page">
+      <div class="main">
+
+        <!-- A -->
+        <div class="zone head">
+          <span class="tag">A</span>
+          <div>
+            <p class="eyebrow">Today</p>
+            <h2>Sunday, Sep 20</h2>
+          </div>
+          <div class="head-actions">
+            <button class="btn ghost">Review</button>
+            <button class="btn">Find or add <kbd>⌘K</kbd></button>
+            <button class="btn primary" id="plan-btn">Plan day</button>
+          </div>
+        </div>
+
+        <!-- B -->
+        <div class="zone now">
+          <span class="tag">B</span>
+          <div class="left">
+            <div class="title">
+              <span class="dot live"></span>
+              <span class="src ticket">Ticket</span>
+              <strong>Export model · ALPHA-24</strong>
+              <span class="parent">Project Alpha · Acme</span>
+            </div>
+            <div class="elapsed">
+              <span class="big mono">42:10</span>
+              <span class="of">of 60m planned</span>
+              <div class="bar"><i style="width:70%"></i></div>
+            </div>
+            <div class="actions">
+              <button class="chip">❚❚ Pause</button>
+              <button class="chip accent">✓ Done</button>
+              <button class="chip">Switch ▾</button>
+              <button class="chip">Note</button>
+            </div>
+          </div>
+          <div class="right">
+            <p class="eyebrow">Next</p>
+            <div class="next"><span class="mono">10:15</span><strong>Basira design</strong></div>
+            <p class="in">Basira Improvements · 90m · starts in 33m</p>
+          </div>
+        </div>
+
+        <!-- C -->
+        <div class="zone capacity">
+          <span class="tag">C</span>
+          <span>Planned <span class="num mono">5h 30m</span> of <span class="num mono">7h</span> available</span>
+          <div class="bar"><i style="width:79%"></i></div>
+          <span>buffer 15%</span>
+          <span>·</span>
+          <span>Worked <span class="num mono">2h 10m</span> <span style="color:var(--accent)">+42m live</span></span>
+          <span class="details">Details →</span>
+        </div>
+
+        <!-- D -->
+        <div class="zone routine">
+          <span class="tag">D</span>
+          <span class="eyebrow">Routine 4/11</span>
+          <span class="habit done"><span class="box">✓</span>Memorize 2 thomns <span class="t">7:55</span></span>
+          <span class="habit done"><span class="box">✓</span>Read 5 pages</span>
+          <span class="habit"><span class="box"></span>50 pushups <span class="t">5:54p</span></span>
+          <span class="habit"><span class="box"></span>Soccer / cardio <span class="t">5:53p</span></span>
+          <span class="habit"><span class="box"></span>Reflect on the Quran <span class="t">9:37p</span></span>
+          <span class="habit"><span class="box"></span>Journal</span>
+          <span class="habit more">▾ 5 more</span>
+        </div>
+
+        <!-- E -->
+        <div class="zone plan">
+          <span class="tag">E</span>
+
+          <div class="group">
+            <div class="group-title"><span class="eyebrow">Main outcome</span><span class="star">★</span></div>
+            <div class="row active">
+              <div class="time">09:00<span>– 10:00</span></div>
+              <div class="body">
+                <div class="name"><span class="src ticket">Ticket</span><strong>Export model · ALPHA-24</strong></div>
+                <div class="meta"><span>Project Alpha · Acme</span><span>·</span><span>60m</span><div class="bar"><i style="width:70%"></i></div><span class="rec">● 42m live</span></div>
+              </div>
+              <div class="acts"><button>Pause</button><button class="go">Done</button><button>⋯</button></div>
+            </div>
+          </div>
+
+          <div class="nowline"></div>
+
+          <div class="group">
+            <div class="group-title"><span class="eyebrow">Supporting</span></div>
+            <div class="row">
+              <div class="time">10:15<span>– 11:45</span></div>
+              <div class="body">
+                <div class="name"><span class="src ticket">Ticket</span><strong>Basira design: inline plan panel</strong></div>
+                <div class="meta"><span>Basira Improvements</span><span>·</span><span>90m</span><div class="bar"><i style="width:0%"></i></div></div>
+              </div>
+              <div class="acts"><button class="go">Start</button><button>Done</button><button>⋯</button></div>
+            </div>
+            <div class="gap">45m open</div>
+            <div class="row">
+              <div class="time">12:30<span>– 13:00</span></div>
+              <div class="body">
+                <div class="name"><span class="src">Task</span><strong>Track job applications</strong></div>
+                <div class="meta"><span>Get a rewarding job</span><span>·</span><span>30m</span><div class="bar"><i style="width:35%"></i></div><span class="rec">10m recorded</span></div>
+              </div>
+              <div class="acts"><button class="go">Start</button><button>Done</button><button>⋯</button></div>
+            </div>
+            <div class="row thin">
+              <div class="time">13:00<span>– 13:15</span></div>
+              <div class="body"><div class="name"><span class="src">Break</span><strong>Lunch</strong></div></div>
+              <div class="acts"></div>
+            </div>
+            <div class="row conflict">
+              <div class="time">13:10<span>– 14:10</span></div>
+              <div class="body">
+                <div class="name"><span class="src ticket">Ticket</span><strong>Investigate login failure</strong><span class="warn-pill">overlaps lunch by 5m</span></div>
+                <div class="meta"><span>Project Alpha · Acme</span><span>·</span><span>60m</span><div class="bar"><i style="width:0%"></i></div></div>
+              </div>
+              <div class="acts"><button class="go">Start</button><button>Done</button><button>⋯</button></div>
+            </div>
+
+          <div class="group">
+            <div class="group-title"><span class="eyebrow">Anytime · 2</span></div>
+            <div class="row">
+              <div class="time"><span>anytime</span></div>
+              <div class="body">
+                <div class="name"><span class="src">Task</span><strong>Reply to Shehab about turbo pain point</strong></div>
+                <div class="meta"><span>Libya trip</span><span>·</span><span>15m</span></div>
+              </div>
+              <div class="acts"><button class="go">Start</button><button>Done</button><button>⋯</button></div>
+            </div>
+            <div class="row">
+              <div class="time"><span>anytime</span></div>
+              <div class="body">
+                <div class="name"><span class="src ticket">Ticket</span><strong>Create table comparison between ideas</strong></div>
+                <div class="meta"><span>Unassigned</span><span>·</span><span>45m</span></div>
+              </div>
+              <div class="acts"><button class="go">Start</button><button>Done</button><button>⋯</button></div>
+            </div>
+            <div class="compose">＋ Type to find existing work or add something new… <span class="k">⌘K</span></div>
+          </div>
+
+          <div class="done-toggle"><span>Completed · 3</span><span>▾</span></div>
+        </div>
+
+        <!-- F -->
+        <div class="zone close">
+          <span class="tag">F</span>
+          <div class="top">
+            <h3>Close the day</h3>
+            <span class="when">Appears from 17:00, or once the plan is done</span>
+          </div>
+          <div class="sum">
+            <span>Worked <b class="mono">5h 02m</b></span>
+            <span>Alpha <b class="mono">3h 10m</b></span>
+            <span>Basira <b class="mono">1h 52m</b></span>
+            <span>Routine <b class="mono">7/11</b></span>
+            <span>3 unfinished</span>
+          </div>
+          <div class="unfinished">
+            <div class="u"><span>Track job applications · Get a rewarding job</span><div class="acts"><button class="carry">Carry to tomorrow</button><button>Drop</button><button>Reschedule</button></div></div>
+            <div class="u"><span>Investigate login failure · Alpha</span><div class="acts"><button class="carry">Carry to tomorrow</button><button>Drop</button><button>Reschedule</button></div></div>
+            <div class="u"><span>Create table comparison between ideas</span><div class="acts"><button class="carry">Carry to tomorrow</button><button>Drop</button><button>Reschedule</button></div></div>
+          </div>
+          <div class="reflect">
+            <span class="in">One line about today (optional)</span>
+            <button class="btn primary">Close day</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Plan panel (side panel on desktop, sheet on mobile) -->
+      <aside class="panel" id="panel" hidden aria-label="Plan day panel">
+        <div class="ph"><h3>Plan my day</h3><button id="panel-close">Done · Esc</button></div>
+        <div class="search">⌕ Find existing work or type a new title…</div>
+        <div class="hint">Drag any suggestion into the plan, or set a duration and press Plan. Capacity updates as you go.</div>
+
+        <div class="sg">
+          <div class="sgt"><span class="eyebrow">Resume</span><span class="n">3 in progress</span></div>
+          <div class="s"><div><div class="st">Create Offline HaramBlur AI system</div><div class="sm"><span class="why">In progress</span><span>·</span><span>Unassigned</span></div></div><div class="sa"><span class="dur">60m</span><button class="p">Plan</button><button class="x" title="Not today">✕</button></div></div>
+          <div class="s"><div><div class="st">Escalating waste-time alerts</div><div class="sm"><span class="why">In progress</span><span>·</span><span>Unassigned</span></div></div><div class="sa"><span class="dur">45m</span><button class="p">Plan</button><button class="x" title="Not today">✕</button></div></div>
+        </div>
+
+        <div class="sg">
+          <div class="sgt"><span class="eyebrow">Yesterday's plan</span><span class="n">2 carried</span></div>
+          <div class="s"><div><div class="st">Connect shared agenda to durable blocks</div><div class="sm"><span class="why">Carried from yesterday</span><span>·</span><span>Basira</span></div></div><div class="sa"><span class="dur">90m</span><button class="p">Plan</button><button class="x" title="Not today">✕</button></div></div>
+        </div>
+
+        <div class="sg">
+          <div class="sgt"><span class="eyebrow">Due this week</span><span class="n">1</span></div>
+          <div class="s"><div><div class="st">Track job applications</div><div class="sm"><span class="why">Due Tue</span><span>·</span><span>Get a rewarding job</span></div></div><div class="sa"><span class="dur">30m</span><button class="p">Plan</button><button class="x" title="Not today">✕</button></div></div>
+        </div>
+
+        <div class="older"><span>Older · 41 overdue more than 14 days</span><span>Show ▾</span></div>
+        <div class="hint">Batch hint: two Alpha items are 2h apart. Place them back to back?</div>
+      </aside>
+    </div>
+  </div>
+
+  <section class="notes">
+    <div class="note"><div class="nt"><span class="tag">B</span> The strip owns the timer</div><p>Built from the existing <b>active_timers</b> in the day workspace. Works for tasks, tickets and habits once the timer context calls the unified switch endpoint. The floating widget disappears on Today.</p></div>
+    <div class="note"><div class="nt"><span class="tag">C</span> A denominator, finally</div><p>Three new settings: day start, day end, buffer. Over-capacity turns the bar amber and says by how much. Today's planned duration is a <b>day block</b>, not the ticket's lifetime estimate.</p></div>
+    <div class="note"><div class="nt"><span class="tag">E</span> Timeline, not a list</div><p>Start and end, a thin progress bar, a now marker, labelled open gaps, and overlap warnings from the existing conflict preview. Every source gets the same three actions.</p></div>
+    <div class="note"><div class="nt"><span class="tag">F</span> Carry is a decision</div><p>Nothing carries forward silently. Carry, drop or reschedule each item; the carried list becomes tomorrow's first suggestion group. Four-month-old "carried over" labels stop existing.</p></div>
+    <div class="note"><div class="nt"><span class="tag">Plan</span> Suggestions you can face</div><p>Grouped by reason, capped per group, stale overdue collapsed under Older, and a <b>Not today</b> action. Planning opens beside the plan so you can see the day while you build it.</p></div>
+    <div class="note"><div class="nt"><span class="tag">D</span> Habits stay light</div><p>One row of chips with a count and a daily check mark each. A habit's usual time shows on its chip as a hint. Habits never appear on the timeline and are never timed; the schedule below is for work only.</p></div>
+  </section>
+</div>
+
+<script>
+  (function () {
+    var page = document.getElementById('page');
+    var panel = document.getElementById('panel');
+    var bWork = document.getElementById('state-work');
+    var bPlan = document.getElementById('state-plan');
+    function set(planning) {
+      page.classList.toggle('planning', planning);
+      panel.hidden = !planning;
+      bWork.setAttribute('aria-pressed', String(!planning));
+      bPlan.setAttribute('aria-pressed', String(planning));
+    }
+    bWork.addEventListener('click', function () { set(false); });
+    bPlan.addEventListener('click', function () { set(true); });
+    document.getElementById('plan-btn').addEventListener('click', function () { set(!page.classList.contains('planning')); });
+    document.getElementById('panel-close').addEventListener('click', function () { set(false); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') set(false); });
+  })();
+</script>

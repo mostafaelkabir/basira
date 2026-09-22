@@ -5,7 +5,7 @@ import Modal from './components/Modal'
 import Icon from './components/Icon'
 import { getThemePreference, setThemePreference } from './theme'
 
-export default function SettingsModal({ onClose }) {
+export default function SettingsModal({ onClose, onOpenTrash }) {
   const [settings, setSettings] = useState(null)
   const [saving, setSaving] = useState(false)
   const [themePref, setThemePref] = useState(getThemePreference)
@@ -22,6 +22,9 @@ export default function SettingsModal({ onClose }) {
       await updateSettings({
         reminder_enabled: settings.reminder_enabled === 'true',
         reminder_time: settings.reminder_time,
+        day_start: settings.day_start,
+        day_end: settings.day_end,
+        buffer_pct: parseInt(settings.buffer_pct) || 0,
       })
       onClose()
     } catch (err) {
@@ -47,6 +50,31 @@ export default function SettingsModal({ onClose }) {
                   <Icon name={icon} size={18}/>{label}
                 </button>
               ))}
+            </div>
+          </div>
+          {onOpenTrash && (
+            <div>
+              <h3 className="text-sm font-semibold text-ink mb-1">Trash</h3>
+              <p className="text-xs text-muted mb-2">Deleted goals, tasks and habits are kept for 30 days.</p>
+              <button type="button" onClick={onOpenTrash} className="secondary-button">Open trash</button>
+            </div>
+          )}
+          <div>
+            <h3 className="text-sm font-semibold text-ink mb-1">Your day</h3>
+            <p className="text-xs text-muted mb-3">Sets available hours for capacity-aware planning on Today.</p>
+            <div className="grid grid-cols-3 gap-3">
+              <label className="text-xs text-muted flex flex-col gap-1">Day starts
+                <input type="time" value={settings.day_start || '09:00'}
+                  onChange={e => setSettings({ ...settings, day_start: e.target.value })}
+                  className="border border-border rounded-xl px-3 py-2 text-sm bg-surface text-ink focus:outline-none focus:ring-2 focus:ring-accent" /></label>
+              <label className="text-xs text-muted flex flex-col gap-1">Day ends
+                <input type="time" value={settings.day_end || '18:00'}
+                  onChange={e => setSettings({ ...settings, day_end: e.target.value })}
+                  className="border border-border rounded-xl px-3 py-2 text-sm bg-surface text-ink focus:outline-none focus:ring-2 focus:ring-accent" /></label>
+              <label className="text-xs text-muted flex flex-col gap-1">Buffer %
+                <input type="number" min="0" max="90" value={settings.buffer_pct ?? 15}
+                  onChange={e => setSettings({ ...settings, buffer_pct: e.target.value })}
+                  className="border border-border rounded-xl px-3 py-2 text-sm bg-surface text-ink focus:outline-none focus:ring-2 focus:ring-accent" /></label>
             </div>
           </div>
           <div>

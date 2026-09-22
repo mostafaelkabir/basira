@@ -17,6 +17,12 @@ const NEW_TYPES = [
 ]
 
 const SOURCE_BADGE = { ticket: 'Ticket', task: 'Task', worklog: 'Log' }
+const FIND_TYPES = [
+  { key: null, label: 'All' },
+  { key: 'ticket', label: 'Tickets' },
+  { key: 'task', label: 'Tasks' },
+  { key: 'worklog', label: 'Logs' },
+]
 
 // Lightweight ticket templates — each sets a ticket type, a sensible priority and
 // a starter tag. Every inferred default stays visible and editable before save.
@@ -32,6 +38,7 @@ export default function FindOrCreateComposer({ onDone, defaultCompanyId, default
   const [suggestions, setSuggestions] = useState([])
   const [loading, setLoading] = useState(false)
   const [active, setActive] = useState(-1)            // keyboard-highlighted suggestion
+  const [findSource, setFindSource] = useState(null)  // null=all | ticket|task|worklog — browse filter
   const [createType, setCreateType] = useState(null)  // null | ticket|task|habit|goal
   const [goals, setGoals] = useState([])
   const [companies, setCompanies] = useState([])
@@ -63,20 +70,21 @@ export default function FindOrCreateComposer({ onDone, defaultCompanyId, default
     getCompanies().then(setCompanies).catch(() => {})
   }, [])
 
-  // Debounced suggestions with stale-response cancellation.
+  // Debounced suggestions with stale-response cancellation. With a type filter
+  // selected, browse ALL items of that type (no query needed); otherwise search.
   useEffect(() => {
     const q = query.trim()
-    if (!q) { setSuggestions([]); setActive(-1); setLoading(false); return }
+    if (!q && !findSource) { setSuggestions([]); setActive(-1); setLoading(false); return }
     setLoading(true)
     const myReq = ++reqIdRef.current
     const t = setTimeout(() => {
-      getWorkSuggestions(q, { limit: 6 })
+      getWorkSuggestions(q, { source: findSource || null, showAll: !!findSource && !q, limit: findSource ? 200 : 6 })
         .then(d => { if (myReq === reqIdRef.current) { setSuggestions(d.suggestions); setActive(-1) } })
         .catch(() => {})
         .finally(() => { if (myReq === reqIdRef.current) setLoading(false) })
     }, 180)
     return () => clearTimeout(t)
-  }, [query])
+  }, [query, findSource])
 
   async function selectExisting(s) {
     setBusy(true)
@@ -154,33 +162,53 @@ export default function FindOrCreateComposer({ onDone, defaultCompanyId, default
         <button onClick={() => onDone?.(null)} aria-label="Close" className="text-muted hover:text-ink p-1">✕</button>
       </div>
 
-      {/* Existing matches (reuse an ID instead of duplicating) */}
+      {/* Choose an existing item by type — pick "Tasks" to see all tasks, etc. */}
+      {!createType && (
+        <div className="flex items-center gap-1 mt-2 flex-wrap">
+          <span className="text-[10px] font-mono uppercase text-muted mr-1">Find:</span>
+          {FIND_TYPES.map(f => (
+            <button key={f.key || 'all'}
+              onClick={() => setFindSource(findSource === f.key ? null : f.key)}
+              aria-pressed={findSource === f.key}
+              className={`px-2.5 py-1 text-[11px] rounded-lg transition-colors ${
+                findSource === f.key ? 'bg-accent-soft text-accent' : 'bg-raised text-muted hover:text-ink'}`}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Existing matches (reuse an ID instead of duplicating). Titles wrap so the
+          full item is always readable. */}
       {!createType && suggestions.length > 0 && (
-        <ul id="foc-suggestions" role="listbox" className="mt-2 space-y-0.5 max-h-60 overflow-y-auto">
+        <ul id="foc-suggestions" role="listbox" className="mt-2 space-y-0.5 max-h-72 overflow-y-auto">
           {suggestions.map((s, i) => (
             <li key={s.key} role="option" aria-selected={active === i}>
               <button
                 onClick={() => selectExisting(s)}
                 onMouseEnter={() => setActive(i)}
                 disabled={busy}
-                className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center gap-2 transition-colors ${
+                className={`w-full text-left px-2.5 py-2 rounded-lg flex items-start gap-2 transition-colors ${
                   active === i ? 'bg-accent-soft' : 'hover:bg-raised'}`}>
-                <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-raised text-muted flex-shrink-0">
+                <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-raised text-muted flex-shrink-0 mt-0.5">
                   {SOURCE_BADGE[s.source] || s.source}
                 </span>
                 <span className="flex-1 min-w-0">
-                  <span className="text-sm text-ink truncate block">{s.title}</span>
-                  <span className="text-[11px] text-muted truncate block">{s.reasons.join(' · ')}</span>
+                  <span className="text-sm text-ink block break-words leading-snug">{s.title}</span>
+                  <span className="text-[11px] text-muted block break-words">
+                    {s.project_title}{s.company_name ? ` · ${s.company_name}` : ''}
+                    {s.reasons?.length ? ` · ${s.reasons.join(' · ')}` : ''}
+                  </span>
                 </span>
-                {s.blocked && <span className="text-[10px] text-amber-600 flex-shrink-0">blocked</span>}
-                <span className="text-[10px] text-accent flex-shrink-0">Add →</span>
+                {s.blocked && <span className="text-[10px] text-amber-600 flex-shrink-0 mt-0.5">blocked</span>}
+                <span className="text-[10px] text-accent flex-shrink-0 mt-0.5">Add →</span>
               </button>
             </li>
           ))}
         </ul>
       )}
-      {!createType && query.trim() && !loading && suggestions.length === 0 && (
-        <p className="text-xs text-muted mt-2 px-1">No existing matches — create one below.</p>
+      {!createType && (query.trim() || findSource) && !loading && suggestions.length === 0 && (
+        <p className="text-xs text-muted mt-2 px-1">No matching {findSource ? findSource + 's' : 'items'} — create one below.</p>
       )}
 
       {/* New-item type tabs (switch type without leaving the page) */}

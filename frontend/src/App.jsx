@@ -20,6 +20,7 @@ const AnalyticsPage = lazy(() => import('./AnalyticsPage'))
 const ContactsPage = lazy(() => import('./ContactsPage'))
 const WeeklyReview = lazy(() => import('./WeeklyReview'))
 const SettingsModal = lazy(() => import('./SettingsModal'))
+const TrashModal = lazy(() => import('./components/TrashModal'))
 
 export default function App() {
   const [route, setRoute] = useState(() => readRoute(window.location.hash))
@@ -29,6 +30,7 @@ export default function App() {
   const [showAddTask, setShowAddTask] = useState(false)
   const [showCommand, setShowCommand] = useState(false)
   const [showMore, setShowMore] = useState(false)
+  const [showTrash, setShowTrash] = useState(false)
   const [theme, setTheme] = useState(() => applyTheme())
   useEffect(() => {
     const update = () => setRoute(readRoute(window.location.hash))
@@ -64,6 +66,7 @@ export default function App() {
       <nav aria-label="Main navigation">{['Do', 'Reflect'].map(group => <div className="nav-section" key={group}><p className="nav-caption">{group}</p>{NAV_ITEMS.filter(n => n.group === group).map(navLink)}</div>)}</nav>
       <div className="sidebar-bottom">
         <button className="nav-link" onClick={() => setShowReview(true)}><Icon name="review"/>Weekly review</button>
+        <button className="nav-link" onClick={() => setShowTrash(true)}><Icon name="trash"/>Trash</button>
         <button className="nav-link" onClick={() => setShowSettings(true)}><Icon name="settings"/>Settings</button>
         <div className="sidebar-foot"><BasiraMark className="w-5 h-5"/><span>A little more clarity, every day.</span></div>
       </div>
@@ -92,12 +95,13 @@ export default function App() {
     <nav className="mobile-nav" aria-label="Mobile navigation">{NAV_ITEMS.filter(n => ['today', 'goals', 'work'].includes(n.id)).map(n => <a key={n.id} href={routeHref(n.id)} className={tab === n.id ? 'active' : ''} aria-current={tab === n.id ? 'page' : undefined}><Icon name={n.id}/>{n.label}</a>)}<button onClick={() => setShowMore(true)} aria-label="More pages" className={!['today', 'goals', 'work'].includes(tab) ? 'active' : ''}><Icon name="more"/>More</button></nav>
     <Suspense fallback={null}>
       {showReview && <WeeklyReview onClose={() => setShowReview(false)}/>}
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)}/>}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onOpenTrash={() => { setShowSettings(false); setShowTrash(true) }}/>}
+      {showTrash && <TrashModal onClose={() => setShowTrash(false)} onChange={() => { window.dispatchEvent(new CustomEvent('basira:task-updated')); window.dispatchEvent(new CustomEvent('basira:schedule-updated')) }}/>}
     </Suspense>
     {showAddTask && <AddTaskModal initialGoalId={goalId} onClose={() => setShowAddTask(false)} onCreateGoal={() => { setShowAddTask(false); navigate('goals') }}/>}
     {showCommand && <CommandMenu onClose={() => setShowCommand(false)} onNavigate={navigate} onAdd={() => { setShowCommand(false); setShowAddTask(true) }} onReview={() => { setShowCommand(false); setShowReview(true) }} onSettings={() => { setShowCommand(false); setShowSettings(true) }} onTheme={() => { setShowCommand(false); toggleTheme() }} theme={theme}/>}
-    {showMore && <Modal title="Your workspace" onClose={() => setShowMore(false)}><div className="command-list">{NAV_ITEMS.filter(n => !['today', 'goals', 'work'].includes(n.id)).map(n => <button key={n.id} onClick={() => navigate(n.id)}><Icon name={n.id}/>{n.label}</button>)}<button onClick={() => { setShowMore(false); setShowReview(true) }}><Icon name="review"/>Weekly review</button><button onClick={() => { setShowMore(false); setShowSettings(true) }}><Icon name="settings"/>Settings</button></div></Modal>}
-    <TimerWidget/>
+    {showMore && <Modal title="Your workspace" onClose={() => setShowMore(false)}><div className="command-list">{NAV_ITEMS.filter(n => !['today', 'goals', 'work'].includes(n.id)).map(n => <button key={n.id} onClick={() => navigate(n.id)}><Icon name={n.id}/>{n.label}</button>)}<button onClick={() => { setShowMore(false); setShowReview(true) }}><Icon name="review"/>Weekly review</button><button onClick={() => { setShowMore(false); setShowTrash(true) }}><Icon name="trash"/>Trash</button><button onClick={() => { setShowMore(false); setShowSettings(true) }}><Icon name="settings"/>Settings</button></div></Modal>}
+    {tab !== 'today' && <TimerWidget/>}
     <Notice/>
   </div></TimerProvider>
 }

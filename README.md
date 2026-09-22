@@ -26,11 +26,66 @@ It is built on a simple idea: **the person who knows themselves best wins**. Mos
 
 | Module | What it tracks |
 |--------|---------------|
-| **Today** | Daily focus — pinned tasks, live timer, drag-and-drop planner |
+| **Today** | The day itself — routine check marks, one agenda, live timer, capacity line |
 | **Goals** | Resolutions, projects, and daily goals with progress tracking |
 | **Work** | Client work — tickets, time per company, proof of work |
 | **People** | Relationships — contacts, interaction logs, overdue-check alerts |
+| **Journal** | Daily entries — mood, energy, wins, and what to do differently |
 | **Progress** | Analytics — weekly velocity, consistency heatmap, AI insights |
+
+---
+
+## How it looks
+
+> Every screenshot below is a throwaway demo database — fictional goals, clients,
+> tickets and contacts. None of it is real personal data.
+
+### Today — one day, one screen
+
+Your routine as check marks, an agenda built from tasks and client tickets, and a
+capacity line that tells you how much of the day you have actually planned.
+
+![Today](docs/screenshots/today.png)
+
+### Goals — resolutions, projects, and the work under them
+
+Resolutions carry the habits that feed them. Projects carry the tasks (and
+sub-projects) that finish them. Progress is counted, not claimed.
+
+![Goals](docs/screenshots/goals.png)
+
+### Work — clients, tickets, and where the hours went
+
+Time per client for today and this week, Jira-style tickets with estimate-vs-actual
+bars, a built-in timer, and a report generator for the end of the month.
+
+![Work](docs/screenshots/work.png)
+
+### Progress — the mirror
+
+Output, consistency, and habit streaks over time — plus a 13-week consistency map
+that makes a skipped week impossible to argue with.
+
+![Progress](docs/screenshots/progress.png)
+
+### People — the relationships you say matter
+
+Each contact ages until you log an interaction. Overdue is overdue, no matter how
+busy the week was.
+
+![People](docs/screenshots/people.png)
+
+### Journal — a sentence a day
+
+Mood, energy, wins, and what to do differently, kept next to the data that explains it.
+
+![Journal](docs/screenshots/journal.png)
+
+### Light and dark
+
+The whole UI is token-themed and follows your system preference by default.
+
+![Today in light mode](docs/screenshots/today-light.png)
 
 ---
 
@@ -67,69 +122,84 @@ Most productivity tools help you do more. Basira helps you **see more** — abou
 
 ---
 
-## Quick Start
+## Install on macOS
 
 ### Prerequisites
 
-- Python 3.12+
-- Node.js 18+
-- macOS (notifications use `osascript`; everything else works cross-platform)
+- macOS 14+ (notifications use `osascript`; the rest works cross-platform)
+- Python 3.11+ — `brew install python@3.12`
+- Node.js 18+ — `brew install node`
 
-### 1. Clone & install
+### One command
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/basira.git
+git clone https://github.com/mostafaelkabir/basira.git
 cd basira
-
-# Python backend
-python3 -m venv venv
-venv/bin/pip install -r requirements.txt
-
-# React frontend
-cd frontend && npm install && npm run build && cd ..
+./install.sh
 ```
 
-### 2. Configure environment
+That creates the virtualenv, installs the Python dependencies, builds the React
+frontend, writes a `.env` for you, and registers a **launchd** service so the
+backend starts at login and restarts if it ever crashes. When it finishes, open
+**http://localhost:8001**. The database is created on first run.
+
+Useful flags:
 
 ```bash
-cp .env.example .env
+./install.sh --app          # also build and install the native Basira.app
+./install.sh --no-service   # set everything up, but start the backend yourself
+./install.sh --port 8002    # run on a different port
 ```
 
-Open `.env` and add your Groq API key (free at [console.groq.com](https://console.groq.com)):
+Re-running `./install.sh` is safe — every step is idempotent, and it is also how
+you update after a `git pull`.
+
+### Native macOS app (optional)
+
+```bash
+./install.sh --app     # or: macos/build.sh
+open -a Basira
+```
+
+A SwiftUI window around the same UI, with its own Dock icon, plus a **Today**
+desktop widget (right-click the desktop → *Edit Widgets* → search "Basira").
+Building it needs Xcode and `xcodegen` (`brew install xcodegen`); it signs
+locally, so no Apple developer account is required. See
+[macos/README.md](macos/README.md).
+
+### AI features (optional)
+
+Open `.env` and add a Groq key — free at [console.groq.com](https://console.groq.com):
 
 ```
 GROQ_API_KEY=gsk_...
 ```
 
-> The app works fully without a key — AI features will simply be unavailable.
+Then restart the service: `launchctl kickstart -k gui/$UID/com.basira.backend`.
+Everything except the AI panels works without a key.
 
-### 3. Run
+### Managing the service
 
 ```bash
+tail -f /tmp/basira-backend.log                       # logs
+launchctl kickstart -k gui/$UID/com.basira.backend    # restart
+launchctl bootout gui/$UID/com.basira.backend         # stop until next login
+./uninstall.sh                                        # remove service + app
+```
+
+`./uninstall.sh` leaves `sysgo.db`, `uploads/` and `.env` alone — your data is
+only ever in this folder.
+
+### Manual setup
+
+If you would rather not run the installer:
+
+```bash
+python3 -m venv venv
+venv/bin/pip install -r requirements.txt
+cd frontend && npm install && npm run build && cd ..
+cp .env.example .env
 venv/bin/uvicorn app.main:app --port 8001
-```
-
-Open **http://localhost:8001** in your browser. The database is created automatically on first run.
-
----
-
-## Running as a Background Service (macOS)
-
-To keep Basira running automatically at login:
-
-```bash
-# Copy and edit the example plist
-cp com.basira.backend.plist.example ~/Library/LaunchAgents/com.basira.backend.plist
-nano ~/Library/LaunchAgents/com.basira.backend.plist
-
-# Load it
-launchctl load ~/Library/LaunchAgents/com.basira.backend.plist
-```
-
-Logs stream to `/tmp/basira-backend.log`:
-
-```bash
-tail -f /tmp/basira-backend.log
 ```
 
 ---
@@ -155,6 +225,10 @@ basira/
 │   │   ├── ProgressPage.jsx
 │   │   └── components/
 │   └── vite.config.js
+├── macos/               # SwiftUI app + Today widget (build.sh)
+├── docs/                # product notes and screenshots
+├── install.sh           # one-command macOS install
+├── uninstall.sh         # remove the service and the app
 ├── requirements.txt
 ├── .env.example
 └── README.md
@@ -218,7 +292,6 @@ Contributions are welcome. Some open directions:
 - [ ] Cross-platform notifications (Linux / Windows)
 - [ ] Mobile-friendly responsive layout
 - [ ] Export to PDF (weekly report, payment summary)
-- [ ] Dark mode
 - [ ] Multi-user / family support
 
 Please open an issue first to discuss larger changes.

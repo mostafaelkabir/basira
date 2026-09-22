@@ -48,20 +48,26 @@ export const logDayTime = (data) =>
 
 // Read-only "suggest existing work": rank existing tickets/tasks/work-logs for a
 // partial query so a planner reuses a real ID instead of creating a duplicate.
-export const getWorkSuggestions = (q, { limit = 5, showAll = false } = {}) => {
+export const getWorkSuggestions = (q, { limit = 5, showAll = false, source = null } = {}) => {
   const params = new URLSearchParams({ q: q || '', limit: String(limit) })
   if (showAll) params.set('show_all', 'true')
+  if (source) params.set('source', source)
   return request(`/work-suggestions?${params}`)
 }
 
 // Read-only morning-planning suggestions: existing work worth planning today
 // (in-progress, carried over, due), each with an explicit reason. Never moves records.
-export const getMorningSuggestions = (date, timezone) => {
+export const getMorningSuggestions = (date, { timezone, includeOlder = false } = {}) => {
   const params = new URLSearchParams()
   if (date) params.set('date', date)
   params.set('timezone', timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
+  if (includeOlder) params.set('include_older', 'true')
   return request(`/morning-suggestions?${params}`)
 }
+// Hide an item from morning suggestions until a date (tasks defer, tickets snooze).
+export const snoozeSuggestion = (source, itemId, until) =>
+  request('/morning-suggestions/snooze', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source, item_id: itemId, until, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' }) })
 
 export const getGoals = (archived = false) => request(`/goals${archived ? '?archived=true' : ''}`)
 export const getGoal = (id) => request(`/goals/${id}`)
@@ -72,6 +78,11 @@ export const updateGoal = (id, data) =>
 export const archiveGoal = (id) => request(`/goals/${id}/archive`, { method: 'POST' })
 export const unarchiveGoal = (id) => request(`/goals/${id}/unarchive`, { method: 'POST' })
 export const deleteGoal = (id) => request(`/goals/${id}`, { method: 'DELETE' })
+
+// Trash (soft-delete): goals and tasks move to a 30-day trash, restorable.
+export const getTrash = () => request('/trash')
+export const restoreTrashItem = (kind, id) => request(`/trash/${kind}/${id}/restore`, { method: 'POST' })
+export const deleteTrashItem = (kind, id) => request(`/trash/${kind}/${id}`, { method: 'DELETE' })
 
 export const getTask = (id) => request(`/tasks/${id}`)
 export const taskAiQuery = (taskId, prompt) =>

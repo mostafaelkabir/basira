@@ -1,4 +1,6 @@
-from sqlalchemy import Boolean, ForeignKey, Integer, String
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -25,6 +27,7 @@ class Task(Base):
     created_at: Mapped[str | None] = mapped_column(String, nullable=True)  # YYYY-MM-DD
     estimated_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     scheduled_time: Mapped[str | None] = mapped_column(String, nullable=True)  # HH:MM, Daily Schedule time-of-day
+    trashed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # soft-delete; purged after 30 days
 
     goal: Mapped["Goal"] = relationship("Goal", back_populates="tasks")
     proofs: Mapped[list["Proof"]] = relationship("Proof", back_populates="task", cascade="all, delete-orphan")

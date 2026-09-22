@@ -20,6 +20,7 @@ const paths = {
   play: <path d="m8 4 12 8-12 8V4Z"/>,
   pause: <><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></>,
   stop: <rect x="5" y="5" width="14" height="14" rx="2"/>,
+  trash: <><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-.7 12a2 2 0 0 1-2 1.9H8.7a2 2 0 0 1-2-1.9L6 7"/><path d="M10 11v5m4-5v5"/></>,
   clock: <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>,
   proof: <><path d="M6 3h9l4 4v14H5V3h1Zm8 0v5h5m-11 6 2 2 5-5"/></>,
 }
