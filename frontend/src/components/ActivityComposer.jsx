@@ -129,7 +129,7 @@ export function CommentBubble({ comment, onDelete, onUpdate }) {
 }
 
 // Full comment section: list + composer
-export function ActivityComments({ task, onRefresh }) {
+export function ActivityComments({ task, onRefresh, autoFocus = false }) {
   const [text, setText]           = useState('')
   const [attachment, setAttachment] = useState(null) // { type, file, preview, name }
   const [submitting, setSubmitting] = useState(false)
@@ -253,7 +253,7 @@ export function ActivityComments({ task, onRefresh }) {
 
       {/* Compose bar */}
       <div className="flex items-end gap-1.5">
-        <input ref={inputRef} value={text} onChange={e => setText(e.target.value)}
+        <input ref={inputRef} value={text} autoFocus={autoFocus} onChange={e => setText(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
           placeholder={
             aiMode

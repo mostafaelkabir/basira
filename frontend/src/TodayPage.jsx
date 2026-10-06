@@ -20,6 +20,7 @@ import TimeDetailDrawer from './features/today/TimeDetailDrawer'
 import CapacityLine from './features/today/CapacityLine'
 import RoutineStrip from './features/today/RoutineStrip'
 import NowStrip from './features/today/NowStrip'
+import TaskNotesDialog from './features/today/TaskNotesDialog'
 import FindOrCreateComposer from './features/composer/FindOrCreateComposer'
 import { TicketDrawer } from './WorkPage'
 
@@ -77,6 +78,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   const [showQuickAdd, setShowQuickAdd] = useState(false)
   const [showTimeDetail, setShowTimeDetail] = useState(false)
   const [openTicket, setOpenTicket] = useState(null)
+  const [notesFor, setNotesFor] = useState(null)   // { item_id, title, project_title }
 
   async function handleOpenTicket(item) {
     try { setOpenTicket(await getWorkTicket(item.item_id)) }
@@ -226,6 +228,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
         onSwitch={item => { if (item.source === 'task') { startTimer(item.item_id, item.title, item.project_title || ''); window.dispatchEvent(new CustomEvent('basira:timer-changed')); setTimeout(() => refreshWorkspace?.(), 400) } else handleOpenTicket(item) }}
         onDone={item => handleComplete(findTask(item.item_id))}
         onOpenTicket={handleOpenTicket}
+        onOpenNotes={setNotesFor}
         onOpenPlanner={() => setShowPlanner(true)} />
 
       {/* One capacity-aware planned / worked line (BAS-031) */}
@@ -235,7 +238,8 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
 
       {/* Habits as daily check marks — off the schedule (BAS-038) */}
       <RoutineStrip routines={routines}
-        onToggle={h => { const full = habitById.get(h.id); if (full) handleToggleHabit(full) }} />
+        onToggle={h => { const full = habitById.get(h.id); if (full) handleToggleHabit(full) }}
+        onOpenNotes={h => setNotesFor({ item_id: h.id, title: h.title, project_title: 'Routine' })} />
 
       {/* One chronological agenda */}
       <DayAgenda
@@ -246,6 +250,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
         onResumeTask={() => { resumeTimer(); setTimeout(() => refreshWorkspace?.(), 300) }}
         onCompleteTask={item => handleComplete(findTask(item.item_id))}
         onOpenTicket={handleOpenTicket}
+        onOpenNotes={setNotesFor}
         onCheckHabit={item => { const full = habitById.get(item.item_id); if (full) handleToggleHabit(full) }}
         onEditTime={handleEditTime}
       />
@@ -293,6 +298,9 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
           onClose={() => { setOpenTicket(null); refreshWorkspace?.() }}
           onUpdate={updated => { setOpenTicket(updated); refreshWorkspace?.(); window.dispatchEvent(new CustomEvent('basira:schedule-updated')) }} />
       )}
+
+      {/* Notes on a task or daily/habit task (BAS-045) */}
+      {notesFor && <TaskNotesDialog item={notesFor} onClose={() => setNotesFor(null)} />}
 
       {/* Proof modals */}
       {proofFor && <CompleteTaskDialog task={proofFor} onClose={() => setProofFor(null)} onComplete={() => { setFeedbackTask(proofFor); setProofFor(null); load() }}/>}

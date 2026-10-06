@@ -16,7 +16,7 @@ function toMin(hhmm) {
 
 // Sticky Now / Next strip (mockup zone B): what is running, or what is next, or a
 // prompt to plan. One primary timer presentation for the active session.
-export default function NowStrip({ workspace, timer, onPause, onResume, onDone, onStart, onOpenPlanner, onOpenTicket, onSwitch }) {
+export default function NowStrip({ workspace, timer, onPause, onResume, onDone, onStart, onOpenPlanner, onOpenTicket, onOpenNotes, onSwitch }) {
   const [, force] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef(null)
@@ -73,6 +73,9 @@ export default function NowStrip({ workspace, timer, onPause, onResume, onDone, 
           {paused
             ? <button className="agenda-btn text-accent" onClick={onResume}><Icon name="play" size={13}/>Resume</button>
             : <button className="agenda-btn" onClick={() => onPause(active)}><Icon name="pause" size={13}/>Pause</button>}
+          {active.source === 'task' && onOpenNotes && (
+            <button className="agenda-btn" onClick={() => onOpenNotes(active)} title="Notes" aria-label={`Notes for ${active.title}`}><Icon name="note" size={13}/></button>
+          )}
           {active.source === 'task'
             ? <button className="agenda-btn" onClick={() => onDone(active)}><Icon name="check" size={13}/>Done</button>
             : <button className="agenda-btn" onClick={() => onOpenTicket(active)}>Open</button>}
@@ -105,6 +108,9 @@ export default function NowStrip({ workspace, timer, onPause, onResume, onDone, 
           {next.scheduled_time && <> at <span className="font-mono tabular-nums">{fmtClock(next.scheduled_time)}</span></>}
           {nextIn != null && nextIn > 0 && <span className="text-faint"> · in {fmtMinutes(nextIn)}</span>}
         </p>
+        {next.source === 'task' && onOpenNotes && (
+          <button className="agenda-btn flex-shrink-0" onClick={() => onOpenNotes(next)} title="Notes" aria-label={`Notes for ${next.title}`}><Icon name="note" size={13}/></button>
+        )}
         {next.source === 'task'
           ? <button className="agenda-btn text-accent flex-shrink-0" onClick={() => onStart(next)}><Icon name="play" size={13}/>Start now</button>
           : <button className="agenda-btn flex-shrink-0" onClick={() => onOpenTicket(next)}>Open</button>}

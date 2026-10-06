@@ -1,10 +1,11 @@
 import { useState } from 'react'
+import Icon from '../../components/Icon'
 import { fmtClock } from './format'
 
 // Habits as daily check marks (mockup zone D) — never rows on the schedule, never
 // timed. One horizontally scrollable strip of pill chips, ordered by time then
 // title; tapping toggles the check-in through the handler TodayPage provides.
-export default function RoutineStrip({ routines, onToggle }) {
+export default function RoutineStrip({ routines, onToggle, onOpenNotes }) {
   const [expanded, setExpanded] = useState(false)
   const items = ['morning', 'afternoon', 'evening', 'anytime']
     .flatMap(b => routines?.[b] || [])
@@ -21,15 +22,22 @@ export default function RoutineStrip({ routines, onToggle }) {
       {/* Collapsed: one scrollable row. Expanded: wrap to multiple rows, all in view. */}
       <div className={`flex items-center gap-1.5 pb-1 -mb-1 ${expanded ? 'flex-wrap' : 'overflow-x-auto'}`}>
         {shown.map(h => (
-          <button key={h.id} onClick={() => onToggle?.(h)}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border flex-shrink-0 transition-colors ${
-              h.done ? 'bg-accent-soft border-accent/40 text-accent' : 'bg-surface border-border text-ink hover:border-accent/40'}`}>
+          <div key={h.id} className={`flex items-center rounded-full border flex-shrink-0 transition-colors ${
+            h.done ? 'bg-accent-soft border-accent/40 text-accent' : 'bg-surface border-border text-ink hover:border-accent/40'}`}>
+          <button onClick={() => onToggle?.(h)} className={`flex items-center gap-1.5 py-1.5 ${onOpenNotes ? 'pl-2.5 pr-1' : 'px-2.5'}`}>
             <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[9px] flex-shrink-0 ${
               h.done ? 'bg-accent border-accent text-on-accent' : 'border-border-strong'}`}>{h.done ? '✓' : ''}</span>
             <span className={`text-xs whitespace-nowrap ${h.done ? 'line-through opacity-80' : ''}`}>{h.title}</span>
             {h.target > 1 && <span className="text-[10px] font-mono text-faint">{h.count}/{h.target}</span>}
             {h.scheduled_time && <span className="text-[10px] font-mono text-faint">{fmtClock(h.scheduled_time)}</span>}
           </button>
+          {onOpenNotes && (
+            <button onClick={() => onOpenNotes(h)} title="Notes" aria-label={`Notes for ${h.title}`}
+              className="pl-1 pr-2 py-1.5 text-faint hover:text-accent">
+              <Icon name="note" size={12} />
+            </button>
+          )}
+          </div>
         ))}
         {hidden > 0 && (
           <button onClick={() => setExpanded(true)}

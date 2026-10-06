@@ -23,7 +23,7 @@ function Elapsed({ startedAt, priorSeconds = 0 }) {
   return <span className="font-mono tabular-nums">{fmtDuration(priorSeconds + Math.max(0, base))}</span>
 }
 
-function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onCheckHabit, onEditTime }) {
+function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime }) {
   const [editing, setEditing] = useState(false)
   const isTask = item.source === 'task'
   const isTicket = item.source === 'ticket'
@@ -59,7 +59,10 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
       <div className="flex-1 min-w-0">
         {isTicket
           ? <button onClick={() => onOpenTicket(item)} className="text-sm text-ink truncate text-left hover:text-accent">{item.title}</button>
-          : <p className={`text-sm truncate ${item.done ? 'text-muted line-through' : 'text-ink'}`}>{item.title}</p>}
+          : isTask && onOpenNotes
+            ? <button onClick={() => onOpenNotes(item)} title="Open notes"
+                className={`block max-w-full text-sm truncate text-left hover:text-accent ${item.done ? 'text-muted line-through' : 'text-ink'}`}>{item.title}</button>
+            : <p className={`text-sm truncate ${item.done ? 'text-muted line-through' : 'text-ink'}`}>{item.title}</p>}
         <p className="text-[11px] text-muted mt-0.5 flex items-center gap-1.5 flex-wrap">
           <span>{item.project_title}</span>
           {item.company_name && item.company_name !== 'Personal' && <><span className="text-faint">·</span><span>{item.company_name}</span></>}
@@ -71,6 +74,9 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
       </div>
 
       {/* Actions */}
+      {item.done && isTask && onOpenNotes && (
+        <button onClick={() => onOpenNotes(item)} className="agenda-btn flex-shrink-0" aria-label={`Notes for ${item.title}`}><Icon name="note" size={13} /></button>
+      )}
       {!item.done && (
         <div className="flex items-center gap-1 flex-shrink-0">
           {isTask && running && (
@@ -81,6 +87,9 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
           )}
           {isTask && !taskActive && (
             <button onClick={() => onStartTask(item)} className="agenda-btn text-accent"><Icon name="play" size={13} />Start</button>
+          )}
+          {isTask && onOpenNotes && (
+            <button onClick={() => onOpenNotes(item)} className="agenda-btn agenda-btn-notes" title="Notes" aria-label={`Notes for ${item.title}`}><Icon name="note" size={13} /></button>
           )}
           {isTask && (
             <button onClick={() => onCompleteTask(item)} className="agenda-btn"><Icon name="check" size={13} />Done</button>
@@ -96,10 +105,10 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
 
 export default function DayAgenda({
   scheduled, anytime, completed, timer,
-  onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onCheckHabit, onEditTime,
+  onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime,
 }) {
   const [showDone, setShowDone] = useState(false)
-  const rowProps = { timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onCheckHabit, onEditTime }
+  const rowProps = { timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime }
   const empty = scheduled.length === 0 && anytime.length === 0 && completed.length === 0
 
   return (

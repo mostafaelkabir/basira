@@ -23,6 +23,7 @@ const paths = {
   trash: <><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-.7 12a2 2 0 0 1-2 1.9H8.7a2 2 0 0 1-2-1.9L6 7"/><path d="M10 11v5m4-5v5"/></>,
   clock: <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>,
   proof: <><path d="M6 3h9l4 4v14H5V3h1Zm8 0v5h5m-11 6 2 2 5-5"/></>,
+  note: <><path d="M5 4h14a1 1 0 0 1 1 1v10l-5 5H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/><path d="M15 20v-4a1 1 0 0 1 1-1h4M8 9h8m-8 4h5"/></>,
 }
 export default function Icon({ name, size = 20, ...props }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{paths[name] || paths.goals}</svg>
