@@ -23,6 +23,15 @@ export const getDayWorkspace = (date, timezone) => {
   return request(`/day-workspace?${params}`)
 }
 
+// Read-only plan overview for the next `days` days: per-day items, planned vs
+// available minutes. Uses the same agenda/capacity rules as getDayWorkspace.
+export const getUpcomingDays = (start, days = 7, timezone) => {
+  const params = new URLSearchParams({ days: String(days) })
+  if (start) params.set('start', start)
+  params.set('timezone', timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
+  return request(`/day-workspace/upcoming?${params}`)
+}
+
 // Durable day-planning blocks. Blocks reserve a slot; they never change a task's
 // or ticket's estimate/recorded time. previewBlock is a dry-run (validate + report
 // conflicts, no save); moveBlock passes the last-seen revision for conflict safety.
@@ -303,8 +312,9 @@ export const generateWeeklyReport = (companyId, dateFrom, dateTo) =>
 
 // ── Daily Schedule ───────────────────────────────────────────────────────────
 export const getDailySchedule = () => request('/today/schedule')
-export const addToSchedule = (kind, id) =>
-  request('/today/schedule/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, id }) })
+// `date` (YYYY-MM-DD) plans an upcoming day; omitted = today.
+export const addToSchedule = (kind, id, date) =>
+  request('/today/schedule/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, id, ...(date ? { date } : {}) }) })
 export const removeFromSchedule = (kind, id) =>
   request('/today/schedule/remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, id }) })
 export const createScheduleItem = (data) =>

@@ -32,3 +32,22 @@ export const BUCKET_LABELS = {
 }
 
 export const BUCKET_ORDER = ['morning', 'afternoon', 'evening', 'anytime']
+
+// Local calendar-day helpers on "YYYY-MM-DD" strings (no UTC drift).
+function parseDay(iso) { return new Date(iso + 'T00:00:00') }
+function isoDay(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+export function addDays(iso, n) {
+  const d = parseDay(iso); d.setDate(d.getDate() + n); return isoDay(d)
+}
+// "Today" / "Tomorrow" / "Thu" relative to `todayIso`.
+export function dayShort(iso, todayIso) {
+  if (iso === todayIso) return 'Today'
+  if (iso === addDays(todayIso, 1)) return 'Tomorrow'
+  return parseDay(iso).toLocaleDateString(undefined, { weekday: 'short' })
+}
+// "Thu, Oct 8"
+export function dayLong(iso) {
+  return parseDay(iso).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+}

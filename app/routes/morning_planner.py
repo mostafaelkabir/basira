@@ -29,8 +29,9 @@ def get_morning_suggestions(
         tz = ZoneInfo(timezone)
     except (ZoneInfoNotFoundError, ValueError):
         raise HTTPException(400, f"Unknown timezone: {timezone}")
-    day = date or datetime.now(UTC).astimezone(tz).date()
-    return morning_suggestions(db, day, include_older=include_older)
+    actual_today = datetime.now(UTC).astimezone(tz).date()
+    day = date or actual_today
+    return morning_suggestions(db, day, include_older=include_older, actual_today=actual_today)
 
 
 class SnoozeBody(BaseModel):

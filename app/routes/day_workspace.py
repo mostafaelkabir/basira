@@ -13,8 +13,24 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.services.day_workspace import build_day_workspace
+from app.services.upcoming_plan import upcoming_days
 
 router = APIRouter(prefix="/day-workspace", tags=["day workspace"])
+
+
+@router.get("/upcoming")
+def get_upcoming_days(
+    start: date | None = None,
+    days: int = 7,
+    timezone: str = "UTC",
+    db: Session = Depends(get_db),
+):
+    """Planned work per day for the next `days` days (read-only)."""
+    try:
+        tz = ZoneInfo(timezone)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise HTTPException(400, f"Unknown timezone: {timezone}")
+    return upcoming_days(db, start or datetime.now(UTC).astimezone(tz).date(), days)
 
 
 @router.get("")

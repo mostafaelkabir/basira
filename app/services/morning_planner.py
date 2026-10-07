@@ -39,8 +39,15 @@ def _suggested_minutes(estimated: int | None) -> int:
     return estimated if estimated and estimated > 0 else 30
 
 
-def morning_suggestions(db: Session, day: date_cls, include_older: bool = False) -> dict:
+def morning_suggestions(db: Session, day: date_cls, include_older: bool = False,
+                        actual_today: date_cls | None = None) -> dict:
+    """`day` is the day being planned; `actual_today` (defaults to `day`) is the real
+    current date, so planning an upcoming day can tell "still on today's plan" apart
+    from genuinely carried-over work, and skip work already planned for another
+    upcoming day."""
     today = day.isoformat()
+    real_today = (actual_today or day).isoformat()
+    ahead = today > real_today
     d7 = (day - timedelta(days=7)).isoformat()     # carried "recently" cutoff
     d14 = (day - timedelta(days=14)).isoformat()   # overdue "recently" cutoff
     due_horizon = (day + timedelta(days=7)).isoformat()
@@ -53,6 +60,12 @@ def morning_suggestions(db: Session, day: date_cls, include_older: bool = False)
 
     groups: dict[str, list[dict]] = {"resume": [], "yesterday": [], "due": [], "older": []}
 
+    def planned_elsewhere(plan: str | None) -> bool:
+        return bool(plan) and plan >= real_today and plan != today and not (ahead and plan == real_today)
+
+    def carried_reason(plan: str) -> str:
+        return "Still on today's plan" if ahead and plan == real_today else f"Carried over from {plan}"
+
     def base(source, item_id, title, project_title, company_name, minutes):
         return {
             "key": f"{source}:{item_id}", "source": source, "item_id": item_id,
@@ -62,7 +75,7 @@ def morning_suggestions(db: Session, day: date_cls, include_older: bool = False)
 
     # ── Tickets (no due_date) ────────────────────────────────────────────────
     for t in db.query(WorkTicket).filter(WorkTicket.status.notin_(DONE)).all():
-        if t.plan_date == today:
+        if t.plan_date == today or planned_elsewhere(t.plan_date):
             continue
         if t.snoozed_until and t.snoozed_until > today:
             continue
@@ -73,7 +86,7 @@ def morning_suggestions(db: Session, day: date_cls, include_older: bool = False)
         if t.status == "in_progress":
             b["reasons"] = ["In progress"]; groups["resume"].append(b); continue
         if t.plan_date and d7 <= t.plan_date < today:
-            b["reasons"] = [f"Carried over from {t.plan_date}"]; groups["yesterday"].append(b); continue
+            b["reasons"] = [carried_reason(t.plan_date)]; groups["yesterday"].append(b); continue
         if t.plan_date and t.plan_date < d7:
             b["reasons"] = [f"Carried over from {t.plan_date}"]; groups["older"].append(b); continue
         # Not in progress, not carried, no due date -> not suggested.
@@ -84,13 +97,15 @@ def morning_suggestions(db: Session, day: date_cls, include_older: bool = False)
             continue
         if task.deferred_until and task.deferred_until > today:
             continue
+        if planned_elsewhere(task.plan_date):
+            continue
         b = base("task", task.id, task.title, goal_titles.get(task.goal_id, "Unassigned"),
                  None, _suggested_minutes(task.estimated_minutes))
         due, plan = task.due_date, task.plan_date
         if task.status == "in_progress":
             b["reasons"] = ["In progress"]; groups["resume"].append(b); continue
         if plan and d7 <= plan < today:
-            b["reasons"] = [f"Carried over from {plan}"]; groups["yesterday"].append(b); continue
+            b["reasons"] = [carried_reason(plan)]; groups["yesterday"].append(b); continue
         if due and d14 <= due <= due_horizon:
             b["reasons"] = [f"Overdue since {due}" if due < today else ("Due today" if due == today else f"Due {due}")]
             groups["due"].append(b); continue
@@ -108,15 +123,16 @@ def morning_suggestions(db: Session, day: date_cls, include_older: bool = False)
     groups["resume"].sort(key=lambda i: (i["source"] != "ticket", i["title"]))
     groups["older"].sort(key=lambda i: i["title"])
 
+    labels = {**GROUP_LABELS, "yesterday": "Carry over"} if ahead else GROUP_LABELS
     out = []
     for key in ("resume", "yesterday", "due", "older"):
         items = groups[key]
         if key == "older":
             shown = items if include_older else items[:OLDER_PREVIEW]
-            out.append({"key": key, "label": GROUP_LABELS[key], "items": shown,
+            out.append({"key": key, "label": labels[key], "items": shown,
                         "total": len(items), "collapsed": not include_older and len(items) > OLDER_PREVIEW})
         else:
-            out.append({"key": key, "label": GROUP_LABELS[key], "items": items[:CAP],
+            out.append({"key": key, "label": labels[key], "items": items[:CAP],
                         "total": len(items), "collapsed": False})
     return {"date": today, "groups": out}
 

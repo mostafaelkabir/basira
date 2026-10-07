@@ -33,7 +33,7 @@ const TICKET_TEMPLATES = [
   { key: 'meeting', label: 'Meeting', type: 'meeting', priority: 'low', tags: [] },
 ]
 
-export default function FindOrCreateComposer({ onDone, defaultCompanyId, defaultGoalId, placeholder }) {
+export default function FindOrCreateComposer({ onDone, defaultCompanyId, defaultGoalId, placeholder, planDate, planLabel = 'today' }) {
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState([])
   const [loading, setLoading] = useState(false)
@@ -89,8 +89,8 @@ export default function FindOrCreateComposer({ onDone, defaultCompanyId, default
   async function selectExisting(s) {
     setBusy(true)
     try {
-      await addToSchedule(s.source, s.item_id)   // reuse its ID; sets plan_date=today
-      notify(`Added “${s.title}” to today`)
+      await addToSchedule(s.source, s.item_id, planDate)   // reuse its ID; sets plan_date (default today)
+      notify(`Added “${s.title}” to ${planLabel}`)
       onDone?.({ reused: true, ...s })
     } catch (err) { notify(err.message) }          // draft preserved on failure
     finally { setBusy(false) }
@@ -125,7 +125,7 @@ export default function FindOrCreateComposer({ onDone, defaultCompanyId, default
       // Add work items to today; goals aren't scheduled. If this add fails, a retry
       // references created.id rather than creating a second entity.
       if (kind && kind !== 'goal') {
-        try { await addToSchedule(kind, created.id) } catch { /* entity exists; schedule retryable */ }
+        try { await addToSchedule(kind, created.id, planDate) } catch { /* entity exists; schedule retryable */ }
       }
       notify(`Created ${createType} “${title}”`)
       onDone?.({ created: true, type: createType, id: created.id })

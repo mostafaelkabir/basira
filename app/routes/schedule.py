@@ -169,10 +169,20 @@ def get_schedule(db: Session = Depends(get_db)):
 class AddBody(BaseModel):
     kind: str
     id: str
+    date: str | None = None   # YYYY-MM-DD to plan an upcoming day; defaults to today
 
 
-def _next_order(db: Session) -> int:
-    today = _today()
+def _plan_day(value: str | None) -> str:
+    if not value:
+        return _today()
+    try:
+        return date.fromisoformat(value).isoformat()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
+
+
+def _next_order(db: Session, day: str | None = None) -> int:
+    today = day or _today()
     max_ticket = db.query(WorkTicket).filter(WorkTicket.plan_date == today).count()
     max_log = db.query(WorkLog).filter(WorkLog.plan_date == today).count()
     max_proj = db.query(Task).filter(Task.plan_date == today).count()
@@ -181,8 +191,8 @@ def _next_order(db: Session) -> int:
 
 @router.post("/add")
 def add_to_schedule(body: AddBody, db: Session = Depends(get_db)):
-    today = _today()
-    order = _next_order(db)
+    today = _plan_day(body.date)
+    order = _next_order(db, today)
 
     if body.kind in (KIND_TASK, KIND_HABIT):
         task = db.query(Task).filter(Task.id == body.id).first()

@@ -21,6 +21,7 @@ import CapacityLine from './features/today/CapacityLine'
 import RoutineStrip from './features/today/RoutineStrip'
 import NowStrip from './features/today/NowStrip'
 import TaskNotesDialog from './features/today/TaskNotesDialog'
+import UpcomingStrip from './features/today/UpcomingStrip'
 import FindOrCreateComposer from './features/composer/FindOrCreateComposer'
 import { TicketDrawer } from './WorkPage'
 
@@ -74,7 +75,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   const [feedbackTask, setFeedbackTask] = useState(null)
   const [deferPending, setDeferPending] = useState(null)
   const { data: workspace, refresh: refreshWorkspace } = useDayWorkspace(data?.date)
-  const [showPlanner, setShowPlanner] = useState(false)
+  const [showPlanner, setShowPlanner] = useState(false)   // false | true (today) | 'YYYY-MM-DD'
   const [showQuickAdd, setShowQuickAdd] = useState(false)
   const [showTimeDetail, setShowTimeDetail] = useState(false)
   const [openTicket, setOpenTicket] = useState(null)
@@ -255,6 +256,9 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
         onEditTime={handleEditTime}
       />
 
+      {/* Next six days at a glance; opens the planner on that day (BAS-046) */}
+      <UpcomingStrip today={data.date} onPlanDay={d => setShowPlanner(d)} />
+
       {/* Post-task feeling popover */}
       {feedbackTask && (
         <div className="flex justify-center">
@@ -288,6 +292,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
       {/* Morning planning workspace */}
       {showPlanner && (
         <MorningPlanner date={data.date}
+          initialDay={typeof showPlanner === 'string' ? showPlanner : undefined}
           onClose={() => setShowPlanner(false)}
           onPlanned={() => { load(); refreshWorkspace?.(); window.dispatchEvent(new CustomEvent('basira:schedule-updated')) }} />
       )}
