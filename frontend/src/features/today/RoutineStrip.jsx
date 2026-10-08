@@ -5,7 +5,9 @@ import { fmtClock } from './format'
 // Habits as daily check marks (mockup zone D) — never rows on the schedule, never
 // timed. One horizontally scrollable strip of pill chips, ordered by time then
 // title; tapping toggles the check-in through the handler TodayPage provides.
-export default function RoutineStrip({ routines, onToggle, onOpenNotes }) {
+// Habits the user put on today's schedule (BAS-050) live there instead, so they
+// are not repeated as chips — but still count toward the Routine total.
+export default function RoutineStrip({ routines, onToggle, onOpenNotes, onAddToDay }) {
   const [expanded, setExpanded] = useState(false)
   const items = ['morning', 'afternoon', 'evening', 'anytime']
     .flatMap(b => routines?.[b] || [])
@@ -13,12 +15,19 @@ export default function RoutineStrip({ routines, onToggle, onOpenNotes }) {
 
   if (items.length === 0) return null
   const done = items.filter(h => h.done).length
-  const shown = expanded ? items : items.slice(0, 6)
-  const hidden = items.length - shown.length
+  const chips = items.filter(h => !h.planned)
+  const shown = expanded ? chips : chips.slice(0, 6)
+  const hidden = chips.length - shown.length
 
   return (
     <div>
-      <p className="eyebrow mb-1.5">Routine {done}/{items.length}</p>
+      <div className="flex items-center justify-between mb-1.5">
+        <p className="eyebrow">Routine {done}/{items.length}</p>
+        {onAddToDay && chips.length > 0 && (
+          <button onClick={onAddToDay} className="text-[11px] text-accent hover:underline">Add to schedule →</button>
+        )}
+      </div>
+      {chips.length === 0 && <p className="text-xs text-muted">All your habits are on today’s schedule.</p>}
       {/* Collapsed: one scrollable row. Expanded: wrap to multiple rows, all in view. */}
       <div className={`flex items-center gap-1.5 pb-1 -mb-1 ${expanded ? 'flex-wrap' : 'overflow-x-auto'}`}>
         {shown.map(h => (
@@ -43,7 +52,7 @@ export default function RoutineStrip({ routines, onToggle, onOpenNotes }) {
           <button onClick={() => setExpanded(true)}
             className="text-[11px] text-muted hover:text-ink px-2 py-1.5 flex-shrink-0">▾ {hidden} more</button>
         )}
-        {expanded && items.length > 6 && (
+        {expanded && chips.length > 6 && (
           <button onClick={() => setExpanded(false)}
             className="text-[11px] text-muted hover:text-ink px-2 py-1.5 flex-shrink-0">▴ less</button>
         )}

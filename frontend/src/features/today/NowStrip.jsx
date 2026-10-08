@@ -16,7 +16,7 @@ function toMin(hhmm) {
 
 // Sticky Now / Next strip (mockup zone B): what is running, or what is next, or a
 // prompt to plan. One primary timer presentation for the active session.
-export default function NowStrip({ workspace, timer, onPause, onResume, onDone, onStart, onOpenPlanner, onOpenTicket, onOpenNotes, onSwitch }) {
+export default function NowStrip({ workspace, timer, onPause, onResume, onDone, onStart, onOpenPlanner, onOpenTicket, onOpenNotes, onCheckHabit, onSwitch }) {
   const [, force] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef(null)
@@ -34,7 +34,7 @@ export default function NowStrip({ workspace, timer, onPause, onResume, onDone, 
   const active = (workspace.active_timers || [])[0] || null
   const schedule = [...(workspace.agenda || [])].sort((a, b) => (a.scheduled_time || '').localeCompare(b.scheduled_time || ''))
   const unfinished = [...(workspace.agenda || []), ...(workspace.unscheduled || [])]
-    .filter(i => i.status !== 'done' && (!active || i.key !== active.key))
+    .filter(i => i.status !== 'done' && i.source !== 'habit' && (!active || i.key !== active.key))   // habits are never timed
 
   // Next = first scheduled item later than now that isn't the active one.
   const now = nowMinutes()
@@ -108,10 +108,12 @@ export default function NowStrip({ workspace, timer, onPause, onResume, onDone, 
           {next.scheduled_time && <> at <span className="font-mono tabular-nums">{fmtClock(next.scheduled_time)}</span></>}
           {nextIn != null && nextIn > 0 && <span className="text-faint"> · in {fmtMinutes(nextIn)}</span>}
         </p>
-        {next.source === 'task' && onOpenNotes && (
+        {(next.source === 'task' || next.source === 'habit') && onOpenNotes && (
           <button className="agenda-btn flex-shrink-0" onClick={() => onOpenNotes(next)} title="Notes" aria-label={`Notes for ${next.title}`}><Icon name="note" size={13}/></button>
         )}
-        {next.source === 'task'
+        {next.source === 'habit'
+          ? <button className="agenda-btn text-accent flex-shrink-0" onClick={() => onCheckHabit(next)}><Icon name="check" size={13}/>Check off</button>
+          : next.source === 'task'
           ? <button className="agenda-btn text-accent flex-shrink-0" onClick={() => onStart(next)}><Icon name="play" size={13}/>Start now</button>
           : <button className="agenda-btn flex-shrink-0" onClick={() => onOpenTicket(next)}>Open</button>}
       </div>

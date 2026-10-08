@@ -10,6 +10,7 @@ from app.database import get_db
 from app.models.company import Company
 from app.models.execution_log import ExecutionLog
 from app.models.goal import Goal
+from app.models.habit_day_plan import HabitDayPlan
 from app.models.habit_log import HabitLog
 from app.models.task import Task
 from app.models.work_log import WorkLog
@@ -152,6 +153,16 @@ def get_schedule(db: Session = Depends(get_db)):
         .all()
     )
 
+    # Habits placed on today's schedule (BAS-050) live in habit_day_plans.
+    placed = {p.task_id for p in db.query(HabitDayPlan.task_id).filter(HabitDayPlan.date == today)}
+    if placed:
+        seen = {t.id for t in habit_tasks}
+        habit_tasks += [
+            t for t in db.query(Task).join(Goal, Task.goal_id == Goal.id)
+            .filter(ACTIVE, Task.id.in_(placed), Task.status == "todo", Task.trashed_at.is_(None)).all()
+            if t.id not in seen
+        ]
+
     tickets = db.query(WorkTicket).filter(WorkTicket.plan_date == today).all()
     worklogs = db.query(WorkLog).filter(WorkLog.plan_date == today).all()
 
@@ -181,6 +192,22 @@ def _plan_day(value: str | None) -> str:
         raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
 
 
+def _habit_on_day(db: Session, task_id: str, day: str, create: bool = False) -> HabitDayPlan | None:
+    """A habit's placement on one day's schedule (BAS-050). Never touches the
+    habit's own plan_date/scheduled_time, so other days and its default time stay."""
+    plan = db.query(HabitDayPlan).filter(HabitDayPlan.task_id == task_id, HabitDayPlan.date == day).first()
+    if plan or not create:
+        return plan
+    task = db.query(Task).filter(Task.id == task_id, Task.trashed_at.is_(None)).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Habit not found")
+    if not task.goal or task.goal.type != "resolution":
+        raise HTTPException(status_code=400, detail="Only habits can be added as habits")
+    plan = HabitDayPlan(id=str(uuid4()), task_id=task_id, date=day, created_at=datetime.now(UTC))
+    db.add(plan)
+    return plan
+
+
 def _next_order(db: Session, day: str | None = None) -> int:
     today = day or _today()
     max_ticket = db.query(WorkTicket).filter(WorkTicket.plan_date == today).count()
@@ -192,6 +219,10 @@ def _next_order(db: Session, day: str | None = None) -> int:
 @router.post("/add")
 def add_to_schedule(body: AddBody, db: Session = Depends(get_db)):
     today = _plan_day(body.date)
+    if body.kind == KIND_HABIT:
+        _habit_on_day(db, body.id, today, create=True)
+        db.commit()
+        return {"ok": True}
     order = _next_order(db, today)
 
     if body.kind in (KIND_TASK, KIND_HABIT):
@@ -221,6 +252,12 @@ def add_to_schedule(body: AddBody, db: Session = Depends(get_db)):
 
 @router.post("/remove")
 def remove_from_schedule(body: AddBody, db: Session = Depends(get_db)):
+    if body.kind == KIND_HABIT:
+        plan = _habit_on_day(db, body.id, _plan_day(body.date))
+        if plan:
+            db.delete(plan)
+            db.commit()
+        return {"ok": True}
     if body.kind in (KIND_TASK, KIND_HABIT):
         task = db.query(Task).filter(Task.id == body.id).first()
         if task:
@@ -431,12 +468,18 @@ class TimeBody(BaseModel):
     kind: str
     id: str
     time: str | None = None   # "HH:MM" or null to clear
+    date: str | None = None   # habits only: which day's placement (default today)
 
 
 @router.post("/time")
 def set_schedule_time(body: TimeBody, db: Session = Depends(get_db)):
     if body.time and not re.match(r"^\d{2}:\d{2}$", body.time):
         raise HTTPException(status_code=400, detail="time must be HH:MM")
+
+    if body.kind == KIND_HABIT:
+        _habit_on_day(db, body.id, _plan_day(body.date), create=True).scheduled_time = body.time
+        db.commit()
+        return {"ok": True}
 
     if body.kind in (KIND_TASK, KIND_HABIT):
         task = db.query(Task).filter(Task.id == body.id).first()

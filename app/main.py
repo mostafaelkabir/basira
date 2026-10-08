@@ -272,6 +272,17 @@ def run_migrations():
             updated_at TIMESTAMP
         )""",
         "CREATE INDEX IF NOT EXISTS ix_day_blocks_date ON day_blocks (date)",
+        # A habit placed on one day's schedule (BAS-050). Per day, so a habit can sit
+        # on today and Thursday at once without touching the habit's own plan_date.
+        """CREATE TABLE IF NOT EXISTS habit_day_plans (
+            id TEXT PRIMARY KEY,
+            task_id TEXT NOT NULL,
+            date TEXT NOT NULL,
+            scheduled_time TEXT,
+            created_at TIMESTAMP,
+            UNIQUE (task_id, date)
+        )""",
+        "CREATE INDEX IF NOT EXISTS ix_habit_day_plans_date ON habit_day_plans (date)",
         # Snooze a ticket out of morning suggestions until a date (BAS-030).
         "ALTER TABLE work_tickets ADD COLUMN snoozed_until TEXT",
         # Soft-delete (trash) with 30-day retention for goals and tasks.

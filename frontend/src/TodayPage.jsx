@@ -177,8 +177,9 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   // ── One chronological agenda from the day workspace + habits + completed ──
   const activeKeys = new Set((workspace?.active_timers || []).map(t => t.key))
   const workItems = [...(workspace?.agenda || []), ...(workspace?.unscheduled || [])]
-    .map(i => ({ ...i, done: i.status === 'done', active: activeKeys.has(i.key) }))
-  // Habits are daily check marks in the RoutineStrip only — never schedule rows.
+    .map(i => ({ ...i, done: i.status === 'done', active: activeKeys.has(i.key), habitCount: i.habit_count, habitTarget: i.habit_target }))
+  // Habits are check marks in the RoutineStrip, unless the user put one on today's
+  // schedule (BAS-050) — then it is an agenda row checked off in place.
   const habitById = new Map(habits.map(h => [h.id, h]))
   const routines = workspace?.routines || {}
   const all = [...workItems]
@@ -230,6 +231,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
         onDone={item => handleComplete(findTask(item.item_id))}
         onOpenTicket={handleOpenTicket}
         onOpenNotes={setNotesFor}
+        onCheckHabit={item => { const full = habitById.get(item.item_id); if (full) handleToggleHabit(full) }}
         onOpenPlanner={() => setShowPlanner(true)} />
 
       {/* One capacity-aware planned / worked line (BAS-031) */}
@@ -240,7 +242,8 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
       {/* Habits as daily check marks — off the schedule (BAS-038) */}
       <RoutineStrip routines={routines}
         onToggle={h => { const full = habitById.get(h.id); if (full) handleToggleHabit(full) }}
-        onOpenNotes={h => setNotesFor({ item_id: h.id, title: h.title, project_title: 'Routine' })} />
+        onOpenNotes={h => setNotesFor({ item_id: h.id, title: h.title, project_title: 'Routine' })}
+        onAddToDay={() => setShowPlanner(true)} />
 
       {/* One chronological agenda */}
       <DayAgenda

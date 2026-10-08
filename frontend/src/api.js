@@ -315,15 +315,16 @@ export const getDailySchedule = () => request('/today/schedule')
 // `date` (YYYY-MM-DD) plans an upcoming day; omitted = today.
 export const addToSchedule = (kind, id, date) =>
   request('/today/schedule/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, id, ...(date ? { date } : {}) }) })
-export const removeFromSchedule = (kind, id) =>
-  request('/today/schedule/remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, id }) })
+export const removeFromSchedule = (kind, id, date) =>
+  request('/today/schedule/remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, id, ...(date ? { date } : {}) }) })
 export const createScheduleItem = (data) =>
   request('/today/schedule/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
 export const completeScheduleItem = (kind, id, done = true) =>
   request('/today/schedule/complete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, id, done }) })
 export const reorderSchedule = (items) =>
   request('/today/schedule/reorder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(items) })
-export const setScheduleTime = (kind, id, time) =>
-  request('/today/schedule/time', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, id, time }) })
+// For kind 'habit', `date` picks which day's placement to re-time (default today).
+export const setScheduleTime = (kind, id, time, date) =>
+  request('/today/schedule/time', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, id, time, ...(date ? { date } : {}) }) })
 export const batchCreateSchedule = (items) =>
   request('/today/schedule/batch-create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(items) })

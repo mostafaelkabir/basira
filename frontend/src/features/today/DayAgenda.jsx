@@ -59,7 +59,7 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
       <div className="flex-1 min-w-0">
         {isTicket
           ? <button onClick={() => onOpenTicket(item)} className="text-sm text-ink truncate text-left hover:text-accent">{item.title}</button>
-          : isTask && onOpenNotes
+          : (isTask || isHabit) && onOpenNotes
             ? <button onClick={() => onOpenNotes(item)} title="Open notes"
                 className={`block max-w-full text-sm truncate text-left hover:text-accent ${item.done ? 'text-muted line-through' : 'text-ink'}`}>{item.title}</button>
             : <p className={`text-sm truncate ${item.done ? 'text-muted line-through' : 'text-ink'}`}>{item.title}</p>}
@@ -74,7 +74,7 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
       </div>
 
       {/* Actions */}
-      {item.done && isTask && onOpenNotes && (
+      {item.done && (isTask || isHabit) && onOpenNotes && (
         <button onClick={() => onOpenNotes(item)} className="agenda-btn flex-shrink-0" aria-label={`Notes for ${item.title}`}><Icon name="note" size={13} /></button>
       )}
       {!item.done && (
@@ -88,7 +88,7 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
           {isTask && !taskActive && (
             <button onClick={() => onStartTask(item)} className="agenda-btn text-accent"><Icon name="play" size={13} />Start</button>
           )}
-          {isTask && onOpenNotes && (
+          {(isTask || isHabit) && onOpenNotes && (
             <button onClick={() => onOpenNotes(item)} className="agenda-btn agenda-btn-notes" title="Notes" aria-label={`Notes for ${item.title}`}><Icon name="note" size={13} /></button>
           )}
           {isTask && (

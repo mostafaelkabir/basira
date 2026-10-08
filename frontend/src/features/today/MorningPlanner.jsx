@@ -14,7 +14,7 @@ import { fmtMinutes, fmtDuration, fmtClock, addDays, dayShort, dayLong } from '.
 import FindOrCreateComposer from '../composer/FindOrCreateComposer'
 import { useTimer } from '../../TimerContext'
 
-const SOURCE_BADGE = { ticket: 'Ticket', task: 'Task', worklog: 'Log' }
+const SOURCE_BADGE = { ticket: 'Ticket', task: 'Task', worklog: 'Log', habit: 'Habit' }
 const DROP_ID = 'today-plan'
 
 // One planning surface for today and the next six days (BAS-046): a day strip
@@ -75,13 +75,13 @@ export default function MorningPlanner({ date, initialDay, onClose, onPlanned })
 
   async function unplan(i) {
     setBusyKey(i.key)
-    try { await removeFromSchedule(i.source, i.item_id); notify(`Removed “${i.title}” from ${dayName}`); onPlanned?.(); await refresh() }
+    try { await removeFromSchedule(i.source, i.item_id, day); notify(`Removed “${i.title}” from ${dayName}`); onPlanned?.(); await refresh() }
     catch (e) { notify(e.message) }
     finally { setBusyKey(null) }
   }
 
   async function setTime(i, time) {
-    try { await setScheduleTime(i.source, i.item_id, time || null); onPlanned?.(); await refresh() }
+    try { await setScheduleTime(i.source, i.item_id, time || null, day); onPlanned?.(); await refresh() }
     catch (e) { notify(e.message) }
   }
 
@@ -94,6 +94,10 @@ export default function MorningPlanner({ date, initialDay, onClose, onPlanned })
   const recorded = ws?.totals?.recorded_seconds || 0
   const available = ws?.totals?.available_minutes || 0
   const planItems = [...(ws?.agenda || []), ...(ws?.unscheduled || [])]
+  // Habits not yet on this day's schedule (BAS-050); adding one never changes the habit.
+  const habitsToAdd = Object.values(ws?.routines || {}).flat()
+    .filter(h => !h.planned)
+    .sort((a, b) => (a.scheduled_time || '99:99').localeCompare(b.scheduled_time || '99:99') || a.title.localeCompare(b.title))
 
   return (
     <Modal title={isToday ? 'Plan my day' : 'Plan ahead'} onClose={onClose} wide>
@@ -123,6 +127,22 @@ export default function MorningPlanner({ date, initialDay, onClose, onPlanned })
                   onDone={(r) => { if (r) { onPlanned?.(); refresh() } }}
                 />
               </div>
+              {habitsToAdd.length > 0 && (
+                <div>
+                  <p className="eyebrow mb-2">Habits</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {habitsToAdd.map(h => (
+                      <button key={h.id} disabled={busyKey === `habit:${h.id}`}
+                        onClick={() => add({ key: `habit:${h.id}`, source: 'habit', item_id: h.id, title: h.title })}
+                        aria-label={`Add habit ${h.title} to ${dayName}`}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-border bg-surface text-xs text-ink hover:border-accent/40 hover:text-accent disabled:opacity-50 transition-colors">
+                        <span className="text-accent">+</span>{h.title}
+                        {h.scheduled_time && <span className="text-[10px] font-mono text-faint">{fmtClock(h.scheduled_time)}</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="space-y-3 max-h-[26rem] overflow-y-auto pr-0.5">
                 {!sugg && <p className="text-sm text-muted">Loading…</p>}
                 {sugg && sugg.groups.every(g => g.total === 0) && (
