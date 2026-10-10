@@ -8,6 +8,7 @@ import { GoalIcon } from './GoalsPage'
 import Modal from './components/Modal'
 import ConfirmDialog from './components/ConfirmDialog'
 import TimeLogModal from './components/TimeLogModal'
+import GoalStats from './features/goals/GoalStats'
 import { getDueDateMeta, sortByDueDate } from './utils'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -321,6 +322,8 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
           </div>
         </div>
       </div>
+
+      <GoalStats goalId={goalId} refreshKey={goal} />
 
       {/* Sub-projects section */}
       {isUmbrella && (

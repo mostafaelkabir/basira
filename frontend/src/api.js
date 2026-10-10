@@ -80,6 +80,7 @@ export const snoozeSuggestion = (source, itemId, until) =>
 
 export const getGoals = (archived = false) => request(`/goals${archived ? '?archived=true' : ''}`)
 export const getGoal = (id) => request(`/goals/${id}`)
+export const getGoalStats = (id) => request(`/goals/${id}/stats`)
 export const createGoal = (data) =>
   request('/goals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
 export const updateGoal = (id, data) =>

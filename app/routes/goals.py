@@ -8,6 +8,7 @@ from app.database import get_db
 from app.models.goal import Goal
 from app.models.task import Task
 from app.schemas.goal import GoalCreate, GoalDetail, GoalRead, GoalUpdate
+from app.services.goal_stats import goal_stats
 
 router = APIRouter(prefix="/goals", tags=["goals"])
 
@@ -126,6 +127,15 @@ def get_goal(goal_id: str, db: Session = Depends(get_db)) -> dict:
         "tasks": [_enrich(t) for t in top_level],
         "sub_goals": [_goal_to_dict(sg) for sg in sub_goals],
     }
+
+
+@router.get("/{goal_id}/stats")
+def get_goal_stats(goal_id: str, db: Session = Depends(get_db)) -> dict:
+    """Read-only streaks, consistency, heatmap and per-habit stats for a goal."""
+    goal = db.query(Goal).filter(Goal.id == goal_id).first()
+    if not goal or goal.trashed_at is not None:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    return goal_stats(db, goal)
 
 
 @router.patch("/{goal_id}", response_model=GoalRead)
