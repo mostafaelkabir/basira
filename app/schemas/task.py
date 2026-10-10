@@ -22,6 +22,7 @@ class TaskCreate(BaseModel):
     is_urgent: bool = False
     is_important: bool = False
     estimated_minutes: int | None = None
+    kind: str | None = None  # "task" = one-off under a resolution
 
 
 class TaskUpdate(BaseModel):
@@ -38,6 +39,7 @@ class TaskUpdate(BaseModel):
     is_urgent: bool | None = None
     is_important: bool | None = None
     estimated_minutes: int | None = None
+    kind: str | None = None
 
 
 class TaskRead(BaseModel):
@@ -56,6 +58,7 @@ class TaskRead(BaseModel):
     is_important: bool = False
     sort_order: int = 0
     estimated_minutes: int | None = None
+    kind: str | None = None
 
 
 class TaskWithProofs(BaseModel):
@@ -76,6 +79,7 @@ class TaskWithProofs(BaseModel):
     is_important: bool = False
     sort_order: int = 0
     estimated_minutes: int | None = None
+    kind: str | None = None
     proofs: list[ProofRead] = []
     comments: list[CommentRead] = []
     sub_tasks: list[TaskRead] = []

@@ -6,6 +6,7 @@ from datetime import date
 from app.database import SessionLocal
 from app.models.goal import Goal
 from app.models.habit_log import HabitLog
+from app.models.task import is_habit
 from app.routes.settings_route import get_all_settings
 
 
@@ -31,7 +32,8 @@ def check_habits_and_notify() -> None:
         ).all()
 
         total_habits = sum(
-            1 for g in resolution_goals for t in g.tasks if t.status != "done"
+            1 for g in resolution_goals for t in g.tasks
+            if t.status != "done" and t.trashed_at is None and is_habit(t, g.type)
         )
         if total_habits == 0:
             return

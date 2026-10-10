@@ -10,7 +10,7 @@ from app.models.defer_log import DeferLog
 from app.models.execution_log import ExecutionLog
 from app.models.goal import Goal
 from app.models.habit_log import HabitLog
-from app.models.task import Task
+from app.models.task import Task, habit_row_filter
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -143,7 +143,7 @@ def get_analytics(db: Session = Depends(get_db)):
     habit_logs_7  = [h for h in habit_logs_30 if h.date >= day7_ago]
 
     active_habits = db.query(Task).join(Goal).filter(
-        Goal.type == "resolution", ACTIVE, Task.status == "todo"
+        Goal.type == "resolution", ACTIVE, Task.status == "todo", habit_row_filter()
     ).count()
 
     # Unique days with at least one habit done

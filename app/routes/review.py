@@ -9,7 +9,7 @@ from app.database import get_db
 from app.models.execution_log import ExecutionLog
 from app.models.goal import Goal
 from app.models.habit_log import HabitLog
-from app.models.task import Task
+from app.models.task import Task, is_habit
 
 router = APIRouter(prefix="/review", tags=["review"])
 
@@ -91,7 +91,7 @@ def weekly_review(db: Session = Depends(get_db)):
     habit_stats: list[HabitWeekStat] = []
     for goal in resolution_goals:
         for task in goal.tasks:
-            if task.status == "done":
+            if task.status == "done" or not is_habit(task, goal.type):
                 continue
             logs = (
                 db.query(HabitLog)

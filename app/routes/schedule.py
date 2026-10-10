@@ -12,7 +12,7 @@ from app.models.execution_log import ExecutionLog
 from app.models.goal import Goal
 from app.models.habit_day_plan import HabitDayPlan
 from app.models.habit_log import HabitLog
-from app.models.task import Task
+from app.models.task import Task, habit_row_filter
 from app.models.work_log import WorkLog
 from app.models.work_ticket import WorkTicket
 
@@ -140,8 +140,9 @@ def get_schedule(db: Session = Depends(get_db)):
     # Project tasks explicitly planned for today
     project_tasks = (
         db.query(Task).join(Goal, Task.goal_id == Goal.id)
-        .filter(Goal.type == "project", ACTIVE, Task.plan_date == today,
-                Task.parent_task_id.is_(None),
+        .filter(ACTIVE, Task.plan_date == today,
+                ((Goal.type == "project") & Task.parent_task_id.is_(None))
+                | ((Goal.type == "resolution") & ~habit_row_filter()),
                 (Task.pinned_date.is_(None)) | (Task.pinned_date != today))
         .all()
     )
@@ -149,7 +150,8 @@ def get_schedule(db: Session = Depends(get_db)):
     # Habits explicitly planned for today
     habit_tasks = (
         db.query(Task).join(Goal, Task.goal_id == Goal.id)
-        .filter(Goal.type == "resolution", ACTIVE, Task.plan_date == today, Task.status == "todo")
+        .filter(Goal.type == "resolution", ACTIVE, Task.plan_date == today, Task.status == "todo",
+                habit_row_filter())
         .all()
     )
 

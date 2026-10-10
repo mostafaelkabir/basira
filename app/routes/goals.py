@@ -107,6 +107,7 @@ def get_goal(goal_id: str, db: Session = Depends(get_db)) -> dict:
             "is_urgent": t.is_urgent or False,
             "is_important": t.is_important or False,
             "sort_order": t.sort_order or 0,
+            "estimated_minutes": t.estimated_minutes, "kind": t.kind,
             "proofs": t.proofs, "comments": t.comments,
             "sub_tasks": sub_tasks_by_parent.get(t.id, []),
         }

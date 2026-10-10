@@ -38,7 +38,7 @@ from app.models.goal import Goal
 from app.models.habit_day_plan import HabitDayPlan
 from app.models.habit_log import HabitLog
 from app.models.setting import Setting
-from app.models.task import Task
+from app.models.task import Task, is_habit
 from app.models.work_log import WorkLog
 from app.models.work_session import WorkSession
 from app.models.work_ticket import WorkTicket, WorkTimeEntry
@@ -312,7 +312,7 @@ def _agenda(db: Session, day: date, recorded_by_key: dict[str, int],
             Goal.archived_at.is_(None), Goal.trashed_at.is_(None),
             Task.trashed_at.is_(None),
             (Task.plan_date == day_iso) | (Task.pinned_date == day_iso),
-            Task.parent_task_id.is_(None),
+            Task.parent_task_id.is_(None) | (Task.plan_date == day_iso),
         ).all()
     )
     goal_titles = _goal_title_lookup(db, [t.goal_id for t in tasks])
@@ -415,7 +415,8 @@ def _routines(db: Session, day: date) -> dict[str, list[dict]]:
     goals = (
         db.query(Goal).filter(Goal.type == "resolution", Goal.archived_at.is_(None), Goal.trashed_at.is_(None)).all()
     )
-    goal_task_ids = [t.id for g in goals for t in g.tasks if t.status != "done" and t.trashed_at is None]
+    goal_task_ids = [t.id for g in goals for t in g.tasks
+                     if t.status != "done" and t.trashed_at is None and is_habit(t, g.type)]
     log_counts: dict[str, int] = {}
     if goal_task_ids:
         for row in (
@@ -426,7 +427,7 @@ def _routines(db: Session, day: date) -> dict[str, list[dict]]:
     on_schedule = {row.task_id for row in db.query(HabitDayPlan.task_id).filter(HabitDayPlan.date == day_iso)}
     for g in goals:
         for t in g.tasks:
-            if t.status == "done" or t.trashed_at is not None:
+            if t.status == "done" or t.trashed_at is not None or not is_habit(t, g.type):
                 continue
             target = _per_day(t.habit_frequency)
             count = log_counts.get(t.id, 0)

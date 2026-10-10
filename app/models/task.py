@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, and_, or_
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -28,8 +28,35 @@ class Task(Base):
     estimated_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     scheduled_time: Mapped[str | None] = mapped_column(String, nullable=True)  # HH:MM, Daily Schedule time-of-day
     trashed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # soft-delete; purged after 30 days
+    # "task" = a one-off action filed under a resolution (e.g. "Buy the book");
+    # None = inferred from the goal type (a top-level task under a resolution is a habit).
+    kind: Mapped[str | None] = mapped_column(String, nullable=True)
 
     goal: Mapped["Goal"] = relationship("Goal", back_populates="tasks")
     proofs: Mapped[list["Proof"]] = relationship("Proof", back_populates="task", cascade="all, delete-orphan")
     comments: Mapped[list["Comment"]] = relationship("Comment", back_populates="task", cascade="all, delete-orphan", order_by="Comment.created_at")
     execution_logs: Mapped[list["ExecutionLog"]] = relationship("ExecutionLog", back_populates="task", cascade="all, delete-orphan")
+
+
+KIND_ONE_OFF = "task"
+
+
+def is_habit(task: Task, goal_type: str | None) -> bool:
+    """A habit is a top-level, non-one-off task under a resolution goal. Sub-tasks
+    of a habit and one-off tasks under a resolution are ordinary to-dos."""
+    return goal_type == "resolution" and task.parent_task_id is None and task.kind != KIND_ONE_OFF
+
+
+def habit_titles(db) -> dict[str, str]:
+    """{habit task id: title} for every habit. One-off tasks nested under a habit
+    are plannable work, labelled with their habit."""
+    from app.models.goal import Goal
+    return dict(
+        db.query(Task.id, Task.title).join(Goal, Task.goal_id == Goal.id)
+        .filter(Goal.type == "resolution", habit_row_filter()).all()
+    )
+
+
+def habit_row_filter():
+    """SQL counterpart of is_habit() for queries already restricted to resolution goals."""
+    return and_(Task.parent_task_id.is_(None), or_(Task.kind.is_(None), Task.kind != KIND_ONE_OFF))

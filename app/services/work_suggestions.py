@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.models.company import Company
 from app.models.goal import Goal
-from app.models.task import Task
+from app.models.task import Task, habit_titles
 from app.models.work_log import WorkLog
 from app.models.work_ticket import WorkTicket
 
@@ -130,8 +130,9 @@ def suggest_work(db: Session, query: str, limit: int = 5, show_all: bool = False
     goal_titles = {g.id: g.title for g in db.query(Goal.id, Goal.title).all()}
     archived_goal_ids = {g.id for g in db.query(Goal.id).filter(
         (Goal.archived_at.isnot(None)) | (Goal.trashed_at.isnot(None))).all()}
-    # Habits (resolution-goal tasks) are check marks, not plannable work items.
-    habit_goal_ids = {g.id for g in db.query(Goal.id).filter(Goal.type == "resolution").all()}
+    # Habits are check marks, not plannable work items; one-off tasks filed under a
+    # resolution or nested under a habit are.
+    habits = habit_titles(db)
     company_names = {c.id: c.name for c in db.query(Company.id, Company.name).all()}
 
     # ── Tickets (primary: ref, tags, status incl. blocked, client, project) ──
@@ -175,10 +176,13 @@ def suggest_work(db: Session, query: str, limit: int = 5, show_all: bool = False
 
     # ── Goal-linked tasks (title + project; skip archived goals & done) ──
     for task in db.query(Task).filter(Task.status != "done", Task.trashed_at.is_(None)).all() if source in (None, "task") else []:
-        if task.goal_id in archived_goal_ids or task.goal_id in habit_goal_ids or task.parent_task_id:
+        if task.goal_id in archived_goal_ids or task.id in habits or (
+                task.parent_task_id and task.parent_task_id not in habits):
             continue
         ts, treason = _title_score(qnorm, qtokens, task.title)
         project = goal_titles.get(task.goal_id, "Unassigned")
+        if task.parent_task_id:
+            project = f"{project} · {habits[task.parent_task_id]}"
         score, reasons = 0, []
         if ts:
             score, reasons = ts, [treason]

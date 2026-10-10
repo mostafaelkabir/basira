@@ -52,7 +52,8 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
   const [goal, setGoal] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showNewTask, setShowNewTask] = useState(false)
-  const [taskForm, setTaskForm] = useState({ title: '', requires_proof: true, due_date: '', habit_frequency: 'daily', is_urgent: false, is_important: false, estimated_minutes: null })
+  const EMPTY_TASK_FORM = { title: '', kind: null, requires_proof: true, due_date: '', habit_frequency: 'daily', is_urgent: false, is_important: false, estimated_minutes: null }
+  const [taskForm, setTaskForm] = useState(EMPTY_TASK_FORM)
   const [addingSubtaskFor, setAddingSubtaskFor] = useState(null) // parent task id
   const [subtaskTitle, setSubtaskTitle] = useState('')
   const [editingTask, setEditingTask] = useState(null)
@@ -103,8 +104,9 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
         is_urgent: taskForm.is_urgent,
         is_important: taskForm.is_important,
         estimated_minutes: taskForm.estimated_minutes,
+        kind: taskForm.kind,
       })
-      setTaskForm({ title: '', requires_proof: true, due_date: '', habit_frequency: 'daily', is_urgent: false, is_important: false, estimated_minutes: null })
+      setTaskForm(EMPTY_TASK_FORM)
       setShowNewTask(false)
       load()
     } catch (err) { notify(err.message) }
@@ -219,17 +221,62 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
     ? localTaskOrder.map(id => rawTodoTasks.find(t => t.id === id)).filter(Boolean)
     : rawTodoTasks
   const doneTasks = goal.tasks.filter((t) => t.status === 'done')
+  // Under a resolution, top-level tasks are habits unless filed as one-off (kind 'task').
+  const isHabitTask = (t) => isResolution && t.kind !== 'task'
+  const habitTasks = todoTasks.filter(isHabitTask)
+  const oneOffTasks = todoTasks.filter(t => !isHabitTask(t))
+  const editingHabit = !!editingTask && isHabitTask(editingTask)
+  const formIsHabit = isResolution && taskForm.kind !== 'task'
 
   async function handleTaskDragEnd(event) {
     const { active, over } = event
     if (!over || active.id === over.id) return
-    const oldIdx = todoTasks.findIndex(t => t.id === active.id)
-    const newIdx = todoTasks.findIndex(t => t.id === over.id)
-    const reordered = arrayMove(todoTasks, oldIdx, newIdx)
+    // Reorder within a section only (habits and one-off tasks are separate lists).
+    const inHabits = habitTasks.some(t => t.id === active.id)
+    const list = inHabits ? habitTasks : oneOffTasks
+    const oldIdx = list.findIndex(t => t.id === active.id)
+    const newIdx = list.findIndex(t => t.id === over.id)
+    if (newIdx < 0) return
+    const reorderedList = arrayMove(list, oldIdx, newIdx)
+    const reordered = inHabits ? [...reorderedList, ...oneOffTasks] : [...habitTasks, ...reorderedList]
     setLocalTaskOrder(reordered.map(t => t.id))
     try {
       await reorderTasks(reordered.map((t, i) => ({ id: t.id, sort_order: i * 10 })))
     } catch { /* silently fail */ }
+  }
+
+  function openNewTask(kind = null) {
+    setTaskForm({ ...EMPTY_TASK_FORM, kind, requires_proof: kind !== 'task' })
+    setShowNewTask(true)
+  }
+
+  function renderTaskCard(task, dragListeners) {
+    const habit = isHabitTask(task)
+    return (
+      <TaskCard task={task} isHabit={habit}
+        dragListeners={dragListeners}
+        onStartTimer={habit ? null : () => startTimer(task.id, task.title, goal?.title || '')}
+        onComplete={habit ? null : () => handleComplete(task.id)}
+        onDelete={() => handleDeleteTask(task.id, task.title)}
+        onAddProof={habit ? null : () => setProofFor(task.id)}
+        onEdit={async () => {
+          setEditingTask(task)
+          setEditForm({ title: task.title, goal_id: task.goal_id, due_date: task.due_date || '', habit_frequency: task.habit_frequency || 'daily', requires_proof: task.requires_proof, is_urgent: task.is_urgent || false, is_important: task.is_important || false, estimated_minutes: task.estimated_minutes || null })
+          if (allGoals.length === 0) setAllGoals(await getGoals())
+        }}
+        onCommentAdded={load}
+        onAddSubtask={() => { setAddingSubtaskFor(task.id); setSubtaskTitle('') }}
+        addingSubtask={addingSubtaskFor === task.id}
+        subtaskTitle={subtaskTitle}
+        onSubtaskTitleChange={setSubtaskTitle}
+        onSubtaskSubmit={(e) => handleCreateSubtask(e, task.id)}
+        onSubtaskCancel={() => { setAddingSubtaskFor(null); setSubtaskTitle('') }}
+        onCompleteSubtask={(id) => handleComplete(id)}
+        onDeleteSubtask={(id) => handleDeleteTask(id)}
+        onPinSubtask={handlePinSubtask}
+        submitting={submitting}
+      />
+    )
   }
 
   // For umbrella projects, aggregate task counts across sub-goals too
@@ -321,14 +368,22 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
 
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-[11px] font-semibold text-muted uppercase tracking-widest">{isResolution ? 'Habits' : 'Tasks'}</h2>
-        <button onClick={() => setShowNewTask(true)}
-          className="bg-forest text-white px-3 py-1.5 rounded-xl text-xs font-medium hover:bg-forest-hover transition-colors">
-          + {isResolution ? 'Add Habit' : 'Add Task'}
-        </button>
+        <div className="flex items-center gap-2">
+          {isResolution && (
+            <button onClick={() => openNewTask('task')}
+              className="border border-border text-ink px-3 py-1.5 rounded-xl text-xs font-medium hover:border-accent hover:text-accent transition-colors">
+              + One-off task
+            </button>
+          )}
+          <button onClick={() => openNewTask(null)}
+            className="bg-forest text-white px-3 py-1.5 rounded-xl text-xs font-medium hover:bg-forest-hover transition-colors">
+            + {isResolution ? 'Add Habit' : 'Add Task'}
+          </button>
+        </div>
       </div>
 
       {isResolution && (
-        <p className="text-xs text-muted mb-3">Check in on habits daily from the <strong>Today</strong> tab.</p>
+        <p className="text-xs text-muted mb-3">Check in on habits daily from the <strong>Today</strong> tab. Add one-off tasks under a habit (e.g. “Buy the book”) or to the resolution itself.</p>
       )}
 
       {goal.tasks.length === 0 ? (
@@ -338,37 +393,28 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
         </div>
       ) : (
         <DndContext sensors={taskSensors} collisionDetection={closestCenter} onDragEnd={handleTaskDragEnd}>
-        <SortableContext items={todoTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
         <div className="space-y-2">
-          {todoTasks.map((task) => (
-            <SortableTaskItem key={task.id} id={task.id}>
-              {(dragListeners) => (
-            <TaskCard task={task} isHabit={isResolution}
-              dragListeners={dragListeners}
-              onStartTimer={isResolution ? null : () => startTimer(task.id, task.title, goal?.title || '')}
-              onComplete={isResolution ? null : () => handleComplete(task.id)}
-              onDelete={() => handleDeleteTask(task.id, task.title)}
-              onAddProof={isResolution ? null : () => setProofFor(task.id)}
-              onEdit={async () => {
-                setEditingTask(task)
-                setEditForm({ title: task.title, goal_id: task.goal_id, due_date: task.due_date || '', habit_frequency: task.habit_frequency || 'daily', requires_proof: task.requires_proof, is_urgent: task.is_urgent || false, is_important: task.is_important || false, estimated_minutes: task.estimated_minutes || null })
-                if (allGoals.length === 0) setAllGoals(await getGoals())
-              }}
-              onCommentAdded={load}
-              onAddSubtask={isResolution ? null : () => { setAddingSubtaskFor(task.id); setSubtaskTitle('') }}
-              addingSubtask={addingSubtaskFor === task.id}
-              subtaskTitle={subtaskTitle}
-              onSubtaskTitleChange={setSubtaskTitle}
-              onSubtaskSubmit={(e) => handleCreateSubtask(e, task.id)}
-              onSubtaskCancel={() => { setAddingSubtaskFor(null); setSubtaskTitle('') }}
-              onCompleteSubtask={(id) => handleComplete(id)}
-              onDeleteSubtask={(id) => handleDeleteTask(id)}
-              onPinSubtask={handlePinSubtask}
-              submitting={submitting}
-            />
+          <SortableContext items={habitTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+            {habitTasks.map((task) => (
+              <SortableTaskItem key={task.id} id={task.id}>
+                {(dragListeners) => renderTaskCard(task, dragListeners)}
+              </SortableTaskItem>
+            ))}
+          </SortableContext>
+          {oneOffTasks.length > 0 && (
+            <>
+              {isResolution && (
+                <p className="text-[11px] font-semibold text-muted uppercase tracking-widest pt-4 pb-1">One-off tasks</p>
               )}
-            </SortableTaskItem>
-          ))}
+              <SortableContext items={oneOffTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                {oneOffTasks.map((task) => (
+                  <SortableTaskItem key={task.id} id={task.id}>
+                    {(dragListeners) => renderTaskCard(task, dragListeners)}
+                  </SortableTaskItem>
+                ))}
+              </SortableContext>
+            </>
+          )}
           {doneTasks.length > 0 && (
             <div className="pt-3">
               {todoTasks.length > 0 && (
@@ -382,22 +428,33 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
             </div>
           )}
         </div>
-        </SortableContext>
         </DndContext>
       )}
 
       {/* New task modal */}
       {showNewTask && (
-        <Modal title={isResolution ? 'Add Habit' : 'Add Task'}
-          onClose={() => { setShowNewTask(false); setTaskForm({ title: '', requires_proof: true, due_date: '' }) }}>
+        <Modal title={formIsHabit ? 'Add Habit' : isResolution ? 'Add One-off Task' : 'Add Task'}
+          onClose={() => { setShowNewTask(false); setTaskForm(EMPTY_TASK_FORM) }}>
           <form onSubmit={handleCreateTask} className="space-y-4">
+            {isResolution && (
+              <div className="grid grid-cols-2 gap-1.5">
+                {[{ kind: null, label: 'Habit', desc: 'Repeats — check in' }, { kind: 'task', label: 'One-off task', desc: 'Do once — then done' }].map(o => (
+                  <button key={o.label} type="button"
+                    onClick={() => setTaskForm({ ...taskForm, kind: o.kind, requires_proof: o.kind !== 'task' })}
+                    className={`px-3 py-2 rounded-xl border text-left transition-colors ${taskForm.kind === o.kind ? 'bg-forest text-white border-forest' : 'border-border text-muted hover:border-accent'}`}>
+                    <span className="block text-xs font-semibold">{o.label}</span>
+                    <span className="block text-[11px] opacity-80">{o.desc}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium text-ink">Title</label>
               <input autoFocus value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
-                placeholder={isResolution ? 'e.g. Study 20 min' : 'e.g. Complete application'}
+                placeholder={formIsHabit ? 'e.g. Study 20 min' : isResolution ? 'e.g. Buy the book' : 'e.g. Complete application'}
                 className="mt-1.5 w-full border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent bg-surface placeholder:text-muted" />
             </div>
-            {isResolution && (
+            {formIsHabit && (
               <>
                 <div>
                   <label className="text-sm font-medium text-ink">Frequency</label>
@@ -420,7 +477,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
                 </label>
               </>
             )}
-            {!isResolution && (
+            {!formIsHabit && (
               <>
                 <div>
                   <label className="text-sm font-medium text-ink">Due date <span className="text-muted font-normal">(optional)</span></label>
@@ -435,7 +492,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
                 </label>
               </>
             )}
-            {!isResolution && (
+            {!formIsHabit && (
               <div>
                 <label className="text-sm font-medium text-ink block mb-1.5">Tags</label>
                 <TagToggles urgent={taskForm.is_urgent} important={taskForm.is_important}
@@ -443,18 +500,18 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
                   onToggleImportant={() => setTaskForm(f => ({ ...f, is_important: !f.is_important }))} />
               </div>
             )}
-            {!isResolution && (
+            {!formIsHabit && (
               <EstimatedTimePicker
                 value={taskForm.estimated_minutes}
                 onChange={v => setTaskForm(f => ({ ...f, estimated_minutes: v }))}
               />
             )}
             <div className="flex justify-end gap-2 pt-1">
-              <button type="button" onClick={() => { setShowNewTask(false); setTaskForm({ title: '', requires_proof: true, due_date: '', is_urgent: false, is_important: false, estimated_minutes: null }) }}
+              <button type="button" onClick={() => { setShowNewTask(false); setTaskForm(EMPTY_TASK_FORM) }}
                 className="px-4 py-2 text-sm text-muted hover:text-ink">Cancel</button>
               <button type="submit" disabled={submitting || !taskForm.title.trim()}
                 className="bg-forest text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-forest-hover disabled:opacity-40">
-                {isResolution ? 'Add Habit' : 'Add Task'}
+                {formIsHabit ? 'Add Habit' : 'Add Task'}
               </button>
             </div>
           </form>
@@ -463,7 +520,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
 
       {/* Edit task modal */}
       {editingTask && (
-        <Modal title={isResolution ? 'Edit Habit' : 'Edit Task'} onClose={() => setEditingTask(null)}>
+        <Modal title={editingHabit ? 'Edit Habit' : 'Edit Task'} onClose={() => setEditingTask(null)}>
           <form onSubmit={handleEditTask} className="space-y-4">
             <div>
               <label className="text-sm font-medium text-ink">Title</label>
@@ -482,7 +539,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
                 </select>
               </div>
             )}
-            {isResolution ? (
+            {editingHabit ? (
               <div>
                 <label className="text-sm font-medium text-ink">Frequency</label>
                 <div className="mt-1.5 grid grid-cols-4 gap-1.5">
@@ -511,9 +568,9 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
               <input type="checkbox" checked={editForm.requires_proof}
                 onChange={(e) => setEditForm({ ...editForm, requires_proof: e.target.checked })}
                 className="w-4 h-4 rounded accent-accent" />
-              Requires proof to {isResolution ? 'check in' : 'complete'}
+              Requires proof to {editingHabit ? 'check in' : 'complete'}
             </label>
-            {!isResolution && (
+            {!editingHabit && (
               <div>
                 <label className="text-sm font-medium text-ink block mb-1.5">Tags</label>
                 <TagToggles urgent={editForm.is_urgent} important={editForm.is_important}
@@ -521,7 +578,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
                   onToggleImportant={() => setEditForm(f => ({ ...f, is_important: !f.is_important }))} />
               </div>
             )}
-            {!isResolution && (
+            {!editingHabit && (
               <EstimatedTimePicker
                 value={editForm.estimated_minutes}
                 onChange={v => setEditForm(f => ({ ...f, estimated_minutes: v }))}
@@ -884,7 +941,7 @@ function TaskCard({ task, onComplete, onDelete, onAddProof, onEdit, isHabit, onC
       )}
 
       {/* Sub-tasks */}
-      {!isHabit && (task.sub_tasks?.length > 0 || addingSubtask) && (
+      {(task.sub_tasks?.length > 0 || addingSubtask) && (
         <div className="border-t border-raised px-4 py-2 space-y-0.5">
           {task.sub_tasks?.map(st => {
             const today = new Date().toISOString().split('T')[0]
@@ -928,7 +985,7 @@ function TaskCard({ task, onComplete, onDelete, onAddProof, onEdit, isHabit, onC
             <form onSubmit={onSubtaskSubmit} className="flex items-center gap-2 pt-1">
               <span className="w-1.5 h-1.5 rounded-full bg-border flex-shrink-0" />
               <input autoFocus value={subtaskTitle} onChange={e => onSubtaskTitleChange(e.target.value)}
-                placeholder="Subtask title…"
+                placeholder={isHabit ? 'One-off task, e.g. Buy the book…' : 'Subtask title…'}
                 className="flex-1 text-sm border-b border-border focus:border-accent focus:outline-none bg-transparent py-0.5 placeholder:text-muted" />
               <button type="submit" disabled={!subtaskTitle.trim() || parentSubmitting}
                 className="text-xs text-accent font-medium disabled:opacity-40">Add</button>
@@ -937,11 +994,11 @@ function TaskCard({ task, onComplete, onDelete, onAddProof, onEdit, isHabit, onC
           )}
         </div>
       )}
-      {!isHabit && !isDone && onAddSubtask && !addingSubtask && (
+      {!isDone && onAddSubtask && !addingSubtask && (
         <div className="px-4 pb-2">
           <button onClick={onAddSubtask}
             className="text-xs text-muted hover:text-accent transition-colors flex items-center gap-1">
-            <span>+</span> Add subtask
+            <span>+</span> {isHabit ? 'Add one-off task' : 'Add subtask'}
           </button>
         </div>
       )}

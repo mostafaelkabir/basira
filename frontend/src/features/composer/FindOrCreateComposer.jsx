@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import Icon from '../../components/Icon'
 import { notify } from '../../components/Notice'
 import {
-  getWorkSuggestions, addToSchedule, createTask, createGoal,
+  getWorkSuggestions, addToSchedule, createTask, createGoal, getGoal,
   createWorkTicket, getGoals, getCompanies,
 } from '../../api'
 
@@ -52,6 +52,9 @@ export default function FindOrCreateComposer({ onDone, defaultCompanyId, default
   const [priority, setPriority] = useState('medium')
   const [frequency, setFrequency] = useState('daily')
   const [goalType, setGoalType] = useState('project')
+  // A task under a resolution is a one-off; it can also sit under one of its habits.
+  const [habitId, setHabitId] = useState('')
+  const [habitOpts, setHabitOpts] = useState([])
   // Ticket template: sets contextual, still-editable defaults (type/priority/tags).
   const [template, setTemplate] = useState('feature')
   const [ticketType, setTicketType] = useState('code')
@@ -65,6 +68,16 @@ export default function FindOrCreateComposer({ onDone, defaultCompanyId, default
   }
 
   useEffect(() => { inputRef.current?.focus() }, [])
+
+  const taskGoal = goals.find(g => g.id === goalId)
+  const taskUnderResolution = createType === 'task' && taskGoal?.type === 'resolution'
+  useEffect(() => {
+    setHabitId('')
+    if (!taskUnderResolution) { setHabitOpts([]); return }
+    getGoal(goalId)
+      .then(g => setHabitOpts(g.tasks.filter(t => t.kind !== 'task' && t.status !== 'done')))
+      .catch(() => setHabitOpts([]))
+  }, [goalId, taskUnderResolution])
   useEffect(() => {
     getGoals().then(setGoals).catch(() => {})
     getCompanies().then(setCompanies).catch(() => {})
@@ -111,7 +124,10 @@ export default function FindOrCreateComposer({ onDone, defaultCompanyId, default
         kind = 'ticket'
       } else if (createType === 'task') {
         if (!goalId) throw new Error('Choose a project/goal for the task')
-        created = await createTask({ title, goal_id: goalId, requires_proof: false })
+        created = await createTask({
+          title, goal_id: goalId, requires_proof: false,
+          ...(taskUnderResolution ? { kind: 'task', parent_task_id: habitId || null } : {}),
+        })
         kind = 'task'
       } else if (createType === 'habit') {
         const g = goalId || goals.find(x => x.type === 'resolution')?.id
@@ -229,7 +245,7 @@ export default function FindOrCreateComposer({ onDone, defaultCompanyId, default
       {createType && (
         <div className="mt-3 space-y-2 bg-canvas border border-border rounded-xl p-3">
           <p className="text-[11px] text-muted">
-            New {createType}: <span className="text-ink font-medium">{query.trim() || '(type a title above)'}</span>
+            New {taskUnderResolution ? 'one-off task' : createType}: <span className="text-ink font-medium">{query.trim() || '(type a title above)'}</span>
           </p>
           <div className="flex flex-wrap gap-2">
             {createType === 'ticket' && (
@@ -256,8 +272,14 @@ export default function FindOrCreateComposer({ onDone, defaultCompanyId, default
               </>
             )}
             {createType === 'task' && (
-              <Select label="Project / goal" value={goalId} onChange={setGoalId}
-                options={[{ v: '', l: 'Select goal…' }, ...goalOpts.map(g => ({ v: g.id, l: g.title }))]} />
+              <>
+                <Select label="Project / goal" value={goalId} onChange={setGoalId}
+                  options={[{ v: '', l: 'Select goal…' }, ...goalOpts.map(g => ({ v: g.id, l: g.type === 'resolution' ? `✦ ${g.title}` : g.title }))]} />
+                {taskUnderResolution && (
+                  <Select label="Under habit" value={habitId} onChange={setHabitId}
+                    options={[{ v: '', l: 'The resolution itself' }, ...habitOpts.map(h => ({ v: h.id, l: h.title }))]} />
+                )}
+              </>
             )}
             {createType === 'habit' && (
               <>
@@ -291,7 +313,7 @@ function Select({ label, value, onChange, options }) {
     <label className="text-[11px] text-muted flex flex-col gap-0.5">
       {label}
       <select value={value} onChange={e => onChange(e.target.value)}
-        className="text-xs bg-surface border border-border rounded-lg px-2 py-1 text-ink capitalize focus:outline-none focus:ring-1 focus:ring-accent">
+        className="max-w-[18rem] text-xs bg-surface border border-border rounded-lg px-2 py-1 text-ink capitalize focus:outline-none focus:ring-1 focus:ring-accent">
         {options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
       </select>
     </label>

@@ -13,7 +13,7 @@ from app.models.execution_log import ExecutionLog
 from app.models.goal import Goal
 from app.models.habit_log import HabitLog
 from app.models.proof import Proof
-from app.models.task import Task
+from app.models.task import Task, habit_row_filter, is_habit
 from app.models.work_log import WorkLog
 from app.models.work_ticket import WorkTimeEntry
 from app.schemas.comment import CommentRead
@@ -124,6 +124,7 @@ def _upsert_snapshot(target_date: str, db: Session) -> None:
         Goal.type == "resolution",
         Goal.archived_at.is_(None),
         Task.status == "todo",
+        habit_row_filter(),
     ).count()
 
     # ── Work activity ───────────────────────────────────────────────────────────
@@ -244,7 +245,7 @@ def get_today(db: Session = Depends(get_db)):
     habits = []
     for goal in resolution_goals:
         for task in goal.tasks:
-            if task.status == "done" or task.trashed_at is not None:
+            if task.status == "done" or task.trashed_at is not None or not is_habit(task, goal.type):
                 continue
             per_day = _per_day(task.habit_frequency)
             log = (

@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 from app.models.company import Company
 from app.models.goal import Goal
-from app.models.task import Task
+from app.models.task import Task, habit_titles
 from app.models.work_ticket import WorkTicket
 
 DONE = {"done"}
@@ -55,7 +55,7 @@ def morning_suggestions(db: Session, day: date_cls, include_older: bool = False,
     goal_titles = {g.id: g.title for g in db.query(Goal.id, Goal.title).all()}
     archived = {g.id for g in db.query(Goal.id).filter(
         (Goal.archived_at.isnot(None)) | (Goal.trashed_at.isnot(None))).all()}
-    habit_goals = {g.id for g in db.query(Goal.id).filter(Goal.type == "resolution").all()}
+    habits = habit_titles(db)   # habits are check marks; one-offs under them are plannable
     company_names = {c.id: c.name for c in db.query(Company.id, Company.name).all()}
 
     groups: dict[str, list[dict]] = {"resume": [], "yesterday": [], "due": [], "older": []}
@@ -93,13 +93,17 @@ def morning_suggestions(db: Session, day: date_cls, include_older: bool = False,
 
     # ── Tasks ────────────────────────────────────────────────────────────────
     for task in db.query(Task).filter(Task.status.notin_(DONE), Task.trashed_at.is_(None)).all():
-        if task.goal_id in archived or task.goal_id in habit_goals or task.parent_task_id or task.plan_date == today:
+        if task.goal_id in archived or task.id in habits or task.plan_date == today or (
+                task.parent_task_id and task.parent_task_id not in habits):
             continue
         if task.deferred_until and task.deferred_until > today:
             continue
         if planned_elsewhere(task.plan_date):
             continue
-        b = base("task", task.id, task.title, goal_titles.get(task.goal_id, "Unassigned"),
+        project = goal_titles.get(task.goal_id, "Unassigned")
+        if task.parent_task_id:
+            project = f"{project} · {habits[task.parent_task_id]}"
+        b = base("task", task.id, task.title, project,
                  None, _suggested_minutes(task.estimated_minutes))
         due, plan = task.due_date, task.plan_date
         if task.status == "in_progress":

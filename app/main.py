@@ -288,6 +288,8 @@ def run_migrations():
         # Soft-delete (trash) with 30-day retention for goals and tasks.
         "ALTER TABLE goals ADD COLUMN trashed_at TIMESTAMP",
         "ALTER TABLE tasks ADD COLUMN trashed_at TIMESTAMP",
+        # One-off tasks under a resolution (kind='task') vs. habits (NULL).
+        "ALTER TABLE tasks ADD COLUMN kind TEXT",
     ]
     with engine.connect() as conn:
         for sql in migrations:
