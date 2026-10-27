@@ -15,5 +15,7 @@ from app.models.work_log import WorkLog
 from app.models.work_ticket import WorkTicket, WorkTimeEntry, WorkTicketComment
 from app.models.day_block import DayBlock
 from app.models.habit_day_plan import HabitDayPlan
+from app.models.board import Board
+from app.models.work_milestone import WorkMilestone
 
-__all__ = ["Goal", "Task", "Proof", "Comment", "ExecutionLog", "HabitLog", "Setting", "Contact", "CallLog", "DailySnapshot", "DeferLog", "WorkSession", "Company", "WorkLog", "WorkTicket", "WorkTimeEntry", "WorkTicketComment", "DayBlock", "HabitDayPlan"]
+__all__ = ["Goal", "Task", "Proof", "Comment", "ExecutionLog", "HabitLog", "Setting", "Contact", "CallLog", "DailySnapshot", "DeferLog", "WorkSession", "Company", "WorkLog", "WorkTicket", "WorkTimeEntry", "WorkTicketComment", "DayBlock", "HabitDayPlan", "Board", "WorkMilestone"]

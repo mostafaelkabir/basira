@@ -1,6 +1,6 @@
 import { notify, notifyAction } from './components/Notice'
-import { useEffect, useState } from 'react'
-import { addProof, completeTask, createTask, deleteTask, getGoal, getGoals, getTimerToday, logManualTime, pinTask, reorderTasks, updateTask, uploadProofFile, uploadProofImage, restoreTrashItem } from './api'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { addProof, completeTask, createTask, deleteTask, getGoal, getGoals, getTimerToday, logManualTime, pinTask, reorderTasks, updateTask, uploadProofFile, uploadProofImage, restoreTrashItem, ensureBoard, reopenTask } from './api'
 import { useTimer } from './TimerContext'
 import EstimatedTimePicker, { formatDuration } from './components/EstimatedTimePicker'
 import { ActivityComments } from './components/ActivityComposer'
@@ -17,6 +17,8 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+
+const BoardView = lazy(() => import('./features/boards/BoardView'))
 
 function SortableTaskItem({ id, children }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
@@ -67,6 +69,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
   const [proofForm, setProofForm] = useState({ type: 'text', content: '', imageFile: null, imagePreview: null })
   const [submitting, setSubmitting] = useState(false)
   const [localTaskOrder, setLocalTaskOrder] = useState(null)
+  const [goalView, setGoalView] = useState('tasks')   // 'tasks' | 'board' (this goal's whiteboard)
   const taskSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
   async function load() {
@@ -369,8 +372,14 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-[11px] font-semibold text-muted uppercase tracking-widest">{isResolution ? 'Habits' : 'Tasks'}</h2>
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <h2 className="text-[11px] font-semibold text-muted uppercase tracking-widest">{isResolution ? 'Habits' : 'Tasks'}</h2>
+          <div className="layout-toggle" role="group" aria-label="View">
+            <button type="button" aria-pressed={goalView === 'tasks'} onClick={() => setGoalView('tasks')}>☰ List</button>
+            <button type="button" aria-pressed={goalView === 'board'} onClick={() => setGoalView('board')}>▦ Board</button>
+          </div>
+        </div>
         <div className="flex items-center gap-2">
           {isResolution && (
             <button onClick={() => openNewTask('task')}
@@ -385,6 +394,9 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
         </div>
       </div>
 
+      {goalView === 'board' ? (
+        <GoalBoard goalId={goalId} />
+      ) : (<>
       {isResolution && (
         <p className="text-xs text-muted mb-3">Check in on habits daily from the <strong>Today</strong> tab. Add one-off tasks under a habit (e.g. “Buy the book”) or to the resolution itself.</p>
       )}
@@ -425,7 +437,8 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
               )}
               <div className="space-y-1.5 opacity-60">
               {doneTasks.map((task) => (
-                <TaskCard key={task.id} task={task} onDelete={() => handleDeleteTask(task.id, task.title)} onCommentAdded={load} />
+                <TaskCard key={task.id} task={task} onDelete={() => handleDeleteTask(task.id, task.title)} onCommentAdded={load}
+                  onReopen={() => reopenTask(task.id).then(load).catch(e => notify(e.message))} />
               ))}
               </div>
             </div>
@@ -433,6 +446,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
         </div>
         </DndContext>
       )}
+      </>)}
 
       {/* New task modal */}
       {showNewTask && (
@@ -788,7 +802,7 @@ function extIcon(name) {
   return FILE_EXT_ICONS[ext] || '📎'
 }
 
-function ProofDisplay({ proof }) {
+export function ProofDisplay({ proof }) {
   if (proof.type === 'image') {
     return (
       <div className="flex items-start gap-2 text-xs bg-raised rounded-xl px-3 py-2">
@@ -824,7 +838,7 @@ function ProofDisplay({ proof }) {
   )
 }
 
-function TaskCard({ task, onComplete, onDelete, onAddProof, onEdit, isHabit, onCommentAdded,
+function TaskCard({ task, onComplete, onDelete, onAddProof, onEdit, isHabit, onCommentAdded, onReopen,
   onAddSubtask, addingSubtask, subtaskTitle, onSubtaskTitleChange, onSubtaskSubmit, onSubtaskCancel,
   onCompleteSubtask, onDeleteSubtask, onPinSubtask, submitting: parentSubmitting, dragListeners, onStartTimer }) {
   const isDone = task.status === 'done'
@@ -862,6 +876,11 @@ function TaskCard({ task, onComplete, onDelete, onAddProof, onEdit, isHabit, onC
             className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${
               canComplete ? 'border-accent hover:bg-brand hover:text-white text-transparent' : 'border-border text-transparent cursor-not-allowed'
             }`}>
+            <span className="text-[10px] leading-none">✓</span>
+          </button>
+        ) : isDone && onReopen ? (
+          <button onClick={onReopen} title="Not done after all — put it back" aria-label={`Undo completing ${task.title}`}
+            className="w-5 h-5 rounded-full bg-brand hover:bg-raised hover:border-2 hover:border-border-strong hover:text-transparent flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors text-white">
             <span className="text-[10px] leading-none">✓</span>
           </button>
         ) : isDone ? (
@@ -1006,5 +1025,25 @@ function TaskCard({ task, onComplete, onDelete, onAddProof, onEdit, isHabit, onC
         </div>
       )}
     </div>
+  )
+}
+
+// ─── Goal whiteboard ────────────────────────────────────────────────────────────
+// This goal's board, created on first open. Its palette offers the goal's tasks, linked tickets and sub-goals.
+function GoalBoard({ goalId }) {
+  const [boardId, setBoardId] = useState(null)
+  const [error, setError] = useState(null)
+  useEffect(() => {
+    let alive = true
+    setBoardId(null); setError(null)
+    ensureBoard('goal', goalId).then(b => { if (alive) setBoardId(b.id) }).catch(e => { if (alive) setError(e.message) })
+    return () => { alive = false }
+  }, [goalId])
+  if (error) return <p className="text-sm text-red-500">{error}</p>
+  if (!boardId) return <p className="text-sm text-muted" role="status">Opening board…</p>
+  return (
+    <Suspense fallback={<p className="text-sm text-muted" role="status">Loading the whiteboard…</p>}>
+      <BoardView key={boardId} boardId={boardId} embedded />
+    </Suspense>
   )
 }

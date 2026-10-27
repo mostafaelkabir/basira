@@ -1,12 +1,12 @@
 import Icon from './components/Icon'
 import CompleteTaskDialog from './features/tasks/CompleteTaskDialog'
-import { notify } from './components/Notice'
+import { notify, notifyAction } from './components/Notice'
 import { useEffect, useState } from 'react'
 import {
   addProof, checkinHabit, completeTask, getToday, logManualTime,
   uncheckinHabit, uploadProofFile, uploadProofImage,
-  completeTaskWithFeeling, deferTaskWithReason,
-  getWorkTicket, setScheduleTime,
+  completeTaskWithFeeling,
+  getWorkTicket, setScheduleTime, reopenTask, completeScheduleItem,
 } from './api'
 import PostTaskFeedback from './components/PostTaskFeedback'
 import { ProofForm } from './GoalPage'
@@ -21,6 +21,7 @@ import CapacityLine from './features/today/CapacityLine'
 import RoutineStrip from './features/today/RoutineStrip'
 import NowStrip from './features/today/NowStrip'
 import TaskNotesDialog from './features/today/TaskNotesDialog'
+import PostponeDialog from './features/today/PostponeDialog'
 import UpcomingStrip from './features/today/UpcomingStrip'
 import FindOrCreateComposer from './features/composer/FindOrCreateComposer'
 import { TicketDrawer } from './WorkPage'
@@ -31,36 +32,6 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 function formatDate(iso) {
   const d = new Date(iso + 'T00:00:00')
   return `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`
-}
-function tomorrow() {
-  const d = new Date(); d.setDate(d.getDate() + 1)
-  return d.toISOString().split('T')[0]
-}
-
-const DEFER_REASONS = [
-  { value: 'too_vague',        label: 'Too vague'        },
-  { value: 'low_energy',       label: 'Low energy'       },
-  { value: 'wrong_timing',     label: 'Wrong timing'     },
-  { value: 'blocked',          label: 'Blocked'          },
-  { value: 'changed_priority', label: 'Changed priority' },
-]
-
-function DeferReasonPicker({ onSelect }) {
-  return (
-    <div className="bg-surface border border-border rounded-2xl shadow-float p-3">
-      <p className="text-[11px] text-muted font-medium mb-2 text-center">Why are you deferring?</p>
-      <div className="flex flex-wrap gap-1.5 justify-center">
-        {DEFER_REASONS.map(r => (
-          <button key={r.value} onClick={() => onSelect(r.value)}
-            className="px-3 py-1.5 text-xs font-medium rounded-xl bg-raised text-ink hover:bg-highlight transition-colors">
-            {r.label}
-          </button>
-        ))}
-        <button onClick={() => onSelect(null)}
-          className="px-3 py-1.5 text-xs font-medium rounded-xl text-muted hover:text-ink transition-colors">skip</button>
-      </div>
-    </div>
-  )
 }
 
 export default function TodayPage({ onGoToGoal, onOpenReview }) {
@@ -73,7 +44,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   const [proofForm, setProofForm] = useState({ type: 'text', content: '', imageFile: null, imagePreview: null })
   const [submitting, setSubmitting] = useState(false)
   const [feedbackTask, setFeedbackTask] = useState(null)
-  const [deferPending, setDeferPending] = useState(null)
+  const [postponeFor, setPostponeFor] = useState(null)   // agenda item being postponed
   const { data: workspace, refresh: refreshWorkspace } = useDayWorkspace(data?.date)
   const [showPlanner, setShowPlanner] = useState(false)   // false | true (today) | 'YYYY-MM-DD'
   const [showQuickAdd, setShowQuickAdd] = useState(false)
@@ -134,14 +105,6 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
       setTimeLogFor(null)
       load()
     } catch (err) { notify(err.message) }
-  }
-
-  async function handleDeferWithReason(reason) {
-    if (!deferPending) return
-    const { taskId } = deferPending
-    setDeferPending(null)
-    try { await deferTaskWithReason(taskId, tomorrow(), reason); load() }
-    catch (err) { notify(err.message) }
   }
 
   async function uploadProofContent() {
@@ -206,6 +169,24 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
     try { await setScheduleTime(item.source, item.item_id, time || null); refreshWorkspace?.() }
     catch (err) { notify(err.message) }
   }
+  // Undo a "done" click: the task/ticket goes back on the list (evidence and notes
+  // stay), a habit loses today's check mark.
+  async function handleUndo(item) {
+    try {
+      if (item.source === 'habit') { const full = habitById.get(item.item_id); if (full) await handleToggleHabit(full); return }
+      if (item.source === 'task') await reopenTask(item.item_id)
+      else if (item.source === 'ticket') await completeScheduleItem('ticket', item.item_id, false)
+      else return
+      setFeedbackTask(f => (f?.id === item.item_id ? null : f))
+      load()
+      window.dispatchEvent(new CustomEvent('basira:task-updated'))
+      window.dispatchEvent(new CustomEvent('basira:schedule-updated'))
+    } catch (err) { notify(err.message) }
+  }
+  function completedWithUndo(task) {
+    setFeedbackTask(task); setProofFor(null); load()
+    notifyAction(`“${task.title}” marked done.`, 'Undo', () => handleUndo({ source: 'task', item_id: task.id, title: task.title }))
+  }
 
   return (
     <div className="space-y-4">
@@ -257,6 +238,8 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
         onOpenNotes={setNotesFor}
         onCheckHabit={item => { const full = habitById.get(item.item_id); if (full) handleToggleHabit(full) }}
         onEditTime={handleEditTime}
+        onPostpone={setPostponeFor}
+        onUndo={handleUndo}
       />
 
       {/* Next six days at a glance; opens the planner on that day (BAS-046) */}
@@ -269,8 +252,11 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
         </div>
       )}
 
-      {/* Defer reason chips */}
-      {deferPending && <DeferReasonPicker onSelect={handleDeferWithReason} />}
+      {/* Postpone a task/ticket to another day, with why */}
+      {postponeFor && (
+        <PostponeDialog item={postponeFor} today={data.date} onClose={() => setPostponeFor(null)}
+          onDone={() => { setPostponeFor(null); load() }} />
+      )}
 
       {/* Quick capture */}
       {showQuickAdd && (
@@ -311,7 +297,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
       {notesFor && <TaskNotesDialog item={notesFor} onClose={() => setNotesFor(null)} />}
 
       {/* Proof modals */}
-      {proofFor && <CompleteTaskDialog task={proofFor} onClose={() => setProofFor(null)} onComplete={() => { setFeedbackTask(proofFor); setProofFor(null); load() }}/>}
+      {proofFor && <CompleteTaskDialog task={proofFor} onClose={() => setProofFor(null)} onComplete={() => completedWithUndo(proofFor)}/>}
       {habitProofFor && (
         <Modal title={`Proof — ${habitProofFor.title}`} onClose={() => { setHabitProofFor(null); resetProofForm() }}>
           <ProofForm proofForm={proofForm} setProofForm={setProofForm} onSubmit={handleAddHabitProof}

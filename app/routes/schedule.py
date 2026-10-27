@@ -7,14 +7,16 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.comment import Comment
 from app.models.company import Company
+from app.models.defer_log import DeferLog
 from app.models.execution_log import ExecutionLog
 from app.models.goal import Goal
 from app.models.habit_day_plan import HabitDayPlan
 from app.models.habit_log import HabitLog
 from app.models.task import Task, habit_row_filter
 from app.models.work_log import WorkLog
-from app.models.work_ticket import WorkTicket
+from app.models.work_ticket import WorkTicket, WorkTicketComment
 
 router = APIRouter(prefix="/today/schedule", tags=["schedule"])
 
@@ -528,3 +530,67 @@ def reorder_schedule(items: list[ReorderItem], db: Session = Depends(get_db)):
                 log.schedule_order = item.sort_order
     db.commit()
     return {"ok": True}
+
+
+POSTPONE_CATEGORIES = {
+    "weather": "Weather", "low_energy": "Low energy", "out_of_time": "Out of time",
+    "blocked": "Blocked", "wrong_timing": "Wrong timing", "changed_priority": "Changed priority",
+    "too_vague": "Too vague",
+}
+
+
+class PostponeBody(BaseModel):
+    kind: str                         # task | ticket
+    id: str
+    to_date: str                      # YYYY-MM-DD, after from_date
+    from_date: str | None = None      # the day it was planned for; defaults to today
+    reason: str | None = None         # free text, e.g. "It's raining today"
+    category: str | None = None       # one of POSTPONE_CATEGORIES
+
+
+def _postpone_note(to_day: str, reason: str | None, category: str | None) -> str:
+    d = date.fromisoformat(to_day)
+    why = reason or POSTPONE_CATEGORIES.get(category or "", "")
+    head = f"Postponed to {d.strftime('%a, %b')} {d.day}"
+    return f"{head}: {why}" if why else head
+
+
+@router.post("/postpone")
+def postpone_item(body: PostponeBody, db: Session = Depends(get_db)):
+    """Move a planned task/ticket to a later day and keep why. The item lands on
+    that day's schedule (plan_date), stays out of suggestions until then, keeps
+    its time of day, and the reason is left as a note on the item itself."""
+    from_day = _plan_day(body.from_date)
+    to_day = _plan_day(body.to_date)
+    if to_day <= from_day:
+        raise HTTPException(status_code=400, detail="Pick a day after the one it's planned for")
+    category = body.category if body.category in POSTPONE_CATEGORIES else None
+    reason = (body.reason or "").strip()[:500] or None
+    note = _postpone_note(to_day, reason, category)
+    now = datetime.now(UTC)
+
+    if body.kind == KIND_TASK:
+        task = db.query(Task).filter(Task.id == body.id, Task.trashed_at.is_(None)).first()
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        task.plan_date = to_day
+        task.deferred_until = to_day
+        task.sort_order = _next_order(db, to_day)
+        if task.pinned_date == from_day:
+            task.pinned_date = None
+        db.add(DeferLog(id=str(uuid4()), task_id=task.id, deferred_on=from_day,
+                        deferred_until=to_day, defer_reason=category, note=reason))
+        db.add(Comment(id=str(uuid4()), task_id=task.id, type="text", content=note,
+                       created_at=now.isoformat()))
+    elif body.kind == KIND_TICKET:
+        ticket = db.query(WorkTicket).filter(WorkTicket.id == body.id).first()
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Ticket not found")
+        ticket.plan_date = to_day
+        ticket.snoozed_until = to_day
+        ticket.schedule_order = _next_order(db, to_day)
+        db.add(WorkTicketComment(id=str(uuid4()), ticket_id=ticket.id, body=note, type="note", created_at=now))
+    else:
+        raise HTTPException(status_code=400, detail="Only tasks and tickets can be postponed")
+    db.commit()
+    return {"ok": True, "to_date": to_day, "note": note}

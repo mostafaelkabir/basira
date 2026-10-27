@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Icon from '../../components/Icon'
-import { fmtClock, fmtDuration, fmtMinutes } from './format'
+import { dayLong, fmtClock, fmtDuration, fmtMinutes } from './format'
+import { POSTPONE_REASONS } from './PostponeDialog'
 
 // One chronological Today agenda: scheduled Tasks, tickets and habit occurrences in
 // time order, an "Anytime today" group for selected items without a time, and a
@@ -15,6 +16,7 @@ const SOURCE_DOT = {
   habit: 'rgb(var(--gold))',
 }
 const SOURCE_LABEL = { task: 'Task', ticket: 'Ticket', worklog: 'Log', habit: 'Habit' }
+const REASON_LABEL = Object.fromEntries(POSTPONE_REASONS.map(r => [r.value, r.label]))
 
 function Elapsed({ startedAt, priorSeconds = 0 }) {
   const [, force] = useState(0)
@@ -23,7 +25,7 @@ function Elapsed({ startedAt, priorSeconds = 0 }) {
   return <span className="font-mono tabular-nums">{fmtDuration(priorSeconds + Math.max(0, base))}</span>
 }
 
-function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime }) {
+function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo }) {
   const [editing, setEditing] = useState(false)
   const isTask = item.source === 'task'
   const isTicket = item.source === 'ticket'
@@ -71,14 +73,32 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
           {running && <><span className="text-faint">·</span><span className="text-accent flex items-center gap-1"><span className="status-dot live" /><Elapsed startedAt={timer.startedAt} priorSeconds={timer.priorSeconds} /></span></>}
           {!running && recorded > 0 && !isHabit && <><span className="text-faint">·</span><span className="text-accent">{fmtDuration(recorded)} recorded</span></>}
         </p>
+        {item.postponed && !item.done && (
+          <p className="text-[11px] text-amber-700 mt-0.5 truncate" title={item.postponed.reason || undefined}>
+            ↷ Postponed from {dayLong(item.postponed.from_date)}
+            {(item.postponed.reason || item.postponed.category) && <> · {item.postponed.reason || REASON_LABEL[item.postponed.category] || item.postponed.category}</>}
+          </p>
+        )}
       </div>
 
-      {/* Actions */}
-      {item.done && (isTask || isHabit) && onOpenNotes && (
-        <button onClick={() => onOpenNotes(item)} className="agenda-btn flex-shrink-0" aria-label={`Notes for ${item.title}`}><Icon name="note" size={13} /></button>
+      {/* Actions — a completed row can still be opened, and put back with one click */}
+      {item.done && (
+        <div className="agenda-actions flex items-center gap-1 flex-shrink-0">
+          {(isTask || isHabit) && onOpenNotes && (
+            <button onClick={() => onOpenNotes(item)} className="agenda-btn" title="Notes and evidence" aria-label={`Notes for ${item.title}`}><Icon name="note" size={13} /></button>
+          )}
+          {isTicket && (
+            <button onClick={() => onOpenTicket(item)} className="agenda-btn">Open</button>
+          )}
+          {onUndo && (
+            <button onClick={() => onUndo(item)} className="agenda-btn" title={isHabit ? 'Uncheck for today' : 'Not done after all — put it back'} aria-label={`Undo completing ${item.title}`}>
+              <Icon name="undo" size={13} />Undo
+            </button>
+          )}
+        </div>
       )}
       {!item.done && (
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="agenda-actions flex items-center gap-1 flex-shrink-0">
           {isTask && running && (
             <button onClick={onPauseTask} className="agenda-btn"><Icon name="pause" size={13} />Pause</button>
           )}
@@ -90,6 +110,11 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
           )}
           {(isTask || isHabit) && onOpenNotes && (
             <button onClick={() => onOpenNotes(item)} className="agenda-btn agenda-btn-notes" title="Notes" aria-label={`Notes for ${item.title}`}><Icon name="note" size={13} /></button>
+          )}
+          {(isTask || isTicket) && onPostpone && (
+            <button onClick={() => onPostpone(item)} className="agenda-btn" title="Postpone to another day" aria-label={`Postpone ${item.title}`}>
+              <Icon name="arrow" size={13} /><span className="hidden sm:inline">Later</span>
+            </button>
           )}
           {isTask && (
             <button onClick={() => onCompleteTask(item)} className="agenda-btn"><Icon name="check" size={13} />Done</button>
@@ -105,10 +130,10 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
 
 export default function DayAgenda({
   scheduled, anytime, completed, timer,
-  onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime,
+  onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo,
 }) {
   const [showDone, setShowDone] = useState(false)
-  const rowProps = { timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime }
+  const rowProps = { timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo }
   const empty = scheduled.length === 0 && anytime.length === 0 && completed.length === 0
 
   return (

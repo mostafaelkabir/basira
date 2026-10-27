@@ -41,6 +41,8 @@ class WorkTicket(Base):
     schedule_order: Mapped[int] = mapped_column(Integer, default=0)             # order within Daily Schedule
     scheduled_time: Mapped[str | None] = mapped_column(String, nullable=True)   # HH:MM, Daily Schedule time-of-day
     snoozed_until: Mapped[str | None] = mapped_column(String, nullable=True)    # YYYY-MM-DD; hidden from morning suggestions until this date
+    due_date: Mapped[str | None] = mapped_column(String, nullable=True)         # YYYY-MM-DD; when it must be done
+    milestone_id: Mapped[str | None] = mapped_column(String, nullable=True)     # work_milestones.id this ticket rolls up to
 
     company: Mapped["Company"] = relationship("Company")
     time_entries: Mapped[list["WorkTimeEntry"]] = relationship(

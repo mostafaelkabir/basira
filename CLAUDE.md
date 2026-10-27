@@ -214,6 +214,29 @@ All migrations run automatically in `app/main.py` → `run_migrations()`. Schema
 
 ---
 
+## Testing
+
+Three layers; run all of them before calling a change done.
+
+```bash
+# Backend unit tests (in-memory SQLite, never touch sysgo.db)
+venv/bin/python -m unittest $(ls tests/test_*.py | xargs -n1 basename | sed 's#^#tests.#; s#\.py$##')
+
+# Frontend unit tests: Vitest for planning logic (dates, lanes) + the node:test suite for work reports
+cd frontend && npm test && cd ..
+
+# End-to-end UI tests: Playwright drives the live app at http://localhost:8001 in headless Chromium.
+# They create a throw-away client "QA Scratch Co" over the API and delete it afterwards.
+# First time only: venv/bin/playwright install chromium
+venv/bin/python -m unittest tests.e2e.test_boards_ui -v        # BASIRA_HEADED=1 to watch it
+venv/bin/python -m unittest tests.e2e.test_today_ui -v         # Today: undo a done click, find the evidence
+```
+
+Boards, milestones and due dates live in `app/routes/boards.py`, `app/routes/work_milestones.py`,
+`frontend/src/features/boards/` (tldraw canvas, lanes, inspector) and `frontend/src/features/work/`.
+
+---
+
 ## Design System (Basira tokens)
 
 The UI is themed entirely through CSS variables in `frontend/src/styles/tokens.css` (light + `:root[data-theme="dark"]`), mapped into Tailwind by `frontend/tailwind.config.js`. **Never hardcode hex for UI chrome** — use semantic classes or `rgb(var(--token))` in inline styles/SVG.

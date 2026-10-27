@@ -40,6 +40,8 @@ from app.routes.day_timer import router as day_timer_router
 from app.routes.work_suggestions import router as work_suggestions_router
 from app.routes.morning_planner import router as morning_planner_router
 from app.routes.trash import router as trash_router
+from app.routes.boards import router as boards_router
+from app.routes.work_milestones import router as work_milestones_router
 from app.scheduler import start_scheduler
 
 
@@ -290,6 +292,35 @@ def run_migrations():
         "ALTER TABLE tasks ADD COLUMN trashed_at TIMESTAMP",
         # One-off tasks under a resolution (kind='task') vs. habits (NULL).
         "ALTER TABLE tasks ADD COLUMN kind TEXT",
+        # Postpone with a reason: the free-text "why" next to the category.
+        "ALTER TABLE defer_logs ADD COLUMN note TEXT",
+        # Planning whiteboards: one tldraw document per board, scoped to a goal / client / all work.
+        """CREATE TABLE IF NOT EXISTS boards (
+            id VARCHAR PRIMARY KEY,
+            title VARCHAR NOT NULL,
+            scope_type VARCHAR NOT NULL DEFAULT 'global',
+            scope_id VARCHAR,
+            document TEXT NOT NULL DEFAULT '{}',
+            created_at TIMESTAMP,
+            updated_at TIMESTAMP
+        )""",
+        "CREATE INDEX IF NOT EXISTS ix_boards_scope ON boards (scope_type, scope_id)",
+        # Planning: tickets get a due date and roll up to dated milestones.
+        "ALTER TABLE work_tickets ADD COLUMN due_date TEXT",
+        "ALTER TABLE work_tickets ADD COLUMN milestone_id VARCHAR",
+        """CREATE TABLE IF NOT EXISTS work_milestones (
+            id VARCHAR PRIMARY KEY,
+            company_id VARCHAR NOT NULL REFERENCES companies(id),
+            linked_goal_id VARCHAR,
+            title VARCHAR NOT NULL,
+            description TEXT DEFAULT '',
+            due_date TEXT,
+            status VARCHAR DEFAULT 'open',
+            sort_order INTEGER DEFAULT 0,
+            created_at TIMESTAMP,
+            completed_at TIMESTAMP
+        )""",
+        "CREATE INDEX IF NOT EXISTS ix_work_tickets_milestone ON work_tickets (milestone_id)",
     ]
     with engine.connect() as conn:
         for sql in migrations:
@@ -353,6 +384,8 @@ app.include_router(day_timer_router)
 app.include_router(work_suggestions_router)
 app.include_router(morning_planner_router)
 app.include_router(trash_router)
+app.include_router(boards_router)
+app.include_router(work_milestones_router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

@@ -102,6 +102,8 @@ export const createTask = (data) =>
 export const updateTask = (id, data) =>
   request(`/tasks/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
 export const completeTask = (taskId) => request(`/tasks/${taskId}/complete`, { method: 'POST' })
+// Undo a completion: back to todo, the recorded completion dropped, evidence kept.
+export const reopenTask = (taskId) => request(`/tasks/${taskId}/reopen`, { method: 'POST' })
 export const deleteTask = (taskId) => request(`/tasks/${taskId}`, { method: 'DELETE' })
 export const reorderTasks = (items) =>
   request('/tasks/reorder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(items) })
@@ -284,6 +286,9 @@ export const restoreJournalField  = (entryId, field) =>
 // ── Self-Knowledge Engine ─────────────────────────────────────────────────────
 export const completeTaskWithFeeling = (taskId, feeling) =>
   request(`/tasks/${taskId}/complete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feeling }) })
+// Move a planned task/ticket to a later day with a reason (kept as a note on it).
+export const postponeItem = (body) =>
+  request('/today/schedule/postpone', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 export const deferTaskWithReason = (taskId, deferredUntil, deferReason) =>
   request(`/tasks/${taskId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deferred_until: deferredUntil, defer_reason: deferReason }) })
 export const stopTimerWithFocus = (focusQuality) =>
@@ -329,3 +334,38 @@ export const setScheduleTime = (kind, id, time, date) =>
   request('/today/schedule/time', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, id, time, ...(date ? { date } : {}) }) })
 export const batchCreateSchedule = (items) =>
   request('/today/schedule/batch-create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(items) })
+
+// ── Boards (planning whiteboards) ──
+const json = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+export const getBoards = (params = {}) => {
+  const q = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== ''))).toString()
+  return request(`/boards${q ? `?${q}` : ''}`)
+}
+export const createBoard = (data) => request('/boards', json('POST', data))
+// The one board for a scope (goal / company / work / global): returns it, creating it on first use.
+export const ensureBoard = (scope_type, scope_id = null) => request('/boards/ensure', json('POST', { scope_type, scope_id }))
+export const getBoard = (id) => request(`/boards/${id}`)
+export const updateBoard = (id, data) => request(`/boards/${id}`, json('PATCH', data))
+export const saveBoardDocument = (id, document, { keepalive = false } = {}) =>
+  request(`/boards/${id}/document`, { ...json('PUT', { document }), keepalive })
+export const deleteBoard = (id) => request(`/boards/${id}`, { method: 'DELETE' })
+// Compact card data for linked shapes: { tickets: {id: …}, tasks: {…}, goals: {…} }; missing ids are omitted.
+export const getBoardEntities = ({ tickets = [], tasks = [], goals = [], milestones = [] }) => {
+  const q = new URLSearchParams()
+  if (tickets.length) q.set('tickets', tickets.join(','))
+  if (tasks.length) q.set('tasks', tasks.join(','))
+  if (goals.length) q.set('goals', goals.join(','))
+  if (milestones.length) q.set('milestones', milestones.join(','))
+  return request(`/boards/entities?${q.toString()}`)
+}
+export const getBoardCandidates = (id, q = '') => request(`/boards/${id}/candidates${q ? `?q=${encodeURIComponent(q)}` : ''}`)
+
+// ── Milestones (dated checkpoints a client's tickets roll up to) ──
+export const getMilestones = (params = {}) => {
+  const q = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== ''))).toString()
+  return request(`/work-milestones${q ? `?${q}` : ''}`)
+}
+export const getMilestone = (id) => request(`/work-milestones/${id}`)
+export const createMilestone = (data) => request('/work-milestones', json('POST', data))
+export const updateMilestone = (id, data) => request(`/work-milestones/${id}`, json('PUT', data))
+export const deleteMilestone = (id) => request(`/work-milestones/${id}`, { method: 'DELETE' })
