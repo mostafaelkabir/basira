@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime, UTC
+from datetime import date, datetime, UTC
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,6 +13,7 @@ from app.models.company import Company
 from app.models.work_log import WorkLog
 from app.models.work_session import WorkSession
 from app.models.work_ticket import WorkTicket, WorkTimeEntry, WorkTicketComment
+from app.models.work_milestone import WorkMilestone
 
 router = APIRouter(prefix="/work-tickets", tags=["work-tickets"])
 
@@ -31,6 +32,8 @@ class TicketCreate(BaseModel):
     proofs: list[dict] = []   # [{url, label}]
     notes: str = ""
     linked_goal_id: str | None = None
+    due_date: str | None = None        # YYYY-MM-DD
+    milestone_id: str | None = None
 
 
 class TicketUpdate(BaseModel):
@@ -46,6 +49,8 @@ class TicketUpdate(BaseModel):
     proofs: list[dict] | None = None
     notes: str | None = None
     linked_goal_id: str | None = None
+    due_date: str | None = None        # "" clears
+    milestone_id: str | None = None    # "" clears
 
 
 class CommentCreate(BaseModel):
@@ -62,6 +67,29 @@ class TimeEntryCreate(BaseModel):
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
+def _clean_due_date(value: str | None) -> str | None:
+    """'' and None clear the date; anything else must be YYYY-MM-DD."""
+    if not value:
+        return None
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="due_date must be YYYY-MM-DD")
+    return value
+
+
+def _check_milestone(db: Session, milestone_id: str | None, company_id: str) -> str | None:
+    """'' and None clear the link; otherwise the milestone must exist and belong to the ticket's client."""
+    if not milestone_id:
+        return None
+    m = db.get(WorkMilestone, milestone_id)
+    if not m:
+        raise HTTPException(status_code=404, detail="Milestone not found")
+    if m.company_id != company_id:
+        raise HTTPException(status_code=400, detail="Milestone belongs to another client")
+    return milestone_id
+
+
 def _serialize_entry(e: WorkTimeEntry) -> dict:
     return {
         "id": e.id,
@@ -73,7 +101,16 @@ def _serialize_entry(e: WorkTimeEntry) -> dict:
     }
 
 
-def _serialize(t: WorkTicket, db: Session, include_entries: bool = False) -> dict:
+def _milestone_titles(db: Session, tickets) -> dict[str, str]:
+    ids = {t.milestone_id for t in tickets if t.milestone_id}
+    if not ids:
+        return {}
+    return dict(db.query(WorkMilestone.id, WorkMilestone.title).filter(WorkMilestone.id.in_(ids)).all())
+
+
+def _serialize(t: WorkTicket, db: Session, include_entries: bool = False, milestones: dict | None = None) -> dict:
+    if milestones is None:
+        milestones = _milestone_titles(db, [t])
     running = db.query(WorkSession).filter(
         WorkSession.work_log_id == f"ticket:{t.id}",
         WorkSession.ended_at.is_(None),
@@ -107,6 +144,9 @@ def _serialize(t: WorkTicket, db: Session, include_entries: bool = False) -> dic
         "completed_at": str(t.completed_at) if t.completed_at else None,
         "timer_running": running is not None,
         "timer_started_at": str(running.started_at) if running else None,
+        "due_date": t.due_date,
+        "milestone_id": t.milestone_id,
+        "milestone_title": milestones.get(t.milestone_id, "") if t.milestone_id else "",
     }
     if include_entries:
         result["time_entries"] = [_serialize_entry(e) for e in t.time_entries]
@@ -136,16 +176,20 @@ def _recalc_logged(ticket: WorkTicket, db: Session):
 def list_tickets(
     company_id: str | None = None,
     status: str | None = None,
+    milestone_id: str | None = None,
     db: Session = Depends(get_db),
 ):
     q = db.query(WorkTicket)
     if company_id:
         q = q.filter(WorkTicket.company_id == company_id)
+    if milestone_id:
+        q = q.filter(WorkTicket.milestone_id == milestone_id)
     if status:
         statuses = status.split(",")
         q = q.filter(WorkTicket.status.in_(statuses))
     tickets = q.order_by(WorkTicket.created_at.desc()).all()
-    return [_serialize(t, db) for t in tickets]
+    titles = _milestone_titles(db, tickets)
+    return [_serialize(t, db, milestones=titles) for t in tickets]
 
 
 @router.post("", status_code=201)
@@ -168,6 +212,8 @@ def create_ticket(body: TicketCreate, db: Session = Depends(get_db)):
         tags=json.dumps(body.tags),
         proofs=json.dumps(body.proofs),
         notes=body.notes,
+        due_date=_clean_due_date(body.due_date),
+        milestone_id=_check_milestone(db, body.milestone_id, body.company_id),
     )
     db.add(ticket)
     db.commit()
@@ -200,6 +246,8 @@ def update_ticket(ticket_id: str, body: TicketUpdate, db: Session = Depends(get_
     if body.proofs is not None: ticket.proofs = json.dumps(body.proofs)
     if body.notes is not None: ticket.notes = body.notes
     if body.linked_goal_id is not None: ticket.linked_goal_id = body.linked_goal_id
+    if body.due_date is not None: ticket.due_date = _clean_due_date(body.due_date)
+    if body.milestone_id is not None: ticket.milestone_id = _check_milestone(db, body.milestone_id, ticket.company_id)
 
     if body.status is not None:
         old_status = ticket.status

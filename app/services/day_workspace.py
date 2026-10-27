@@ -34,6 +34,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.company import Company
+from app.models.defer_log import DeferLog
 from app.models.goal import Goal
 from app.models.habit_day_plan import HabitDayPlan
 from app.models.habit_log import HabitLog
@@ -316,6 +317,13 @@ def _agenda(db: Session, day: date, recorded_by_key: dict[str, int],
         ).all()
     )
     goal_titles = _goal_title_lookup(db, [t.goal_id for t in tasks])
+    # Tasks postponed onto this day carry where they came from and why.
+    postponed: dict[str, dict] = {}
+    if tasks:
+        for dl in (db.query(DeferLog)
+                   .filter(DeferLog.task_id.in_([t.id for t in tasks]), DeferLog.deferred_until == day_iso)
+                   .order_by(DeferLog.deferred_on)):
+            postponed[dl.task_id] = {"from_date": dl.deferred_on, "reason": dl.note, "category": dl.defer_reason}
     for t in tasks:
         key = f"task:{t.id}"
         items.append({
@@ -327,6 +335,7 @@ def _agenda(db: Session, day: date, recorded_by_key: dict[str, int],
             "status": t.status,
             "project_title": goal_titles.get(t.goal_id, UNASSIGNED_PROJECT),
             "company_name": PERSONAL_CLIENT,
+            "postponed": postponed.get(t.id),
         })
 
     tickets = (

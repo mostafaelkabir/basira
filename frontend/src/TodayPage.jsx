@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import {
   addProof, checkinHabit, completeTask, getToday, logManualTime,
   uncheckinHabit, uploadProofFile, uploadProofImage,
-  completeTaskWithFeeling, deferTaskWithReason,
+  completeTaskWithFeeling,
   getWorkTicket, setScheduleTime,
 } from './api'
 import PostTaskFeedback from './components/PostTaskFeedback'
@@ -21,6 +21,7 @@ import CapacityLine from './features/today/CapacityLine'
 import RoutineStrip from './features/today/RoutineStrip'
 import NowStrip from './features/today/NowStrip'
 import TaskNotesDialog from './features/today/TaskNotesDialog'
+import PostponeDialog from './features/today/PostponeDialog'
 import UpcomingStrip from './features/today/UpcomingStrip'
 import FindOrCreateComposer from './features/composer/FindOrCreateComposer'
 import { TicketDrawer } from './WorkPage'
@@ -31,36 +32,6 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 function formatDate(iso) {
   const d = new Date(iso + 'T00:00:00')
   return `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`
-}
-function tomorrow() {
-  const d = new Date(); d.setDate(d.getDate() + 1)
-  return d.toISOString().split('T')[0]
-}
-
-const DEFER_REASONS = [
-  { value: 'too_vague',        label: 'Too vague'        },
-  { value: 'low_energy',       label: 'Low energy'       },
-  { value: 'wrong_timing',     label: 'Wrong timing'     },
-  { value: 'blocked',          label: 'Blocked'          },
-  { value: 'changed_priority', label: 'Changed priority' },
-]
-
-function DeferReasonPicker({ onSelect }) {
-  return (
-    <div className="bg-surface border border-border rounded-2xl shadow-float p-3">
-      <p className="text-[11px] text-muted font-medium mb-2 text-center">Why are you deferring?</p>
-      <div className="flex flex-wrap gap-1.5 justify-center">
-        {DEFER_REASONS.map(r => (
-          <button key={r.value} onClick={() => onSelect(r.value)}
-            className="px-3 py-1.5 text-xs font-medium rounded-xl bg-raised text-ink hover:bg-highlight transition-colors">
-            {r.label}
-          </button>
-        ))}
-        <button onClick={() => onSelect(null)}
-          className="px-3 py-1.5 text-xs font-medium rounded-xl text-muted hover:text-ink transition-colors">skip</button>
-      </div>
-    </div>
-  )
 }
 
 export default function TodayPage({ onGoToGoal, onOpenReview }) {
@@ -73,7 +44,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   const [proofForm, setProofForm] = useState({ type: 'text', content: '', imageFile: null, imagePreview: null })
   const [submitting, setSubmitting] = useState(false)
   const [feedbackTask, setFeedbackTask] = useState(null)
-  const [deferPending, setDeferPending] = useState(null)
+  const [postponeFor, setPostponeFor] = useState(null)   // agenda item being postponed
   const { data: workspace, refresh: refreshWorkspace } = useDayWorkspace(data?.date)
   const [showPlanner, setShowPlanner] = useState(false)   // false | true (today) | 'YYYY-MM-DD'
   const [showQuickAdd, setShowQuickAdd] = useState(false)
@@ -134,14 +105,6 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
       setTimeLogFor(null)
       load()
     } catch (err) { notify(err.message) }
-  }
-
-  async function handleDeferWithReason(reason) {
-    if (!deferPending) return
-    const { taskId } = deferPending
-    setDeferPending(null)
-    try { await deferTaskWithReason(taskId, tomorrow(), reason); load() }
-    catch (err) { notify(err.message) }
   }
 
   async function uploadProofContent() {
@@ -257,6 +220,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
         onOpenNotes={setNotesFor}
         onCheckHabit={item => { const full = habitById.get(item.item_id); if (full) handleToggleHabit(full) }}
         onEditTime={handleEditTime}
+        onPostpone={setPostponeFor}
       />
 
       {/* Next six days at a glance; opens the planner on that day (BAS-046) */}
@@ -269,8 +233,11 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
         </div>
       )}
 
-      {/* Defer reason chips */}
-      {deferPending && <DeferReasonPicker onSelect={handleDeferWithReason} />}
+      {/* Postpone a task/ticket to another day, with why */}
+      {postponeFor && (
+        <PostponeDialog item={postponeFor} today={data.date} onClose={() => setPostponeFor(null)}
+          onDone={() => { setPostponeFor(null); load() }} />
+      )}
 
       {/* Quick capture */}
       {showQuickAdd && (

@@ -1,5 +1,5 @@
 import { notify } from './components/Notice'
-import { useEffect, useState, useRef } from 'react'
+import { lazy, Suspense, useEffect, useState, useRef } from 'react'
 import {
   getCompanies, createCompany, updateCompany, deleteCompany,
   getWorkLogs, createWorkLog, updateWorkLog, deleteWorkLog,
@@ -7,13 +7,19 @@ import {
   getWorkTickets, getWorkTicket, createWorkTicket, updateWorkTicket, deleteWorkTicket,
   logTimeToTicket, deleteTimeEntry, startTicketTimer, stopTicketTimer,
   addTicketComment, updateTicketComment, deleteTicketComment, uploadProofImage,
-  polishTicketComment, restoreTicketComment, generateWeeklyReport,
+  polishTicketComment, restoreTicketComment, generateWeeklyReport, ensureBoard,
+  getMilestones, createMilestone, updateMilestone, deleteMilestone,
 } from './api'
+import { countdown, dueMeta, shortDate } from './features/work/due'
 import Modal from './components/Modal'
 import MicButton from './components/MicButton'
 import AIPolishButton from './components/AIPolishButton'
 import SavedTextToggle from './components/SavedTextToggle'
 import WorkReports from './WorkReports'
+import TicketKanban from './features/work/TicketKanban'
+
+const BoardView = lazy(() => import('./features/boards/BoardView'))
+const LAYOUT_KEY = 'basira_ticket_layout'
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -423,6 +429,12 @@ export function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
                   </>
                 )}
               </div>
+              {(ticket.due_date || ticket.milestone_title) && (
+                <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                  {ticket.due_date && <span className="due-chip" data-tone={dueMeta(ticket.due_date, { done: ticket.status === 'done' })?.tone}>{dueMeta(ticket.due_date, { done: ticket.status === 'done' })?.label}</span>}
+                  {ticket.milestone_title && <span className="milestone-chip">◆ {ticket.milestone_title}</span>}
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
               {onEdit && (
@@ -683,6 +695,14 @@ function TicketCard({ ticket, onClick, onStatusChange }) {
         <span className="text-[11px] text-muted">{ticket.company_name}</span>
       </div>
 
+      {/* Due date + milestone */}
+      {(ticket.due_date || ticket.milestone_title) && (
+        <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+          {ticket.due_date && <span className="due-chip" data-tone={dueMeta(ticket.due_date, { done: isDone })?.tone}>{dueMeta(ticket.due_date, { done: isDone })?.label}</span>}
+          {ticket.milestone_title && <span className="milestone-chip" title="Milestone">◆ {ticket.milestone_title}</span>}
+        </div>
+      )}
+
       {/* Time bar */}
       <TimeBar estimated={ticket.estimated_minutes} logged={ticket.logged_minutes} running={ticket.timer_running ? 10 : 0} />
 
@@ -723,9 +743,10 @@ function TicketCard({ ticket, onClick, onStatusChange }) {
 const EMPTY_TICKET = {
   company_id: '', title: '', description: '', type: 'code', status: 'todo',
   priority: 'medium', estimated_minutes: '', ticket_ref: '', tags: '', proofs: '', notes: '',
+  due_date: '', milestone_id: '',
 }
 
-function TicketModal({ companies, initial, onSave, onClose }) {
+export function TicketModal({ companies, milestones = [], initial, onSave, onClose }) {
   const [form, setForm] = useState(initial
     ? {
         company_id: initial.company_id || '',
@@ -739,6 +760,8 @@ function TicketModal({ companies, initial, onSave, onClose }) {
         tags: (initial.tags || []).join(', '),
         proofs: (initial.proofs || []).map(p => p.url).join('\n'),
         notes: initial.notes || '',
+        due_date: initial.due_date || '',
+        milestone_id: initial.milestone_id || '',
       }
     : { ...EMPTY_TICKET, company_id: companies[0]?.id || '' })
   const [saving, setSaving] = useState(false)
@@ -760,6 +783,8 @@ function TicketModal({ companies, initial, onSave, onClose }) {
         tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
         proofs: proofUrls.map(url => ({ url, label: '' })),
         notes: form.notes.trim(),
+        due_date: form.due_date || '',
+        milestone_id: form.milestone_id || '',
       })
     } finally { setSaving(false) }
   }
@@ -833,6 +858,25 @@ function TicketModal({ companies, initial, onSave, onClose }) {
             <input value={form.ticket_ref} onChange={e => setForm(f => ({ ...f, ticket_ref: e.target.value }))}
               placeholder="e.g. PROJ-123"
               className="w-full mt-1.5 px-3 py-2 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-surface font-mono" />
+          </div>
+        </div>
+
+        {/* Due date + Milestone */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wide">Due date</label>
+            <input type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
+              className="w-full mt-1.5 px-3 py-2 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-surface" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wide">Milestone</label>
+            <select value={form.milestone_id} onChange={e => setForm(f => ({ ...f, milestone_id: e.target.value }))}
+              className="w-full mt-1.5 px-2 py-2 rounded-xl border border-border text-xs bg-surface focus:outline-none">
+              <option value="">None</option>
+              {milestones.filter(m => m.company_id === form.company_id).map(m => (
+                <option key={m.id} value={m.id}>◆ {m.title}{m.due_date ? ` · ${shortDate(m.due_date)}` : ''}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -1285,28 +1329,40 @@ export default function WorkPage() {
   const [editCompany, setEditCompany] = useState(null)
   const [showAI, setShowAI] = useState(false)
   const [sortBy, setSortBy] = useState('created')  // 'created' | 'priority' | 'time' | 'status'
+  const [milestones, setMilestones] = useState([])
+  const [filterMilestone, setFilterMilestone] = useState(null)
+  const [showNewMilestone, setShowNewMilestone] = useState(false)
+  const [editMilestone, setEditMilestone] = useState(null)
+  const [ticketLayout, setTicketLayout] = useState(() => {   // 'list' | 'board' (status Kanban) | 'milestones' (milestone Kanban)
+    try { const v = localStorage.getItem(LAYOUT_KEY); return ['board', 'milestones'].includes(v) ? v : 'list' } catch { return 'list' }
+  })
+  useEffect(() => { try { localStorage.setItem(LAYOUT_KEY, ticketLayout) } catch { /* preference is per session then */ } }, [ticketLayout])
 
   async function load() {
     try {
       const params = filterCompany ? { company_id: filterCompany } : {}
-      const statusFilter = filterStatus === 'active'
-        ? ACTIVE_STATUSES.join(',')
+      // The Kanban shows every column, so it needs tickets in every status.
+      const statusFilter = ticketLayout !== 'list' ? undefined
+        : filterStatus === 'active' || filterStatus === 'overdue' ? ACTIVE_STATUSES.join(',')
         : filterStatus === 'done' ? 'done' : undefined
-      const [cos, tix, wl, st] = await Promise.all([
+      const [cos, tix, wl, st, ms] = await Promise.all([
         getCompanies(),
-        getWorkTickets({ ...params, ...(statusFilter ? { status: statusFilter } : {}) }),
+        getWorkTickets({ ...params, ...(statusFilter ? { status: statusFilter } : {}), ...(filterMilestone ? { milestone_id: filterMilestone } : {}) }),
         getWorkLogs(params),
         getWeeklyWorkStats(),
+        getMilestones(params).catch(() => []),
       ])
       setCompanies(cos)
       setTickets(tix)
       setLogs(wl)
       setStats(st)
+      setMilestones(ms)
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
   }
 
-  useEffect(() => { load() }, [filterCompany, filterStatus])
+  useEffect(() => { load() }, [filterCompany, filterStatus, ticketLayout, filterMilestone])
+  useEffect(() => { if (filterMilestone && !milestones.some(m => m.id === filterMilestone)) setFilterMilestone(null) }, [milestones, filterMilestone])
 
   // ── Company handlers ──
   async function handleSaveCompany(data, id) {
@@ -1333,6 +1389,43 @@ export default function WorkPage() {
   async function handleTicketStatusChange(ticketId, status) {
     await updateWorkTicket(ticketId, { status })
     load()
+  }
+  // Kanban drop: move the card at once, then confirm with the server (and put it back if that fails).
+  async function handleKanbanMove(ticketId, status) {
+    const previous = tickets
+    setTickets(ts => ts.map(t => t.id === ticketId ? { ...t, status } : t))
+    try { await updateWorkTicket(ticketId, { status }); load() }
+    catch (err) { setTickets(previous); notify(err.message) }
+  }
+  async function openTicketDrawer(ticket) {
+    try { setOpenTicket(await getWorkTicket(ticket.id)) } catch { setOpenTicket(ticket) }
+  }
+  // ── Milestone handlers ──
+  const milestoneColumns = filterCompany ? milestones : milestones   // one column per milestone (client filter already applied by load)
+  async function handleMilestoneMove(ticketId, column) {
+    const previous = tickets
+    const milestone_id = column === 'none' ? '' : column
+    setTickets(ts => ts.map(t => t.id === ticketId ? { ...t, milestone_id: milestone_id || null } : t))
+    try { await updateWorkTicket(ticketId, { milestone_id }); window.dispatchEvent(new CustomEvent('basira:milestone-updated')); load() }
+    catch (err) { setTickets(previous); notify(err.message) }
+  }
+  async function handleSaveMilestone(data, id) {
+    try {
+      id ? await updateMilestone(id, data) : await createMilestone(data)
+      setShowNewMilestone(false); setEditMilestone(null)
+      window.dispatchEvent(new CustomEvent('basira:milestone-updated'))
+      load()
+    } catch (err) { notify(err.message) }
+  }
+  async function handleDeleteMilestone(id) {
+    if (!confirm('Delete this milestone? Its tickets stay, they just lose the link.')) return
+    try {
+      await deleteMilestone(id)
+      setEditMilestone(null)
+      if (filterMilestone === id) setFilterMilestone(null)
+      window.dispatchEvent(new CustomEvent('basira:milestone-updated'))
+      load()
+    } catch (err) { notify(err.message) }
   }
   function handleTicketUpdate(updated) {
     setOpenTicket(updated)
@@ -1379,7 +1472,12 @@ export default function WorkPage() {
 
   const PRIORITY_RANK = { urgent: 0, high: 1, medium: 2, low: 3 }
   const STATUS_RANK = Object.fromEntries(STATUS_ORDER.map((s, i) => [s, i]))
-  const sortedTickets = [...tickets].sort((a, b) => {
+  const todayKey = new Date().toISOString().slice(0, 10)
+  const isOverdue = t => t.due_date && t.due_date < todayKey && t.status !== 'done'
+  const overdueCount = tickets.filter(isOverdue).length
+  const visibleTickets = filterStatus === 'overdue' ? tickets.filter(isOverdue) : tickets
+  const sortedTickets = [...visibleTickets].sort((a, b) => {
+    if (sortBy === 'due') return (a.due_date || '9999').localeCompare(b.due_date || '9999')
     if (sortBy === 'priority') return (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9)
     if (sortBy === 'time') return (b.logged_seconds || 0) - (a.logged_seconds || 0)
     if (sortBy === 'status') return (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9)
@@ -1508,7 +1606,7 @@ export default function WorkPage() {
 
           {/* View tabs */}
           <div className="flex flex-wrap gap-1 bg-raised rounded-xl p-1 w-fit">
-            {[['tickets', '🎫 Tickets'], ['log', '📋 Work Log'], ['reports', 'Time & Reports']].map(([v, label]) => (
+            {[['tickets', '🎫 Tickets'], ['log', '📋 Work Log'], ['canvas', '🗺 Whiteboard'], ['reports', 'Time & Reports']].map(([v, label]) => (
               <button key={v} onClick={() => setView(v)}
                 className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
                   view === v ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'
@@ -1518,23 +1616,47 @@ export default function WorkPage() {
 
           {view === 'reports' && <WorkReports companyId={filterCompany} />}
 
+          {/* ── Whiteboard view: the board for this client, or the all-work board ── */}
+          {view === 'canvas' && <WorkWhiteboard companyId={filterCompany} />}
+
           {/* ── Tickets view ── */}
           {view === 'tickets' && (
             <div className="space-y-4">
-              {/* Status filter + sort */}
+              {/* Milestones: dated checkpoints; click one to filter tickets to it */}
+              <MilestonesStrip milestones={milestones} active={filterMilestone}
+                onSelect={id => setFilterMilestone(f => (f === id ? null : id))}
+                onEdit={m => setEditMilestone(m)} onNew={() => setShowNewMilestone(true)} canCreate={companies.length > 0} />
+
+              {/* Status filter + layout + sort */}
               <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex gap-2">
-                  {[['active', 'Active'], ['done', 'Done'], ['all', 'All']].map(([v, label]) => (
-                    <button key={v} onClick={() => setFilterStatus(v)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
-                        filterStatus === v ? 'bg-accent text-on-accent border-accent shadow-glow' : 'bg-surface border-border text-muted hover:border-accent/40'
-                      }`}>{label}</button>
-                  ))}
+                {ticketLayout === 'list' && (
+                  <div className="flex gap-2">
+                    {[['active', 'Active'], ['done', 'Done'], ['all', 'All']].map(([v, label]) => (
+                      <button key={v} onClick={() => setFilterStatus(v)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+                          filterStatus === v ? 'bg-accent text-on-accent border-accent shadow-glow' : 'bg-surface border-border text-muted hover:border-accent/40'
+                        }`}>{label}</button>
+                    ))}
+                  </div>
+                )}
+                {ticketLayout === 'list' && overdueCount > 0 && (
+                  <button onClick={() => setFilterStatus(f => (f === 'overdue' ? 'active' : 'overdue'))}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${filterStatus === 'overdue' ? 'bg-red-400 text-white border-red-400' : 'bg-red-50 text-red-600 border-red-200 hover:border-red-400'}`}>
+                    ⚠ {overdueCount} overdue
+                  </button>
+                )}
+                {ticketLayout === 'board' && <p className="text-xs text-muted">Drag a ticket to another column to change its status.</p>}
+                {ticketLayout === 'milestones' && <p className="text-xs text-muted">Drag a ticket to another column to move it to that milestone.</p>}
+                <div className="layout-toggle ml-auto" role="group" aria-label="Ticket layout">
+                  <button type="button" aria-pressed={ticketLayout === 'list'} onClick={() => setTicketLayout('list')}>☰ List</button>
+                  <button type="button" aria-pressed={ticketLayout === 'board'} onClick={() => setTicketLayout('board')}>▦ Status</button>
+                  <button type="button" aria-pressed={ticketLayout === 'milestones'} onClick={() => setTicketLayout('milestones')}>◆ Milestones</button>
                 </div>
-                {tickets.length > 1 && (
+                {ticketLayout === 'list' && tickets.length > 1 && (
                   <select value={sortBy} onChange={e => setSortBy(e.target.value)}
-                    className="ml-auto text-[11px] px-2 py-1.5 rounded-lg border border-border bg-surface text-muted cursor-pointer">
+                    className="text-[11px] px-2 py-1.5 rounded-lg border border-border bg-surface text-muted cursor-pointer">
                     <option value="created">Newest first</option>
+                    <option value="due">Due date</option>
                     <option value="priority">Priority</option>
                     <option value="time">Most time logged</option>
                     <option value="status">Status</option>
@@ -1563,19 +1685,24 @@ export default function WorkPage() {
                   <p className="font-medium">{filterStatus === 'done' ? 'No completed tickets' : 'No tickets yet'}</p>
                   <p className="text-sm mt-1">{filterStatus === 'done' ? 'Completed tickets will appear here.' : 'Create a ticket to track a piece of work from start to finish.'}</p>
                 </div>
+              ) : ticketLayout === 'board' ? (
+                <TicketKanban tickets={tickets} columns={STATUS_ORDER} statuses={TICKET_STATUSES} fmtMins={fmtMins}
+                  onMove={handleKanbanMove}
+                  renderCard={ticket => (
+                    <TicketCard ticket={ticket} onClick={() => openTicketDrawer(ticket)} onStatusChange={handleTicketStatusChange} />
+                  )} />
+              ) : ticketLayout === 'milestones' ? (
+                <TicketKanban tickets={tickets} columns={[...milestoneColumns.map(m => m.id), 'none']} fmtMins={fmtMins}
+                  statuses={{ ...Object.fromEntries(milestoneColumns.map(m => [m.id, { label: `◆ ${m.title}`, dot: m.status === 'done' ? 'bg-brand' : 'bg-gold', hint: m.due_date ? countdown(m.due_date, { done: m.status === 'done' }).toLowerCase() : null }])), none: { label: 'No milestone', dot: 'bg-muted' } }}
+                  groupBy={t => (t.milestone_id && milestoneColumns.some(m => m.id === t.milestone_id) ? t.milestone_id : 'none')}
+                  onMove={handleMilestoneMove}
+                  renderCard={ticket => (
+                    <TicketCard ticket={ticket} onClick={() => openTicketDrawer(ticket)} onStatusChange={handleTicketStatusChange} />
+                  )} />
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
                   {sortedTickets.map(ticket => (
-                    <TicketCard key={ticket.id}
-                      ticket={ticket}
-                      onClick={async () => {
-                        try {
-                          const full = await getWorkTicket(ticket.id)
-                          setOpenTicket(full)
-                        } catch { setOpenTicket(ticket) }
-                      }}
-                      onStatusChange={handleTicketStatusChange}
-                    />
+                    <TicketCard key={ticket.id} ticket={ticket} onClick={() => openTicketDrawer(ticket)} onStatusChange={handleTicketStatusChange} />
                   ))}
                 </div>
               )}
@@ -1652,9 +1779,20 @@ export default function WorkPage() {
           onEdit={t => { setEditTicket(t); setShowNewTicket(false) }}
         />
       )}
+      {(showNewMilestone || editMilestone) && (
+        <MilestoneModal
+          companies={companies}
+          defaultCompanyId={filterCompany}
+          initial={editMilestone}
+          onSave={handleSaveMilestone}
+          onDelete={handleDeleteMilestone}
+          onClose={() => { setShowNewMilestone(false); setEditMilestone(null) }}
+        />
+      )}
       {(showNewTicket || editTicket) && (
         <TicketModal
           companies={companies}
+          milestones={milestones}
           initial={editTicket}
           onSave={handleSaveTicket}
           onClose={() => { setShowNewTicket(false); setEditTicket(null) }}
@@ -1780,6 +1918,138 @@ function WorkLogModal({ companies, initial, onSave, onClose }) {
           <button type="submit" disabled={saving || !form.title.trim() || !form.company_id}
             className="bg-forest text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-forest-hover disabled:opacity-40">
             {saving ? 'Saving…' : initial ? 'Save Changes' : 'Log Work'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+// ─── Whiteboard tab ─────────────────────────────────────────────────────────────
+// One board per client (or the all-work board when no client is selected), created on first open.
+function WorkWhiteboard({ companyId }) {
+  const [boardId, setBoardId] = useState(null)
+  const [error, setError] = useState(null)
+  useEffect(() => {
+    let alive = true
+    setBoardId(null); setError(null)
+    const ensure = companyId ? ensureBoard('company', companyId) : ensureBoard('work')
+    ensure.then(b => { if (alive) setBoardId(b.id) }).catch(e => { if (alive) setError(e.message) })
+    return () => { alive = false }
+  }, [companyId])
+  if (error) return <p className="text-sm text-red-500">{error}</p>
+  if (!boardId) return <p className="text-sm text-muted" role="status">Opening board…</p>
+  return (
+    <Suspense fallback={<p className="text-sm text-muted" role="status">Loading the whiteboard…</p>}>
+      <BoardView key={boardId} boardId={boardId} embedded />
+    </Suspense>
+  )
+}
+
+// ─── Milestones ─────────────────────────────────────────────────────────────────
+// Dated checkpoints tickets roll up to. Shown as a strip above the tickets; click one to filter.
+function MilestonesStrip({ milestones, active, onSelect, onEdit, onNew, canCreate }) {
+  if (milestones.length === 0) {
+    return (
+      <div className="flex items-center gap-3 border border-dashed border-border rounded-2xl px-4 py-3">
+        <span className="text-gold text-lg">◆</span>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-ink">No milestones yet</p>
+          <p className="text-xs text-muted">Milestones are the dates work rolls up to: a demo, a launch, a review. Tickets show their progress.</p>
+        </div>
+        <button onClick={onNew} disabled={!canCreate} className="secondary-button">+ Milestone</button>
+      </div>
+    )
+  }
+  return (
+    <div className="milestone-strip" role="list" aria-label="Milestones">
+      {milestones.map(m => {
+        const done = m.status === 'done'
+        const tone = done ? 'done' : m.overdue ? 'overdue' : m.days_left === 0 ? 'today' : (m.days_left != null && m.days_left <= 7) ? 'soon' : 'later'
+        return (
+          <div key={m.id} role="listitem" className="milestone-tile" data-active={active === m.id} data-done={done} onClick={() => onSelect(m.id)}
+            title={active === m.id ? 'Showing only this milestone. Click to show all.' : 'Show only this milestone'}>
+            <div className="flex items-start gap-2">
+              <span className="text-gold">◆</span>
+              <span className={`flex-1 min-w-0 text-sm font-semibold leading-snug ${done ? 'line-through text-muted' : 'text-ink'}`}>{m.title}</span>
+              <button type="button" onClick={e => { e.stopPropagation(); onEdit(m) }} aria-label={`Edit ${m.title}`}
+                className="text-xs px-1.5 py-0.5 rounded-md border border-border text-muted hover:text-accent hover:border-accent/50">✎</button>
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="due-chip" data-tone={tone}>{countdown(m.due_date, { done })}{m.due_date ? ` · ${shortDate(m.due_date)}` : ''}</span>
+              <span className="w-1.5 h-1.5 rounded-full ml-auto" style={{ background: m.company_color }} title={m.company_name} />
+            </div>
+            <div className="w-full h-1.5 bg-raised rounded-full overflow-hidden mt-2">
+              <div className={`h-full rounded-full ${done ? 'bg-brand' : 'bg-gold'}`} style={{ width: `${m.progress_pct}%` }} />
+            </div>
+            <p className="text-[11px] text-muted mt-1 font-mono">{m.ticket_count ? `${m.done_count}/${m.ticket_count} tickets · ${m.progress_pct}%` : 'No tickets yet'}</p>
+          </div>
+        )
+      })}
+      <button onClick={onNew} disabled={!canCreate} className="milestone-tile milestone-add" aria-label="Add a milestone">+ Milestone</button>
+    </div>
+  )
+}
+
+export function MilestoneModal({ companies, defaultCompanyId, initial, onSave, onDelete, onClose }) {
+  const [form, setForm] = useState(initial
+    ? { company_id: initial.company_id, title: initial.title, description: initial.description || '', due_date: initial.due_date || '', status: initial.status || 'open' }
+    : { company_id: defaultCompanyId || companies[0]?.id || '', title: '', description: '', due_date: '', status: 'open' })
+  const [saving, setSaving] = useState(false)
+  async function submit(e) {
+    e.preventDefault()
+    if (!form.title.trim() || !form.company_id) return
+    setSaving(true)
+    try { await onSave({ ...form, title: form.title.trim(), due_date: form.due_date || (initial ? '' : null) }, initial?.id) }
+    finally { setSaving(false) }
+  }
+  return (
+    <Modal title={initial ? 'Edit milestone' : 'New milestone'} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        {!initial && (
+          <div>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wide">Client</label>
+            <div className="flex flex-wrap gap-2 mt-1.5">
+              {companies.map(c => (
+                <button key={c.id} type="button" onClick={() => setForm(f => ({ ...f, company_id: c.id }))}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${form.company_id === c.id ? 'text-white border-transparent' : 'border-border text-muted'}`}
+                  style={form.company_id === c.id ? { background: c.color } : {}}>{c.name}</button>
+              ))}
+            </div>
+          </div>
+        )}
+        <div>
+          <label className="text-xs font-semibold text-muted uppercase tracking-wide">Milestone</label>
+          <input autoFocus value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required placeholder="e.g. Demo to Muhammad · v1 launch"
+            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 bg-surface" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wide">Target date</label>
+            <input type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
+              className="w-full mt-1.5 px-3 py-2 rounded-xl border border-border text-sm focus:outline-none bg-surface" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wide">Status</label>
+            <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+              className="w-full mt-1.5 px-2 py-2 rounded-xl border border-border text-xs bg-surface focus:outline-none">
+              <option value="open">Open</option>
+              <option value="done">Reached</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-muted uppercase tracking-wide">What has to be true</label>
+          <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} placeholder="Definition of done for this milestone…"
+            className="w-full mt-1.5 px-3 py-2 rounded-xl border border-border text-sm focus:outline-none bg-surface resize-none" />
+        </div>
+        <div className="flex items-center gap-2 pt-2">
+          {initial && onDelete && <button type="button" onClick={() => onDelete(initial.id)} className="text-sm text-muted hover:text-red-500 transition-colors">Delete</button>}
+          <span className="flex-1" />
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-muted hover:text-ink transition-colors">Cancel</button>
+          <button type="submit" disabled={saving || !form.title.trim() || !form.company_id}
+            className="bg-forest text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-forest-hover disabled:opacity-40 transition-colors">
+            {saving ? 'Saving…' : initial ? 'Save' : 'Create milestone'}
           </button>
         </div>
       </form>

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import Icon from './Icon'
 
-export function notify(message) {
-  window.dispatchEvent(new CustomEvent('basira:notice', { detail: { message: String(message) } }))
+// `title` replaces the default "needs your attention" heading (e.g. for confirmations).
+export function notify(message, { title } = {}) {
+  window.dispatchEvent(new CustomEvent('basira:notice', { detail: { message: String(message), title } }))
 }
 
 // A toast with an action button (e.g. "Undo" after moving something to the trash).
@@ -26,7 +27,7 @@ export default function Notice() {
   return (
     <div className="notice" role="alert">
       <div>
-        {!notice.onAction && <strong>Something needs your attention</strong>}
+        {!notice.onAction && <strong>{notice.title || 'Something needs your attention'}</strong>}
         <p>{notice.message}</p>
       </div>
       {notice.onAction && (

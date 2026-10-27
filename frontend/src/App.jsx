@@ -21,10 +21,12 @@ const ContactsPage = lazy(() => import('./ContactsPage'))
 const WeeklyReview = lazy(() => import('./WeeklyReview'))
 const SettingsModal = lazy(() => import('./SettingsModal'))
 const TrashModal = lazy(() => import('./components/TrashModal'))
+const BoardsPage = lazy(() => import('./features/boards/BoardsPage'))
+const BoardView = lazy(() => import('./features/boards/BoardView'))
 
 export default function App() {
   const [route, setRoute] = useState(() => readRoute(window.location.hash))
-  const { tab, goalId } = route
+  const { tab, goalId, boardId } = route
   const [showReview, setShowReview] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showAddTask, setShowAddTask] = useState(false)
@@ -72,7 +74,7 @@ export default function App() {
       </div>
     </aside>
     <div className="app-main">
-      <header className="topbar"><div className="breadcrumb"><span>Your workspace</span><span className="sep">/</span><strong>{label}</strong>{goalId && <><span className="sep">/</span><strong>Goal</strong></>}</div><div className="topbar-tools">
+      <header className="topbar"><div className="breadcrumb"><span>Your workspace</span><span className="sep">/</span><strong>{label}</strong>{goalId && <><span className="sep">/</span><strong>Goal</strong></>}{boardId && <><span className="sep">/</span><strong>Board</strong></>}</div><div className="topbar-tools">
         <TopbarClock/>
         <button className="search-trigger" onClick={() => setShowCommand(true)} aria-label="Search pages and actions"><Icon name="search" size={17}/><span>Jump to…</span><kbd>⌘ K</kbd></button>
         <button className="icon-button" onClick={toggleTheme} aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`} title={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}><Icon name={theme === 'light' ? 'moon' : 'sun'} size={18}/></button>
@@ -85,6 +87,7 @@ export default function App() {
           {tab === 'goals' && (goalId ? <GoalPage key={goalId} goalId={goalId} onBack={() => navigate('goals')} onGoToGoal={openGoal}/> : <GoalsPage onSelectGoal={openGoal}/>)}
           {tab === 'journal' && <JournalPage/>}
           {tab === 'work' && <WorkPage/>}
+          {tab === 'boards' && (boardId ? <BoardView key={boardId} boardId={boardId} onBack={() => navigate('boards')}/> : <BoardsPage onOpen={id => navigate('boards', id)}/>)}
           {tab === 'progress' && <ProgressPage onGoToGoal={openGoal} onOpenAnalytics={() => navigate('insights')}/>}
           {tab === 'profile' && <ProfilePage/>}
           {tab === 'insights' && <><button className="secondary-button mb-6" onClick={() => navigate('progress')}>← Progress overview</button><AnalyticsPage onGoToGoal={openGoal}/></>}

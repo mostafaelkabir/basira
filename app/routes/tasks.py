@@ -70,6 +70,8 @@ def update_task(task_id: str, data: TaskUpdate, db: Session = Depends(get_db)) -
         db.add(dl)
     for field, value in updates.items():
         setattr(task, field, value)
+    if updates.get("due_date") == "":   # the planning UI clears a date by sending ""
+        task.due_date = None
     db.commit()
     db.refresh(task)
     return task

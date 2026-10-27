@@ -1,6 +1,7 @@
 const paths = {
   today: <><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M7 2v4m10-4v4M3 10h18m-13 5h3"/></>,
   goals: <><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></>,
+  boards: <><rect x="3" y="3" width="8" height="9" rx="1.8"/><rect x="13" y="3" width="8" height="5" rx="1.8"/><rect x="13" y="10" width="8" height="11" rx="1.8"/><rect x="3" y="14" width="8" height="7" rx="1.8"/></>,
   work: <><rect x="3" y="7" width="18" height="14" rx="3"/><path d="M8 7V4h8v3M3 12a20 20 0 0 0 18 0m-9 0v4"/></>,
   journal: <><path d="M5 3h13a1 1 0 0 1 1 1v17H6a3 3 0 0 1-3-3V5a2 2 0 0 1 2-2Zm-2 15a3 3 0 0 1 3-3h13M8 7h7m-7 4h5"/></>,
   progress: <><path d="M4 3v17h17M8 15l4-5 4 2 5-7"/></>,

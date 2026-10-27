@@ -23,6 +23,7 @@ export default defineConfig({
       '/work-tickets': API,
       '/work-logs': API,
       '/companies': API,
+      '/boards': API,
     },
   },
 })
