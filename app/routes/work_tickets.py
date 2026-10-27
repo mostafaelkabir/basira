@@ -365,6 +365,19 @@ def delete_comment(ticket_id: str, comment_id: str, db: Session = Depends(get_db
     comment = db.get(WorkTicketComment, comment_id)
     if not comment or comment.ticket_id != ticket_id:
         raise HTTPException(status_code=404, detail="Comment not found")
+    # A proof link lives in the feed and in the ticket's evidence list; remove both
+    # unless another proof comment still points at the same URL.
+    if comment.type == "proof":
+        ticket = db.get(WorkTicket, ticket_id)
+        still_used = (
+            db.query(WorkTicketComment)
+            .filter(WorkTicketComment.ticket_id == ticket_id, WorkTicketComment.type == "proof",
+                    WorkTicketComment.body == comment.body, WorkTicketComment.id != comment_id)
+            .first()
+        )
+        if ticket and not still_used:
+            proofs = [p for p in json.loads(ticket.proofs or "[]") if p.get("url") != comment.body]
+            ticket.proofs = json.dumps(proofs)
     db.delete(comment)
     db.commit()
 

@@ -1,12 +1,12 @@
 import Icon from './components/Icon'
 import CompleteTaskDialog from './features/tasks/CompleteTaskDialog'
-import { notify } from './components/Notice'
+import { notify, notifyAction } from './components/Notice'
 import { useEffect, useState } from 'react'
 import {
   addProof, checkinHabit, completeTask, getToday, logManualTime,
   uncheckinHabit, uploadProofFile, uploadProofImage,
   completeTaskWithFeeling,
-  getWorkTicket, setScheduleTime,
+  getWorkTicket, setScheduleTime, reopenTask, completeScheduleItem,
 } from './api'
 import PostTaskFeedback from './components/PostTaskFeedback'
 import { ProofForm } from './GoalPage'
@@ -169,6 +169,24 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
     try { await setScheduleTime(item.source, item.item_id, time || null); refreshWorkspace?.() }
     catch (err) { notify(err.message) }
   }
+  // Undo a "done" click: the task/ticket goes back on the list (evidence and notes
+  // stay), a habit loses today's check mark.
+  async function handleUndo(item) {
+    try {
+      if (item.source === 'habit') { const full = habitById.get(item.item_id); if (full) await handleToggleHabit(full); return }
+      if (item.source === 'task') await reopenTask(item.item_id)
+      else if (item.source === 'ticket') await completeScheduleItem('ticket', item.item_id, false)
+      else return
+      setFeedbackTask(f => (f?.id === item.item_id ? null : f))
+      load()
+      window.dispatchEvent(new CustomEvent('basira:task-updated'))
+      window.dispatchEvent(new CustomEvent('basira:schedule-updated'))
+    } catch (err) { notify(err.message) }
+  }
+  function completedWithUndo(task) {
+    setFeedbackTask(task); setProofFor(null); load()
+    notifyAction(`“${task.title}” marked done.`, 'Undo', () => handleUndo({ source: 'task', item_id: task.id, title: task.title }))
+  }
 
   return (
     <div className="space-y-4">
@@ -221,6 +239,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
         onCheckHabit={item => { const full = habitById.get(item.item_id); if (full) handleToggleHabit(full) }}
         onEditTime={handleEditTime}
         onPostpone={setPostponeFor}
+        onUndo={handleUndo}
       />
 
       {/* Next six days at a glance; opens the planner on that day (BAS-046) */}
@@ -278,7 +297,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
       {notesFor && <TaskNotesDialog item={notesFor} onClose={() => setNotesFor(null)} />}
 
       {/* Proof modals */}
-      {proofFor && <CompleteTaskDialog task={proofFor} onClose={() => setProofFor(null)} onComplete={() => { setFeedbackTask(proofFor); setProofFor(null); load() }}/>}
+      {proofFor && <CompleteTaskDialog task={proofFor} onClose={() => setProofFor(null)} onComplete={() => completedWithUndo(proofFor)}/>}
       {habitProofFor && (
         <Modal title={`Proof — ${habitProofFor.title}`} onClose={() => { setHabitProofFor(null); resetProofForm() }}>
           <ProofForm proofForm={proofForm} setProofForm={setProofForm} onSubmit={handleAddHabitProof}

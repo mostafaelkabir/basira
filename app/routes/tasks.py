@@ -227,6 +227,29 @@ def complete_task(task_id: str, body: CompleteTaskBody = CompleteTaskBody(), db:
     return task
 
 
+@router.post("/{task_id}/reopen", response_model=TaskRead)
+def reopen_task(task_id: str, db: Session = Depends(get_db)) -> Task:
+    """Undo a completion. Puts the task back to todo and drops the completion it
+    recorded, so a mistaken click never counts towards streaks or output. Proofs
+    and notes stay attached."""
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if task.status == TaskStatus.done:
+        task.status = TaskStatus.todo
+        last = (
+            db.query(ExecutionLog)
+            .filter(ExecutionLog.task_id == task_id)
+            .order_by(ExecutionLog.completed_at.desc())
+            .first()
+        )
+        if last:
+            db.delete(last)
+    db.commit()
+    db.refresh(task)
+    return task
+
+
 @router.delete("/{task_id}", status_code=204)
 def delete_task(task_id: str, db: Session = Depends(get_db)) -> None:
     """Soft-delete: move the task (and its sub-tasks) to the trash, restorable and

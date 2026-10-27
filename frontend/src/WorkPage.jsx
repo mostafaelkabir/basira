@@ -446,10 +446,25 @@ export function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
                 <button onClick={() => { if (confirm('Delete ticket?')) deleteWorkTicket(ticket.id).then(onDelete).catch(e => notify(e.message)) }}
                   className="w-7 h-7 flex items-center justify-center text-muted hover:text-red-400 transition-colors text-sm">🗑</button>
               )}
-              <button onClick={onClose}
+              <button onClick={onClose} aria-label="Close ticket"
                 className="w-7 h-7 flex items-center justify-center text-muted hover:text-ink transition-colors text-lg">✕</button>
             </div>
           </div>
+
+          {/* Evidence: every proof link on the ticket, however it got there (feed, edit
+              form, Today). Screenshots are in the gallery below, so only links sit here. */}
+          {(() => {
+            const links = (ticket.proofs || []).filter(p => p.url && !isImageUrl(p.url))
+            if (!links.length) return null
+            return (
+              <div className="mt-3" data-testid="ticket-evidence">
+                <p className="text-[10px] font-bold text-muted uppercase tracking-wide mb-1.5">Evidence · {links.length}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {links.map((p, i) => <ProofBadge key={`${p.url}-${i}`} proof={p} />)}
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Time bar */}
           {ticket.estimated_minutes > 0
@@ -546,19 +561,22 @@ export function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
             </div>
           )}
 
-          {/* Screenshots gallery — all image proofs from comments */}
+          {/* Screenshots gallery — image proofs from the feed and from the ticket itself */}
           {(() => {
-            const imgs = feed.filter(item => item.kind === 'proof' && isImageUrl(item.body))
+            const seen = new Set()
+            const imgs = []
+            for (const item of feed) if (item.kind === 'proof' && isImageUrl(item.body) && !seen.has(item.body)) { seen.add(item.body); imgs.push({ id: item.id, url: item.body }) }
+            for (const p of (ticket.proofs || [])) if (p.url && isImageUrl(p.url) && !seen.has(p.url)) { seen.add(p.url); imgs.push({ id: `proof:${p.url}`, url: p.url }) }
             if (!imgs.length) return null
             return (
               <div className="mb-4 pb-4 border-b border-raised">
                 <p className="text-[10px] font-bold text-muted uppercase tracking-wide mb-2">Screenshots</p>
                 <div className="flex gap-2 flex-wrap">
-                  {imgs.map(item => (
-                    <a key={item.id} href={item.body} target="_blank" rel="noreferrer"
+                  {imgs.map(img => (
+                    <a key={img.id} href={img.url} target="_blank" rel="noreferrer"
                       onClick={e => e.stopPropagation()}
                       className="group relative block rounded-xl overflow-hidden border border-border hover:border-accent transition-all shadow-sm">
-                      <img src={item.body} alt="screenshot"
+                      <img src={img.url} alt="screenshot"
                         className="w-36 h-24 object-cover group-hover:opacity-90 transition-opacity" />
                     </a>
                   ))}

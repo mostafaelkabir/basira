@@ -229,6 +229,7 @@ cd frontend && npm test && cd ..
 # They create a throw-away client "QA Scratch Co" over the API and delete it afterwards.
 # First time only: venv/bin/playwright install chromium
 venv/bin/python -m unittest tests.e2e.test_boards_ui -v        # BASIRA_HEADED=1 to watch it
+venv/bin/python -m unittest tests.e2e.test_today_ui -v         # Today: undo a done click, find the evidence
 ```
 
 Boards, milestones and due dates live in `app/routes/boards.py`, `app/routes/work_milestones.py`,

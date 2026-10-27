@@ -102,6 +102,8 @@ export const createTask = (data) =>
 export const updateTask = (id, data) =>
   request(`/tasks/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
 export const completeTask = (taskId) => request(`/tasks/${taskId}/complete`, { method: 'POST' })
+// Undo a completion: back to todo, the recorded completion dropped, evidence kept.
+export const reopenTask = (taskId) => request(`/tasks/${taskId}/reopen`, { method: 'POST' })
 export const deleteTask = (taskId) => request(`/tasks/${taskId}`, { method: 'DELETE' })
 export const reorderTasks = (items) =>
   request('/tasks/reorder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(items) })

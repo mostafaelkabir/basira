@@ -1,6 +1,6 @@
 import { notify, notifyAction } from './components/Notice'
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { addProof, completeTask, createTask, deleteTask, getGoal, getGoals, getTimerToday, logManualTime, pinTask, reorderTasks, updateTask, uploadProofFile, uploadProofImage, restoreTrashItem, ensureBoard } from './api'
+import { addProof, completeTask, createTask, deleteTask, getGoal, getGoals, getTimerToday, logManualTime, pinTask, reorderTasks, updateTask, uploadProofFile, uploadProofImage, restoreTrashItem, ensureBoard, reopenTask } from './api'
 import { useTimer } from './TimerContext'
 import EstimatedTimePicker, { formatDuration } from './components/EstimatedTimePicker'
 import { ActivityComments } from './components/ActivityComposer'
@@ -437,7 +437,8 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
               )}
               <div className="space-y-1.5 opacity-60">
               {doneTasks.map((task) => (
-                <TaskCard key={task.id} task={task} onDelete={() => handleDeleteTask(task.id, task.title)} onCommentAdded={load} />
+                <TaskCard key={task.id} task={task} onDelete={() => handleDeleteTask(task.id, task.title)} onCommentAdded={load}
+                  onReopen={() => reopenTask(task.id).then(load).catch(e => notify(e.message))} />
               ))}
               </div>
             </div>
@@ -801,7 +802,7 @@ function extIcon(name) {
   return FILE_EXT_ICONS[ext] || '📎'
 }
 
-function ProofDisplay({ proof }) {
+export function ProofDisplay({ proof }) {
   if (proof.type === 'image') {
     return (
       <div className="flex items-start gap-2 text-xs bg-raised rounded-xl px-3 py-2">
@@ -837,7 +838,7 @@ function ProofDisplay({ proof }) {
   )
 }
 
-function TaskCard({ task, onComplete, onDelete, onAddProof, onEdit, isHabit, onCommentAdded,
+function TaskCard({ task, onComplete, onDelete, onAddProof, onEdit, isHabit, onCommentAdded, onReopen,
   onAddSubtask, addingSubtask, subtaskTitle, onSubtaskTitleChange, onSubtaskSubmit, onSubtaskCancel,
   onCompleteSubtask, onDeleteSubtask, onPinSubtask, submitting: parentSubmitting, dragListeners, onStartTimer }) {
   const isDone = task.status === 'done'
@@ -875,6 +876,11 @@ function TaskCard({ task, onComplete, onDelete, onAddProof, onEdit, isHabit, onC
             className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${
               canComplete ? 'border-accent hover:bg-brand hover:text-white text-transparent' : 'border-border text-transparent cursor-not-allowed'
             }`}>
+            <span className="text-[10px] leading-none">✓</span>
+          </button>
+        ) : isDone && onReopen ? (
+          <button onClick={onReopen} title="Not done after all — put it back" aria-label={`Undo completing ${task.title}`}
+            className="w-5 h-5 rounded-full bg-brand hover:bg-raised hover:border-2 hover:border-border-strong hover:text-transparent flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors text-white">
             <span className="text-[10px] leading-none">✓</span>
           </button>
         ) : isDone ? (

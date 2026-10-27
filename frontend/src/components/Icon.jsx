@@ -25,6 +25,7 @@ const paths = {
   clock: <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>,
   proof: <><path d="M6 3h9l4 4v14H5V3h1Zm8 0v5h5m-11 6 2 2 5-5"/></>,
   note: <><path d="M5 4h14a1 1 0 0 1 1 1v10l-5 5H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/><path d="M15 20v-4a1 1 0 0 1 1-1h4M8 9h8m-8 4h5"/></>,
+  undo: <path d="M4 10h11a5 5 0 0 1 0 10h-4M4 10l4-4m-4 4 4 4"/>,
 }
 export default function Icon({ name, size = 20, ...props }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{paths[name] || paths.goals}</svg>

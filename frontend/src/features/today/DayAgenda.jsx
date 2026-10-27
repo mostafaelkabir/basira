@@ -25,7 +25,7 @@ function Elapsed({ startedAt, priorSeconds = 0 }) {
   return <span className="font-mono tabular-nums">{fmtDuration(priorSeconds + Math.max(0, base))}</span>
 }
 
-function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone }) {
+function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo }) {
   const [editing, setEditing] = useState(false)
   const isTask = item.source === 'task'
   const isTicket = item.source === 'ticket'
@@ -81,9 +81,21 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
         )}
       </div>
 
-      {/* Actions */}
-      {item.done && (isTask || isHabit) && onOpenNotes && (
-        <button onClick={() => onOpenNotes(item)} className="agenda-btn flex-shrink-0" aria-label={`Notes for ${item.title}`}><Icon name="note" size={13} /></button>
+      {/* Actions — a completed row can still be opened, and put back with one click */}
+      {item.done && (
+        <div className="agenda-actions flex items-center gap-1 flex-shrink-0">
+          {(isTask || isHabit) && onOpenNotes && (
+            <button onClick={() => onOpenNotes(item)} className="agenda-btn" title="Notes and evidence" aria-label={`Notes for ${item.title}`}><Icon name="note" size={13} /></button>
+          )}
+          {isTicket && (
+            <button onClick={() => onOpenTicket(item)} className="agenda-btn">Open</button>
+          )}
+          {onUndo && (
+            <button onClick={() => onUndo(item)} className="agenda-btn" title={isHabit ? 'Uncheck for today' : 'Not done after all — put it back'} aria-label={`Undo completing ${item.title}`}>
+              <Icon name="undo" size={13} />Undo
+            </button>
+          )}
+        </div>
       )}
       {!item.done && (
         <div className="agenda-actions flex items-center gap-1 flex-shrink-0">
@@ -118,10 +130,10 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
 
 export default function DayAgenda({
   scheduled, anytime, completed, timer,
-  onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone,
+  onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo,
 }) {
   const [showDone, setShowDone] = useState(false)
-  const rowProps = { timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone }
+  const rowProps = { timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo }
   const empty = scheduled.length === 0 && anytime.length === 0 && completed.length === 0
 
   return (
