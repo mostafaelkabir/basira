@@ -13,6 +13,7 @@ from app.models.defer_log import DeferLog
 from app.models.execution_log import ExecutionLog
 from app.models.goal import Goal
 from app.models.habit_day_plan import HabitDayPlan
+from app.services.habit_routine import habit_placements, routine_covers
 from app.models.habit_log import HabitLog
 from app.models.task import Task, habit_row_filter
 from app.models.work_log import WorkLog
@@ -157,8 +158,8 @@ def get_schedule(db: Session = Depends(get_db)):
         .all()
     )
 
-    # Habits placed on today's schedule (BAS-050) live in habit_day_plans.
-    placed = {p.task_id for p in db.query(HabitDayPlan.task_id).filter(HabitDayPlan.date == today)}
+    # Habits on today's schedule: placed by hand (BAS-050) or by their routine.
+    placed = set(habit_placements(db, date.fromisoformat(today)))
     if placed:
         seen = {t.id for t in habit_tasks}
         habit_tasks += [
@@ -224,7 +225,7 @@ def _next_order(db: Session, day: str | None = None) -> int:
 def add_to_schedule(body: AddBody, db: Session = Depends(get_db)):
     today = _plan_day(body.date)
     if body.kind == KIND_HABIT:
-        _habit_on_day(db, body.id, today, create=True)
+        _habit_on_day(db, body.id, today, create=True).skipped = False   # also undoes a skip
         db.commit()
         return {"ok": True}
     order = _next_order(db, today)
@@ -257,10 +258,17 @@ def add_to_schedule(body: AddBody, db: Session = Depends(get_db)):
 @router.post("/remove")
 def remove_from_schedule(body: AddBody, db: Session = Depends(get_db)):
     if body.kind == KIND_HABIT:
-        plan = _habit_on_day(db, body.id, _plan_day(body.date))
-        if plan:
+        day = _plan_day(body.date)
+        plan = _habit_on_day(db, body.id, day)
+        task = db.query(Task).filter(Task.id == body.id).first()
+        if task and routine_covers(task, date.fromisoformat(day)):
+            # The routine would put it straight back: keep a skip marker for this day.
+            plan = plan or _habit_on_day(db, body.id, day, create=True)
+            plan.skipped = True
+            plan.scheduled_time = None
+        elif plan:
             db.delete(plan)
-            db.commit()
+        db.commit()
         return {"ok": True}
     if body.kind in (KIND_TASK, KIND_HABIT):
         task = db.query(Task).filter(Task.id == body.id).first()
@@ -481,7 +489,9 @@ def set_schedule_time(body: TimeBody, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="time must be HH:MM")
 
     if body.kind == KIND_HABIT:
-        _habit_on_day(db, body.id, _plan_day(body.date), create=True).scheduled_time = body.time
+        plan = _habit_on_day(db, body.id, _plan_day(body.date), create=True)
+        plan.scheduled_time = body.time
+        plan.skipped = False
         db.commit()
         return {"ok": True}
 

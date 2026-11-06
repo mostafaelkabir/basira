@@ -1,9 +1,10 @@
 import json
 import os
-from datetime import date, datetime, UTC
+from datetime import date, datetime, timedelta, UTC
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from openai import OpenAI
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -192,11 +193,47 @@ def list_tickets(
     return [_serialize(t, db, milestones=titles) for t in tickets]
 
 
+# A second identical create this soon after the first is a double submit (a button
+# clicked again, a composer left filled), not a second piece of work.
+DUPLICATE_WINDOW_SECONDS = 60
+
+
+def _title_key(title: str) -> str:
+    return " ".join(title.split()).lower()
+
+
+def _as_utc(dt: datetime) -> datetime:
+    return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
+
+
+def _recent_duplicate(db: Session, company_id: str, title: str) -> WorkTicket | None:
+    """The same client's ticket with the same title created within the window, if any."""
+    key = _title_key(title)
+    now = datetime.now(UTC)
+    recent = (
+        db.query(WorkTicket)
+        .filter(WorkTicket.company_id == company_id)
+        .order_by(WorkTicket.created_at.desc())
+        .limit(20)
+        .all()
+    )
+    for t in recent:
+        if not t.created_at or (now - _as_utc(t.created_at)).total_seconds() > DUPLICATE_WINDOW_SECONDS:
+            break
+        if _title_key(t.title) == key:
+            return t
+    return None
+
+
 @router.post("", status_code=201)
 def create_ticket(body: TicketCreate, db: Session = Depends(get_db)):
     company = db.get(Company, body.company_id)
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
+
+    existing = _recent_duplicate(db, body.company_id, body.title)
+    if existing is not None:
+        return JSONResponse(status_code=200, content=_serialize(existing, db, include_entries=True))
 
     ticket = WorkTicket(
         id=str(uuid4()),

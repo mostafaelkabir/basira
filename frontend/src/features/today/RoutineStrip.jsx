@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Icon from '../../components/Icon'
 import { fmtClock } from './format'
+import { routineLabel } from '../habits/RoutineEditor'
 
 // Habits as daily check marks (mockup zone D) — never rows on the schedule, never
 // timed. One horizontally scrollable strip of pill chips, ordered by time then
@@ -39,6 +40,7 @@ export default function RoutineStrip({ routines, onToggle, onOpenNotes, onAddToD
             <span className={`text-xs whitespace-nowrap ${h.done ? 'line-through opacity-80' : ''}`}>{h.title}</span>
             {h.target > 1 && <span className="text-[10px] font-mono text-faint">{h.count}/{h.target}</span>}
             {h.scheduled_time && <span className="text-[10px] font-mono text-faint">{fmtClock(h.scheduled_time)}</span>}
+            {h.routine_days?.length > 0 && <span className="text-[10px] text-faint" title={`On your planner ${routineLabel(h.routine_days)}`}>↻</span>}
           </button>
           {onOpenNotes && (
             <button onClick={() => onOpenNotes(h)} title="Notes" aria-label={`Notes for ${h.title}`}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Icon from '../../components/Icon'
 import { dayLong, fmtClock, fmtDuration, fmtMinutes } from './format'
 import { POSTPONE_REASONS } from './PostponeDialog'
+import { routineLabel } from '../habits/RoutineEditor'
 
 // One chronological Today agenda: scheduled Tasks, tickets and habit occurrences in
 // time order, an "Anytime today" group for selected items without a time, and a
@@ -25,7 +26,7 @@ function Elapsed({ startedAt, priorSeconds = 0 }) {
   return <span className="font-mono tabular-nums">{fmtDuration(priorSeconds + Math.max(0, base))}</span>
 }
 
-function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo }) {
+function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo, onDelete }) {
   const [editing, setEditing] = useState(false)
   const isTask = item.source === 'task'
   const isTicket = item.source === 'ticket'
@@ -69,6 +70,7 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
           <span>{item.project_title}</span>
           {item.company_name && item.company_name !== 'Personal' && <><span className="text-faint">·</span><span>{item.company_name}</span></>}
           {isHabit && item.habitTarget > 1 && <><span className="text-faint">·</span><span>{item.habitCount}/{item.habitTarget}</span></>}
+          {isHabit && item.routine && <><span className="text-faint">·</span><span title="On your planner by routine">↻ {routineLabel(item.routine_days)}</span></>}
           {!isHabit && item.planned_minutes > 0 && <><span className="text-faint">·</span><span>{fmtMinutes(item.planned_minutes)} planned</span></>}
           {running && <><span className="text-faint">·</span><span className="text-accent flex items-center gap-1"><span className="status-dot live" /><Elapsed startedAt={timer.startedAt} priorSeconds={timer.priorSeconds} /></span></>}
           {!running && recorded > 0 && !isHabit && <><span className="text-faint">·</span><span className="text-accent">{fmtDuration(recorded)} recorded</span></>}
@@ -94,6 +96,9 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
             <button onClick={() => onUndo(item)} className="agenda-btn" title={isHabit ? 'Uncheck for today' : 'Not done after all — put it back'} aria-label={`Undo completing ${item.title}`}>
               <Icon name="undo" size={13} />Undo
             </button>
+          )}
+          {(isTask || isTicket) && onDelete && (
+            <button onClick={() => onDelete(item)} className="agenda-btn hover:text-red-500" title={isTask ? 'Move to trash' : 'Delete ticket'} aria-label={`Delete ${item.title}`}><Icon name="trash" size={13} /></button>
           )}
         </div>
       )}
@@ -122,6 +127,9 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
           {isTicket && (
             <button onClick={() => onOpenTicket(item)} className="agenda-btn">Open</button>
           )}
+          {(isTask || isTicket) && onDelete && (
+            <button onClick={() => onDelete(item)} className="agenda-btn hover:text-red-500" title={isTask ? 'Move to trash' : 'Delete ticket'} aria-label={`Delete ${item.title}`}><Icon name="trash" size={13} /></button>
+          )}
         </div>
       )}
     </div>
@@ -130,10 +138,10 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
 
 export default function DayAgenda({
   scheduled, anytime, completed, timer,
-  onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo,
+  onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo, onDelete,
 }) {
   const [showDone, setShowDone] = useState(false)
-  const rowProps = { timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo }
+  const rowProps = { timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo, onDelete }
   const empty = scheduled.length === 0 && anytime.length === 0 && completed.length === 0
 
   return (

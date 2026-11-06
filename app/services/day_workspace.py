@@ -36,13 +36,13 @@ from sqlalchemy.orm import Session
 from app.models.company import Company
 from app.models.defer_log import DeferLog
 from app.models.goal import Goal
-from app.models.habit_day_plan import HabitDayPlan
 from app.models.habit_log import HabitLog
 from app.models.setting import Setting
 from app.models.task import Task, is_habit
 from app.models.work_log import WorkLog
 from app.models.work_session import WorkSession
 from app.models.work_ticket import WorkTicket, WorkTimeEntry
+from app.services.habit_routine import habit_placements, parse_routine_days
 
 UNASSIGNED_PROJECT = "Unassigned"
 PERSONAL_CLIENT = "Personal"
@@ -375,31 +375,27 @@ def _agenda(db: Session, day: date, recorded_by_key: dict[str, int],
             "company_name": company_name,
         })
 
-    # Habits placed on this day (BAS-050): a check mark on the schedule. "done" means
-    # the day's check-in target is met — the habit itself is never completed.
-    habit_rows = (
-        db.query(HabitDayPlan, Task, Goal.title)
-        .join(Task, HabitDayPlan.task_id == Task.id)
-        .join(Goal, Task.goal_id == Goal.id)
-        .filter(HabitDayPlan.date == day_iso, Task.trashed_at.is_(None), Task.status != "done",
-                Goal.archived_at.is_(None), Goal.trashed_at.is_(None))
-        .all()
-    )
+    # Habits on this day: placed by hand (BAS-050) or by their weekly routine. A check
+    # mark on the schedule — "done" means the day's check-in target is met; the habit
+    # itself is never completed.
+    placements = habit_placements(db, day)
     habit_counts = dict(
         db.query(HabitLog.task_id, HabitLog.count)
-        .filter(HabitLog.date == day_iso, HabitLog.task_id.in_([t.id for _, t, _ in habit_rows])).all()
-    ) if habit_rows else {}
-    for plan, t, goal_title in habit_rows:
+        .filter(HabitLog.date == day_iso, HabitLog.task_id.in_(list(placements))).all()
+    ) if placements else {}
+    for t_id, p in placements.items():
+        t = p.task
         target = _per_day(t.habit_frequency)
-        count = habit_counts.get(t.id) or 0
+        count = habit_counts.get(t_id) or 0
         items.append({
-            "key": f"habit:{t.id}", "source": "habit", "item_id": t.id, "title": t.title,
-            "scheduled_time": plan.scheduled_time or t.scheduled_time,
+            "key": f"habit:{t_id}", "source": "habit", "item_id": t_id, "title": t.title,
+            "scheduled_time": p.scheduled_time,
             "planned_minutes": t.estimated_minutes or 0,
             "recorded_seconds": 0, "live_seconds": 0,
             "status": "done" if count >= target else "todo",
-            "project_title": goal_title, "company_name": PERSONAL_CLIENT,
+            "project_title": p.goal_title, "company_name": PERSONAL_CLIENT,
             "habit_count": count, "habit_target": target,
+            "routine": p.routine, "routine_days": parse_routine_days(t.routine_days),
         })
 
     planned_minutes = sum(i["planned_minutes"] for i in items)
@@ -433,7 +429,7 @@ def _routines(db: Session, day: date) -> dict[str, list[dict]]:
             .filter(HabitLog.task_id.in_(goal_task_ids), HabitLog.date == day_iso).all()
         ):
             log_counts[row.task_id] = row.count or 0
-    on_schedule = {row.task_id for row in db.query(HabitDayPlan.task_id).filter(HabitDayPlan.date == day_iso)}
+    on_schedule = set(habit_placements(db, day))
     for g in goals:
         for t in g.tasks:
             if t.status == "done" or t.trashed_at is not None or not is_habit(t, g.type):
@@ -446,7 +442,8 @@ def _routines(db: Session, day: date) -> dict[str, list[dict]]:
                 "target": target, "count": count,
                 "done": count >= target,
                 "frequency": t.habit_frequency or "daily",
-                "planned": t.id in on_schedule,   # on this day's schedule (BAS-050)
+                "planned": t.id in on_schedule,   # on this day's schedule (by hand or routine)
+                "routine_days": parse_routine_days(t.routine_days),
             })
     for items in buckets.values():
         items.sort(key=lambda h: (h["scheduled_time"] or "99:99", h["title"]))

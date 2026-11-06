@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { getDayWorkspace } from '../../api'
 
 // Fetches the read-only day model for `date` (defaults to today in the browser's
@@ -8,12 +8,16 @@ export function useDayWorkspace(date) {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
+  // Refreshes overlap (an event and an explicit call can fire for one change);
+  // only the latest request may set state, or a slow stale answer wins.
+  const seq = useRef(0)
 
   const refresh = useCallback(() => {
+    const mine = ++seq.current
     return getDayWorkspace(date)
-      .then(d => { setData(d); setError(null); return d })
-      .catch(err => { setError(err); return null })
-      .finally(() => setLoading(false))
+      .then(d => { if (mine === seq.current) { setData(d); setError(null) } return d })
+      .catch(err => { if (mine === seq.current) setError(err); return null })
+      .finally(() => { if (mine === seq.current) setLoading(false) })
   }, [date])
 
   useEffect(() => { refresh() }, [refresh])

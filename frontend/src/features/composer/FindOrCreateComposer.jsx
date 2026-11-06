@@ -45,6 +45,7 @@ export default function FindOrCreateComposer({ onDone, defaultCompanyId, default
   const [busy, setBusy] = useState(false)
   const inputRef = useRef(null)
   const reqIdRef = useRef(0)
+  const inFlightRef = useRef(false)   // synchronous guard: a second click before re-render is ignored
 
   // create-draft fields (kept while typing so failures never lose work)
   const [companyId, setCompanyId] = useState(defaultCompanyId || '')
@@ -112,6 +113,8 @@ export default function FindOrCreateComposer({ onDone, defaultCompanyId, default
   async function createNew() {
     const title = query.trim()
     if (!title) { notify('Type a title first'); return }
+    if (inFlightRef.current) return
+    inFlightRef.current = true
     setBusy(true)
     try {
       let created, kind
@@ -144,10 +147,22 @@ export default function FindOrCreateComposer({ onDone, defaultCompanyId, default
         try { await addToSchedule(kind, created.id, planDate) } catch { /* entity exists; schedule retryable */ }
       }
       notify(`Created ${createType} “${title}”`)
+      // The draft is spent: clear it so another click cannot create the same thing
+      // again (the planner keeps this composer open for the next item).
+      setQuery(''); setCreateType(null); setSuggestions([]); setActive(-1)
+      inputRef.current?.focus()
       onDone?.({ created: true, type: createType, id: created.id })
     } catch (err) { notify(err.message) }           // query (draft) preserved
-    finally { setBusy(false) }
+    finally { inFlightRef.current = false; setBusy(false) }
   }
+
+  // While drafting a new item, an existing one with exactly this title is offered
+  // first — reusing it keeps the list free of copies.
+  const draftKey = query.trim().toLowerCase()
+  const draftSource = createType === 'habit' ? 'task' : createType
+  const exactMatch = createType && createType !== 'goal' && draftKey
+    ? suggestions.find(s => s.source === draftSource && (s.title || '').trim().toLowerCase() === draftKey)
+    : null
 
   function onKeyDown(e) {
     if (createType) return   // create form manages its own keys
@@ -294,6 +309,18 @@ export default function FindOrCreateComposer({ onDone, defaultCompanyId, default
                 options={['resolution', 'project', 'daily'].map(t => ({ v: t, l: t }))} />
             )}
           </div>
+          {exactMatch && (
+            <div className="flex items-center gap-2 flex-wrap text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-2.5 py-1.5" role="status">
+              <span className="flex-1 min-w-0">
+                A {SOURCE_BADGE[exactMatch.source]?.toLowerCase() || exactMatch.source} called “{exactMatch.title}” already exists
+                {exactMatch.company_name ? ` for ${exactMatch.company_name}` : exactMatch.project_title ? ` in ${exactMatch.project_title}` : ''}.
+              </span>
+              <button type="button" onClick={() => selectExisting(exactMatch)} disabled={busy}
+                className="px-2 py-0.5 rounded-md bg-surface border border-amber-300 text-amber-900 hover:border-amber-500 font-medium">
+                Add the existing one
+              </button>
+            </div>
+          )}
           <div className="flex gap-2 pt-1">
             <button onClick={createNew} disabled={busy || !query.trim()}
               className="px-3 py-1.5 rounded-lg bg-forest text-white text-xs font-semibold hover:bg-forest-hover disabled:opacity-50 flex items-center gap-1">

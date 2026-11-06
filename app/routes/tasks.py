@@ -1,4 +1,5 @@
 import os
+import re
 import time
 from datetime import UTC, date, datetime
 from uuid import uuid4
@@ -15,6 +16,25 @@ from app.models.task import Task
 from app.models.comment import Comment
 from app.models.proof import Proof
 from app.schemas.task import TaskCreate, TaskRead, TaskStatus, TaskUpdate, TaskWithProofs
+from app.services.habit_routine import routine_days_to_str
+
+TIME_RE = re.compile(r"^\d{2}:\d{2}$")
+
+
+def _clean_time(value: str | None) -> str | None:
+    """HH:MM or None; "" clears."""
+    if not value:
+        return None
+    if not TIME_RE.match(value):
+        raise HTTPException(status_code=400, detail="scheduled_time must be HH:MM")
+    return value
+
+
+def _clean_days(value) -> str | None:
+    try:
+        return routine_days_to_str(value)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -43,6 +63,8 @@ def create_task(task_data: TaskCreate, db: Session = Depends(get_db)) -> Task:
         sort_order=max_order * 1000 + 1000,
         created_at=date.today().isoformat(),
         estimated_minutes=task_data.estimated_minutes,
+        scheduled_time=_clean_time(task_data.scheduled_time),
+        routine_days=_clean_days(task_data.routine_days),
     )
     db.add(task)
     db.commit()
@@ -57,6 +79,10 @@ def update_task(task_id: str, data: TaskUpdate, db: Session = Depends(get_db)) -
         raise HTTPException(status_code=404, detail="Task not found")
     updates = data.model_dump(exclude_unset=True)
     defer_reason = updates.pop("defer_reason", None)
+    if "scheduled_time" in updates:
+        updates["scheduled_time"] = _clean_time(updates["scheduled_time"])
+    if "routine_days" in updates:
+        updates["routine_days"] = _clean_days(updates["routine_days"])
     # Log deferral events when deferred_until is explicitly set to a future date
     if "deferred_until" in updates and updates["deferred_until"]:
         dl = DeferLog(
@@ -109,6 +135,8 @@ def get_task(task_id: str, db: Session = Depends(get_db)):
         sort_order=task.sort_order or 0,
         estimated_minutes=task.estimated_minutes,
         kind=task.kind,
+        scheduled_time=task.scheduled_time,
+        routine_days=[d for d in (task.routine_days or "").split(",") if d],
         proofs=[ProofRead.model_validate(p) for p in proofs],
         comments=[CommentRead.model_validate(c) for c in comments],
         sub_tasks=[TaskRead.model_validate(s) for s in sub_tasks],
