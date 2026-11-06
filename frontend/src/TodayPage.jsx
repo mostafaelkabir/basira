@@ -7,6 +7,7 @@ import {
   uncheckinHabit, uploadProofFile, uploadProofImage,
   completeTaskWithFeeling,
   getWorkTicket, setScheduleTime, reopenTask, completeScheduleItem,
+  deleteTask, deleteWorkTicket, restoreTrashItem,
 } from './api'
 import PostTaskFeedback from './components/PostTaskFeedback'
 import { ProofForm } from './GoalPage'
@@ -183,6 +184,24 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
       window.dispatchEvent(new CustomEvent('basira:schedule-updated'))
     } catch (err) { notify(err.message) }
   }
+  // Delete from Today: a task goes to the trash (undo in the toast, 30 days in
+  // Trash); a ticket is removed for good after a confirmation.
+  async function handleDelete(item) {
+    try {
+      if (item.source === 'task') {
+        await deleteTask(item.item_id)
+        load()
+        notifyAction(`“${item.title}” moved to trash`, 'Undo', () => restoreTrashItem('task', item.item_id).then(load).catch(e => notify(e.message)))
+      } else if (item.source === 'ticket') {
+        if (!window.confirm(`Delete ticket “${item.title}”? This can't be undone.`)) return
+        await deleteWorkTicket(item.item_id)
+        setOpenTicket(t => (t?.id === item.item_id ? null : t))
+        load()
+        notify(`Ticket “${item.title}” deleted`, { title: 'Deleted' })
+      }
+      window.dispatchEvent(new CustomEvent('basira:schedule-updated'))
+    } catch (err) { notify(err.message) }
+  }
   function completedWithUndo(task) {
     setFeedbackTask(task); setProofFor(null); load()
     notifyAction(`“${task.title}” marked done.`, 'Undo', () => handleUndo({ source: 'task', item_id: task.id, title: task.title }))
@@ -240,6 +259,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
         onEditTime={handleEditTime}
         onPostpone={setPostponeFor}
         onUndo={handleUndo}
+        onDelete={handleDelete}
       />
 
       {/* Next six days at a glance; opens the planner on that day (BAS-046) */}
@@ -290,6 +310,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
       {openTicket && (
         <TicketDrawer ticket={openTicket}
           onClose={() => { setOpenTicket(null); refreshWorkspace?.() }}
+          onDelete={() => { const t = openTicket; setOpenTicket(null); load(); notify(`Ticket “${t.title}” deleted`, { title: 'Deleted' }); window.dispatchEvent(new CustomEvent('basira:schedule-updated')) }}
           onUpdate={updated => { setOpenTicket(updated); refreshWorkspace?.(); window.dispatchEvent(new CustomEvent('basira:schedule-updated')) }} />
       )}
 

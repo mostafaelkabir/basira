@@ -1,5 +1,6 @@
-"""End-to-end UI tests for the Today page: undoing a "done" click and finding the
-evidence afterwards, driven through a real browser.
+"""End-to-end UI tests for the Today page: undoing a "done" click, finding the
+evidence afterwards, creating once from the planner, and deleting, driven
+through a real browser.
 
 Runs against the live app at BASIRA_URL (default http://localhost:8001) with
 Playwright's bundled Chromium. Everything lives in a throw-away goal
@@ -76,6 +77,8 @@ class TodayUITests(unittest.TestCase):
         cls.goal = api("POST", "/goals", {"title": SCRATCH_GOAL, "type": "project"})
         cls.task = api("POST", "/tasks", {"title": "QA undo task", "goal_id": cls.goal["id"], "requires_proof": False})
         api("POST", "/today/schedule/add", {"kind": "task", "id": cls.task["id"], "date": today})
+        cls.doomed = api("POST", "/tasks", {"title": "QA delete me", "goal_id": cls.goal["id"], "requires_proof": False})
+        api("POST", "/today/schedule/add", {"kind": "task", "id": cls.doomed["id"], "date": today})
         cls.company = api("POST", "/companies", {"name": SCRATCH_CO, "color": "#8B5CF6"})
         cls.ticket = api("POST", "/work-tickets", {"company_id": cls.company["id"], "title": "QA evidence ticket", "status": "todo"})
         api("POST", "/today/schedule/add", {"kind": "ticket", "id": cls.ticket["id"], "date": today})
@@ -184,6 +187,63 @@ class TodayUITests(unittest.TestCase):
         expect(self.page.get_by_test_id("ticket-evidence")).to_contain_text("PR #42", timeout=10000)
         fresh = api("GET", f"/work-tickets/{self.ticket['id']}")
         self.assertEqual([p["url"] for p in fresh["proofs"]], ["https://github.com/qa/scratch/pull/42"])
+
+    # ── creating from the planner must never make a copy ──────────────────────
+
+    def test_04_planner_composer_creates_a_ticket_once(self):
+        self.open_today()
+        self.page.get_by_role("button", name=re.compile(r"Plan my day|Edit day")).click()
+        planner = self.page.get_by_role("dialog").filter(has_text="Add anything")
+        expect(planner).to_be_visible(timeout=10000)
+        box = planner.get_by_placeholder("Find or type a new title…")
+        box.fill("QA twice ticket")
+        planner.get_by_role("button", name="Ticket", exact=True).click()
+        planner.get_by_label("Client").select_option(label="QA Scratch Co")
+        create = planner.get_by_role("button", name="Create ticket", exact=True)
+        create.click()
+        expect(self.page.locator(".notice").filter(has_text="Created ticket")).to_be_visible(timeout=10000)
+
+        # The draft is spent: nothing left to click again.
+        expect(box).to_have_value("", timeout=5000)
+        expect(create).to_be_hidden(timeout=5000)
+        mine = [t for t in api("GET", f"/work-tickets?company_id={self.company['id']}") if t["title"] == "QA twice ticket"]
+        self.assertEqual(len(mine), 1)
+
+        # Typing the same title again offers the existing ticket instead of a copy.
+        box.fill("QA twice ticket")
+        planner.get_by_role("button", name="Ticket", exact=True).click()
+        hint = planner.get_by_role("status").filter(has_text="already exists")
+        expect(hint).to_be_visible(timeout=10000)
+        hint.get_by_role("button", name="Add the existing one").click()
+        expect(self.page.locator(".notice").filter(has_text="Added")).to_be_visible(timeout=10000)
+        mine = [t for t in api("GET", f"/work-tickets?company_id={self.company['id']}") if t["title"] == "QA twice ticket"]
+        self.assertEqual(len(mine), 1)
+
+        # And the API itself refuses to make a copy of a ticket created seconds ago.
+        again = api("POST", "/work-tickets", {"company_id": self.company["id"], "title": "QA twice ticket"})
+        self.assertEqual(again["id"], mine[0]["id"])
+
+    # ── deleting from Today ───────────────────────────────────────────────────
+
+    def test_05_delete_a_task_and_a_ticket_from_the_agenda(self):
+        self.open_today()
+        # A task goes to the trash, with undo in the toast.
+        self.row("QA delete me").get_by_role("button", name="Delete QA delete me").click()
+        toast = self.page.locator(".notice").filter(has_text="moved to trash")
+        expect(toast).to_be_visible(timeout=10000)
+        expect(self.row("QA delete me")).to_have_count(0, timeout=10000)
+        self.assertIn(self.doomed["id"], [t["id"] for t in api("GET", "/trash")["tasks"]])
+        toast.get_by_role("button", name="Undo").click()
+        expect(self.row("QA delete me")).to_have_count(1, timeout=10000)
+        self.assertNotIn(self.doomed["id"], [t["id"] for t in api("GET", "/trash")["tasks"]])
+
+        # A ticket is deleted for good after confirming.
+        self.page.once("dialog", lambda d: d.accept())
+        self.row("QA evidence ticket").get_by_role("button", name="Delete QA evidence ticket").click()
+        expect(self.row("QA evidence ticket")).to_have_count(0, timeout=10000)
+        with self.assertRaises(urllib.error.HTTPError) as gone:
+            api("GET", f"/work-tickets/{self.ticket['id']}")
+        self.assertEqual(gone.exception.code, 404)
 
 
 if __name__ == "__main__":

@@ -25,7 +25,7 @@ function Elapsed({ startedAt, priorSeconds = 0 }) {
   return <span className="font-mono tabular-nums">{fmtDuration(priorSeconds + Math.max(0, base))}</span>
 }
 
-function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo }) {
+function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo, onDelete }) {
   const [editing, setEditing] = useState(false)
   const isTask = item.source === 'task'
   const isTicket = item.source === 'ticket'
@@ -95,6 +95,9 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
               <Icon name="undo" size={13} />Undo
             </button>
           )}
+          {(isTask || isTicket) && onDelete && (
+            <button onClick={() => onDelete(item)} className="agenda-btn hover:text-red-500" title={isTask ? 'Move to trash' : 'Delete ticket'} aria-label={`Delete ${item.title}`}><Icon name="trash" size={13} /></button>
+          )}
         </div>
       )}
       {!item.done && (
@@ -122,6 +125,9 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
           {isTicket && (
             <button onClick={() => onOpenTicket(item)} className="agenda-btn">Open</button>
           )}
+          {(isTask || isTicket) && onDelete && (
+            <button onClick={() => onDelete(item)} className="agenda-btn hover:text-red-500" title={isTask ? 'Move to trash' : 'Delete ticket'} aria-label={`Delete ${item.title}`}><Icon name="trash" size={13} /></button>
+          )}
         </div>
       )}
     </div>
@@ -130,10 +136,10 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
 
 export default function DayAgenda({
   scheduled, anytime, completed, timer,
-  onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo,
+  onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo, onDelete,
 }) {
   const [showDone, setShowDone] = useState(false)
-  const rowProps = { timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo }
+  const rowProps = { timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo, onDelete }
   const empty = scheduled.length === 0 && anytime.length === 0 && completed.length === 0
 
   return (
