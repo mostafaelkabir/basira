@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Icon from '../../components/Icon'
 import { dayLong, fmtClock, fmtDuration, fmtMinutes } from './format'
 import { POSTPONE_REASONS } from './PostponeDialog'
+import { routineLabel } from '../habits/RoutineEditor'
 
 // One chronological Today agenda: scheduled Tasks, tickets and habit occurrences in
 // time order, an "Anytime today" group for selected items without a time, and a
@@ -69,6 +70,7 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
           <span>{item.project_title}</span>
           {item.company_name && item.company_name !== 'Personal' && <><span className="text-faint">·</span><span>{item.company_name}</span></>}
           {isHabit && item.habitTarget > 1 && <><span className="text-faint">·</span><span>{item.habitCount}/{item.habitTarget}</span></>}
+          {isHabit && item.routine && <><span className="text-faint">·</span><span title="On your planner by routine">↻ {routineLabel(item.routine_days)}</span></>}
           {!isHabit && item.planned_minutes > 0 && <><span className="text-faint">·</span><span>{fmtMinutes(item.planned_minutes)} planned</span></>}
           {running && <><span className="text-faint">·</span><span className="text-accent flex items-center gap-1"><span className="status-dot live" /><Elapsed startedAt={timer.startedAt} priorSeconds={timer.priorSeconds} /></span></>}
           {!running && recorded > 0 && !isHabit && <><span className="text-faint">·</span><span className="text-accent">{fmtDuration(recorded)} recorded</span></>}

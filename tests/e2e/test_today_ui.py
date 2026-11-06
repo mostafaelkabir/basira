@@ -51,10 +51,10 @@ SCRATCH_CO = "QA Scratch Co"
 
 def sweep_scratch():
     """Remove anything a previous aborted run left behind, then purge it from the trash."""
-    for g in [g for g in api("GET", "/goals") if g["title"] == SCRATCH_GOAL]:
+    for g in [g for g in api("GET", "/goals") if g["title"].startswith("QA Scratch")]:
         quiet("DELETE", f"/goals/{g['id']}")
     for g in api("GET", "/trash")["goals"]:
-        if g["title"] == SCRATCH_GOAL:
+        if g["title"].startswith("QA Scratch"):
             quiet("DELETE", f"/trash/goal/{g['id']}")
     for c in [c for c in api("GET", "/companies") if c["name"] == SCRATCH_CO]:
         for t in api("GET", f"/work-tickets?company_id={c['id']}"):
@@ -79,6 +79,8 @@ class TodayUITests(unittest.TestCase):
         api("POST", "/today/schedule/add", {"kind": "task", "id": cls.task["id"], "date": today})
         cls.doomed = api("POST", "/tasks", {"title": "QA delete me", "goal_id": cls.goal["id"], "requires_proof": False})
         api("POST", "/today/schedule/add", {"kind": "task", "id": cls.doomed["id"], "date": today})
+        cls.resolution = api("POST", "/goals", {"title": "QA Scratch Resolution", "type": "resolution"})
+        cls.habit = api("POST", "/tasks", {"title": "QA routine habit", "goal_id": cls.resolution["id"], "requires_proof": False})
         cls.company = api("POST", "/companies", {"name": SCRATCH_CO, "color": "#8B5CF6"})
         cls.ticket = api("POST", "/work-tickets", {"company_id": cls.company["id"], "title": "QA evidence ticket", "status": "todo"})
         api("POST", "/today/schedule/add", {"kind": "ticket", "id": cls.ticket["id"], "date": today})
@@ -244,6 +246,39 @@ class TodayUITests(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as gone:
             api("GET", f"/work-tickets/{self.ticket['id']}")
         self.assertEqual(gone.exception.code, 404)
+
+    # ── a habit's routine puts it on the planner ───────────────────────────────
+
+    def test_06_habit_routine_set_from_today_lands_on_the_agenda(self):
+        self.open_today()
+        # The habit starts as a check mark in the Routine strip (maybe behind "more").
+        more = self.page.get_by_role("button", name=re.compile(r"more$"))
+        if more.count():
+            more.first.click()
+        self.page.get_by_role("button", name="Notes for QA routine habit").click()
+        notes = self.page.get_by_role("dialog").filter(has_text="Notes — QA routine habit")
+        expect(notes).to_be_visible(timeout=10000)
+        editor = notes.get_by_test_id("routine-editor")
+        editor.get_by_role("button", name=date.today().strftime("%a"), exact=True).click()
+        editor.get_by_label("Time of day").fill("09:15")
+        expect(editor).to_contain_text("9:15 AM", timeout=10000)
+        self.page.wait_for_function(
+            "async (id) => { const t = await (await fetch(`/tasks/${id}`)).json(); return t.scheduled_time === '09:15' && t.routine_days.length === 1 }",
+            arg=self.habit["id"], timeout=10000)
+        notes.get_by_role("button", name="Close").click()
+        expect(notes).to_be_hidden(timeout=5000)
+
+        # Now it is a timed row on today's agenda, labelled with its routine, and no longer a chip.
+        row = self.row("QA routine habit")
+        expect(row).to_be_visible(timeout=10000)
+        expect(row).to_contain_text("9:15 AM", timeout=10000)
+        expect(row).to_contain_text("↻", timeout=10000)
+        expect(self.page.get_by_role("button", name="Notes for QA routine habit")).to_have_count(1)
+
+        # Still there on a cold load, and the goal page shows the routine too.
+        self.page.reload()
+        self.page.wait_for_selector(".agenda-row", timeout=15000)
+        expect(self.row("QA routine habit")).to_be_visible(timeout=10000)
 
 
 if __name__ == "__main__":

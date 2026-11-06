@@ -292,6 +292,10 @@ def run_migrations():
         "ALTER TABLE tasks ADD COLUMN trashed_at TIMESTAMP",
         # One-off tasks under a resolution (kind='task') vs. habits (NULL).
         "ALTER TABLE tasks ADD COLUMN kind TEXT",
+        # Habit routine: weekdays a habit puts itself on the day planner ("mon,wed,fri").
+        "ALTER TABLE tasks ADD COLUMN routine_days TEXT",
+        # A routine habit taken off one day: the day-plan row stays as a skip marker.
+        "ALTER TABLE habit_day_plans ADD COLUMN skipped BOOLEAN DEFAULT 0",
         # Postpone with a reason: the free-text "why" next to the category.
         "ALTER TABLE defer_logs ADD COLUMN note TEXT",
         # Planning whiteboards: one tldraw document per board, scoped to a goal / client / all work.

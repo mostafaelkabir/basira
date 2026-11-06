@@ -2,6 +2,7 @@ import { notify, notifyAction } from './components/Notice'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { addProof, completeTask, createTask, deleteTask, getGoal, getGoals, getTimerToday, logManualTime, pinTask, reorderTasks, updateTask, uploadProofFile, uploadProofImage, restoreTrashItem, ensureBoard, reopenTask } from './api'
 import { useTimer } from './TimerContext'
+import RoutineEditor, { routineLabel } from './features/habits/RoutineEditor'
 import EstimatedTimePicker, { formatDuration } from './components/EstimatedTimePicker'
 import { ActivityComments } from './components/ActivityComposer'
 import { GoalIcon } from './GoalsPage'
@@ -55,13 +56,13 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
   const [goal, setGoal] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showNewTask, setShowNewTask] = useState(false)
-  const EMPTY_TASK_FORM = { title: '', kind: null, requires_proof: true, due_date: '', habit_frequency: 'daily', is_urgent: false, is_important: false, estimated_minutes: null }
+  const EMPTY_TASK_FORM = { title: '', kind: null, requires_proof: true, due_date: '', habit_frequency: 'daily', is_urgent: false, is_important: false, estimated_minutes: null, routine_days: [], scheduled_time: '' }
   const [taskForm, setTaskForm] = useState(EMPTY_TASK_FORM)
   const [addingSubtaskFor, setAddingSubtaskFor] = useState(null) // parent task id
   const [subtaskTitle, setSubtaskTitle] = useState('')
   const [editingTask, setEditingTask] = useState(null)
   const [deleteTaskPending, setDeleteTaskPending] = useState(null)  // { id, title }
-  const [editForm, setEditForm] = useState({ title: '', goal_id: '', due_date: '', habit_frequency: 'daily', requires_proof: false, is_urgent: false, is_important: false, estimated_minutes: null })
+  const [editForm, setEditForm] = useState({ title: '', goal_id: '', due_date: '', habit_frequency: 'daily', requires_proof: false, is_urgent: false, is_important: false, estimated_minutes: null, routine_days: [], scheduled_time: '' })
   const [allGoals, setAllGoals] = useState([])
   const [todaySeconds, setTodaySeconds] = useState({})
   const [timeLogFor, setTimeLogFor]     = useState(null)
@@ -109,6 +110,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
         is_important: taskForm.is_important,
         estimated_minutes: taskForm.estimated_minutes,
         kind: taskForm.kind,
+        ...(formIsHabit ? { routine_days: taskForm.routine_days, scheduled_time: taskForm.scheduled_time || null } : {}),
       })
       setTaskForm(EMPTY_TASK_FORM)
       setShowNewTask(false)
@@ -142,6 +144,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
         is_urgent: editForm.is_urgent,
         is_important: editForm.is_important,
         estimated_minutes: editForm.estimated_minutes,
+        ...(editingHabit ? { routine_days: editForm.routine_days, scheduled_time: editForm.scheduled_time || '' } : {}),
       })
       setEditingTask(null)
       load()
@@ -265,7 +268,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
         onAddProof={habit ? null : () => setProofFor(task.id)}
         onEdit={async () => {
           setEditingTask(task)
-          setEditForm({ title: task.title, goal_id: task.goal_id, due_date: task.due_date || '', habit_frequency: task.habit_frequency || 'daily', requires_proof: task.requires_proof, is_urgent: task.is_urgent || false, is_important: task.is_important || false, estimated_minutes: task.estimated_minutes || null })
+          setEditForm({ title: task.title, goal_id: task.goal_id, due_date: task.due_date || '', habit_frequency: task.habit_frequency || 'daily', requires_proof: task.requires_proof, is_urgent: task.is_urgent || false, is_important: task.is_important || false, estimated_minutes: task.estimated_minutes || null, routine_days: task.routine_days || [], scheduled_time: task.scheduled_time || '' })
           if (allGoals.length === 0) setAllGoals(await getGoals())
         }}
         onCommentAdded={load}
@@ -486,6 +489,8 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
                   </div>
                   <p className="text-xs text-muted mt-1">{FREQ_OPTIONS.find(o => o.value === taskForm.habit_frequency)?.desc}</p>
                 </div>
+                <RoutineEditor days={taskForm.routine_days} time={taskForm.scheduled_time}
+                  onChange={({ days, time }) => setTaskForm(f => ({ ...f, routine_days: days, scheduled_time: time }))} />
                 <label className="flex items-center gap-2.5 text-sm text-ink cursor-pointer select-none">
                   <input type="checkbox" checked={taskForm.requires_proof}
                     onChange={(e) => setTaskForm({ ...taskForm, requires_proof: e.target.checked })}
@@ -569,6 +574,10 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
                   ))}
                 </div>
                 <p className="text-xs text-muted mt-1">{FREQ_OPTIONS.find(o => o.value === editForm.habit_frequency)?.desc}</p>
+                <div className="mt-3">
+                  <RoutineEditor days={editForm.routine_days} time={editForm.scheduled_time}
+                    onChange={({ days, time }) => setEditForm(f => ({ ...f, routine_days: days, scheduled_time: time }))} />
+                </div>
               </div>
             ) : (
               <div>
@@ -910,6 +919,11 @@ function TaskCard({ task, onComplete, onDelete, onAddProof, onEdit, isHabit, onC
               {isHabit && !isDone && (
                 <span className="text-[11px] text-accent font-medium bg-brand/8 px-2 py-0.5 rounded-full">
                   {freqLabel(task.habit_frequency)}
+                </span>
+              )}
+              {isHabit && !isDone && task.routine_days?.length > 0 && (
+                <span className="text-[11px] text-muted font-medium whitespace-nowrap" title="On your planner">
+                  ↻ {routineLabel(task.routine_days, task.scheduled_time)}
                 </span>
               )}
               {needsProof && !isHabit && (

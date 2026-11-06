@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.comment import CommentRead
 from app.schemas.proof import ProofRead
@@ -23,6 +23,8 @@ class TaskCreate(BaseModel):
     is_important: bool = False
     estimated_minutes: int | None = None
     kind: str | None = None  # "task" = one-off under a resolution
+    scheduled_time: str | None = None   # HH:MM default time of day (habits)
+    routine_days: list[str] | None = None   # habits: weekdays on the planner, e.g. ["mon", "wed"]
 
 
 class TaskUpdate(BaseModel):
@@ -40,6 +42,16 @@ class TaskUpdate(BaseModel):
     is_important: bool | None = None
     estimated_minutes: int | None = None
     kind: str | None = None
+    scheduled_time: str | None = None   # "" clears
+    routine_days: list[str] | None = None   # [] clears
+
+
+def _split_days(value):
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [t for t in value.split(",") if t]
+    return list(value)
 
 
 class TaskRead(BaseModel):
@@ -59,6 +71,13 @@ class TaskRead(BaseModel):
     sort_order: int = 0
     estimated_minutes: int | None = None
     kind: str | None = None
+    scheduled_time: str | None = None
+    routine_days: list[str] = []
+
+    @field_validator("routine_days", mode="before")
+    @classmethod
+    def _days(cls, v):
+        return _split_days(v)
 
 
 class TaskWithProofs(BaseModel):
@@ -80,6 +99,13 @@ class TaskWithProofs(BaseModel):
     sort_order: int = 0
     estimated_minutes: int | None = None
     kind: str | None = None
+    scheduled_time: str | None = None
+    routine_days: list[str] = []
     proofs: list[ProofRead] = []
+
+    @field_validator("routine_days", mode="before")
+    @classmethod
+    def _days(cls, v):
+        return _split_days(v)
     comments: list[CommentRead] = []
     sub_tasks: list[TaskRead] = []

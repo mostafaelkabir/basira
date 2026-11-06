@@ -242,7 +242,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
       {/* Habits as daily check marks — off the schedule (BAS-038) */}
       <RoutineStrip routines={routines}
         onToggle={h => { const full = habitById.get(h.id); if (full) handleToggleHabit(full) }}
-        onOpenNotes={h => setNotesFor({ item_id: h.id, title: h.title, project_title: 'Routine' })}
+        onOpenNotes={h => setNotesFor({ item_id: h.id, title: h.title, project_title: 'Routine', source: 'habit' })}
         onAddToDay={() => setShowPlanner(true)} />
 
       {/* One chronological agenda */}
@@ -315,7 +315,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
       )}
 
       {/* Notes on a task or daily/habit task (BAS-045) */}
-      {notesFor && <TaskNotesDialog item={notesFor} onClose={() => setNotesFor(null)} />}
+      {notesFor && <TaskNotesDialog item={notesFor} onClose={() => setNotesFor(null)} onChanged={load} />}
 
       {/* Proof modals */}
       {proofFor && <CompleteTaskDialog task={proofFor} onClose={() => setProofFor(null)} onComplete={() => completedWithUndo(proofFor)}/>}

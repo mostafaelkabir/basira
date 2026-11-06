@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import Modal from '../../components/Modal'
 import { notify } from '../../components/Notice'
 import { ActivityComments } from '../../components/ActivityComposer'
-import { getTask } from '../../api'
+import { getTask, updateTask } from '../../api'
+import { RoutineEditorLive } from '../habits/RoutineEditor'
 import { ProofDisplay } from '../../GoalPage'
 
 // Notes for whatever Task or daily/habit task the user is on, without leaving
@@ -10,7 +11,7 @@ import { ProofDisplay } from '../../GoalPage'
 // tickets keep their own drawer. `item` needs { item_id, title, project_title? }.
 // The evidence attached when the task was completed is listed above the notes,
 // so what was handed in is one click away from the Completed section.
-export default function TaskNotesDialog({ item, onClose }) {
+export default function TaskNotesDialog({ item, onClose, onChanged }) {
   const [task, setTask] = useState(null)
   const [failed, setFailed] = useState(false)
 
@@ -30,6 +31,19 @@ export default function TaskNotesDialog({ item, onClose }) {
         </div>
       ) : task ? (
         <>
+          {item.source === 'habit' && (
+            <section className="mb-4 p-3 rounded-xl bg-raised border border-border" aria-label="Planner routine">
+              <RoutineEditorLive key={task.id} task={task}
+                onSave={async data => {
+                  try {
+                    await updateTask(task.id, data)
+                    await load()
+                    window.dispatchEvent(new CustomEvent('basira:schedule-updated'))
+                    onChanged?.()
+                  } catch (err) { notify(err.message) }
+                }} />
+            </section>
+          )}
           {task.proofs?.length > 0 && (
             <section className="mb-4" aria-label="Evidence">
               <p className="text-[11px] font-mono uppercase tracking-wide text-muted mb-1.5">

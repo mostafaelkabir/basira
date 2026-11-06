@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -18,4 +18,6 @@ class HabitDayPlan(Base):
     task_id: Mapped[str] = mapped_column(String, ForeignKey("tasks.id"), nullable=False)
     date: Mapped[str] = mapped_column(String, nullable=False, index=True)  # YYYY-MM-DD
     scheduled_time: Mapped[str | None] = mapped_column(String, nullable=True)  # HH:MM
+    # A routine habit taken off this one day (its weekday is in the habit's routine_days).
+    skipped: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
     created_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

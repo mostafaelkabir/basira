@@ -176,7 +176,7 @@ All migrations run automatically in `app/main.py` → `run_migrations()`. Schema
 
 **goals** — `id, title, description, type (resolution|project|daily), icon, cover, archived_at, parent_id, task_count, done_count`
 
-**tasks** — `id, goal_id, title, status (todo|done), type, is_urgent, is_important, estimated_minutes, due_date, plan_date, pinned_date, deferred_until, habit_frequency, sort_order, parent_task_id, created_at`
+**tasks** — `id, goal_id, title, status (todo|done), type, is_urgent, is_important, estimated_minutes, due_date, plan_date, pinned_date, deferred_until, habit_frequency, sort_order, parent_task_id, created_at, scheduled_time (HH:MM), routine_days ("mon,wed,fri" — a habit puts itself on the day planner on those days; see app/services/habit_routine.py)`
 
 **comments** — `id, task_id, content, type (text|ai), created_at`
 
@@ -206,6 +206,8 @@ All migrations run automatically in `app/main.py` → `run_migrations()`. Schema
 
 **habit_logs** — `id, task_id, date, count`
 
+**habit_day_plans** — `id, task_id, date, scheduled_time, skipped` — a habit placed on one day's planner by hand (skipped=1: a routine habit taken off that one day)
+
 **daily_snapshots** — `date (PK), tasks_total, tasks_done, habits_total, habits_done, score_pct, task_score, habit_score`
 
 **defer_logs** — `id, task_id, deferred_on, deferred_until`
@@ -229,7 +231,7 @@ cd frontend && npm test && cd ..
 # They create a throw-away client "QA Scratch Co" over the API and delete it afterwards.
 # First time only: venv/bin/playwright install chromium
 venv/bin/python -m unittest tests.e2e.test_boards_ui -v        # BASIRA_HEADED=1 to watch it
-venv/bin/python -m unittest tests.e2e.test_today_ui -v         # Today: undo a done click, evidence, create once, delete
+venv/bin/python -m unittest tests.e2e.test_today_ui -v         # Today: undo, evidence, create once, delete, habit routine
 ```
 
 Boards, milestones and due dates live in `app/routes/boards.py`, `app/routes/work_milestones.py`,

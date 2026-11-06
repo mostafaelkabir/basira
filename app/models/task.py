@@ -27,6 +27,9 @@ class Task(Base):
     created_at: Mapped[str | None] = mapped_column(String, nullable=True)  # YYYY-MM-DD
     estimated_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     scheduled_time: Mapped[str | None] = mapped_column(String, nullable=True)  # HH:MM, Daily Schedule time-of-day
+    # Habits only: weekdays the habit goes on the day planner by itself, as lowercase
+    # tokens "mon,wed,fri" (None = only when placed by hand). Time comes from scheduled_time.
+    routine_days: Mapped[str | None] = mapped_column(String, nullable=True)
     trashed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # soft-delete; purged after 30 days
     # "task" = a one-off action filed under a resolution (e.g. "Buy the book");
     # None = inferred from the goal type (a top-level task under a resolution is a habit).
