@@ -61,13 +61,24 @@ def _recalc_ticket(ticket: WorkTicket, db: Session) -> None:
     ticket.logged_minutes = int(total) // 60
 
 
-def _stop_session(s: WorkSession, db: Session, now: datetime) -> dict:
-    """End a running session and write the correct ledger entry for its source."""
+def _stop_session(s: WorkSession, db: Session, now: datetime, keep_seconds: int | None = None) -> dict:
+    """End a running session and write the correct ledger entry for its source.
+
+    ``keep_seconds`` is for a timer that was left running: record only that much
+    (never more than really elapsed), ending the session where the work ended.
+    Zero discards the session without recording anything."""
     started = s.started_at.replace(tzinfo=UTC) if s.started_at.tzinfo is None else s.started_at
     elapsed = max(1, int((now - started).total_seconds()))
+    source, item_id = _session_source(s)
+    if keep_seconds is not None:
+        if keep_seconds <= 0:
+            db.delete(s)
+            return {"source": source, "item_id": item_id, "seconds": 0, "discarded_seconds": elapsed}
+        if keep_seconds < elapsed:
+            elapsed = keep_seconds
+            now = started + timedelta(seconds=elapsed)
     s.ended_at = now
     s.duration_seconds = elapsed
-    source, item_id = _session_source(s)
 
     if source == "ticket":
         db.add(WorkTimeEntry(
@@ -87,9 +98,9 @@ def _stop_session(s: WorkSession, db: Session, now: datetime) -> dict:
     return {"source": source, "item_id": item_id, "seconds": elapsed}
 
 
-def _stop_all_active(db: Session, now: datetime) -> list[dict]:
+def _stop_all_active(db: Session, now: datetime, keep_seconds: int | None = None) -> list[dict]:
     active = db.query(WorkSession).filter(WorkSession.ended_at.is_(None)).all()
-    return [_stop_session(s, db, now) for s in active]
+    return [_stop_session(s, db, now, keep_seconds) for s in active]
 
 
 def _verify_exists(source: str, item_id: str, db: Session) -> None:
@@ -154,12 +165,25 @@ def switch(body: SwitchBody, db: Session = Depends(get_db)):
 
 # ── Stop ─────────────────────────────────────────────────────────────────────
 
+class StopBody(BaseModel):
+    keep_minutes: int | None = Field(default=None, ge=0, le=24 * 60)
+    source: str | None = None     # with item_id: stop only that item's timer
+    item_id: str | None = None
+
+
 @router.post("/stop")
-def stop(db: Session = Depends(get_db)):
+def stop(body: StopBody | None = None, db: Session = Depends(get_db)):
     """Stop whatever is running, writing each source's ledger. Safe to retry: with
-    nothing active it simply reports zero stopped."""
+    nothing active it simply reports zero stopped. ``keep_minutes`` records only
+    that much of a timer that was left running (0 discards it)."""
     now = datetime.now(UTC)
-    stopped = _stop_all_active(db, now)
+    keep = body.keep_minutes * 60 if body and body.keep_minutes is not None else None
+    if body and body.source and body.item_id:
+        _check_source(body.source, body.item_id, db)
+        running = _running_session(body.source, body.item_id, db)
+        stopped = [_stop_session(running, db, now, keep)] if running else []
+    else:
+        stopped = _stop_all_active(db, now, keep)
     db.commit()
     return {"stopped": stopped}
 
@@ -169,7 +193,7 @@ def stop(db: Session = Depends(get_db)):
 class LogBody(BaseModel):
     source: str
     item_id: str
-    minutes: int = Field(ge=1, le=24 * 60)
+    minutes: int = Field(ge=-24 * 60, le=24 * 60)   # negative takes time off (a correction)
     date: str | None = None   # YYYY-MM-DD; defaults to today
     note: str = ""
 
@@ -181,9 +205,16 @@ def log_time(body: LogBody, db: Session = Depends(get_db)):
     if body.source not in SOURCES:
         raise HTTPException(400, f"Unknown source: {body.source}")
     _verify_exists(body.source, body.item_id, db)
+    if body.minutes == 0:
+        raise HTTPException(400, "Enter the minutes to log, or a minus number to take time off")
     now = datetime.now(UTC)
     day = body.date or now.strftime("%Y-%m-%d")
     seconds = body.minutes * 60
+    if body.minutes < 0:
+        # A correction: take the time off what was recorded most recently.
+        _take_off(body.source, body.item_id, -seconds, db)
+        db.commit()
+        return {"ok": True, "source": body.source, "item_id": body.item_id, "seconds": seconds, "date": day}
 
     if body.source == "task":
         # Task time is timestamp-based; anchor a manual entry at midday of the chosen
@@ -203,3 +234,183 @@ def log_time(body: LogBody, db: Session = Depends(get_db)):
 
     db.commit()
     return {"ok": True, "source": body.source, "item_id": body.item_id, "seconds": seconds, "date": day}
+
+
+# ── Corrections: a timer left running, or a session that should not count ─────
+#
+# Each source keeps its own ledger (see the module docstring), so a correction is
+# made on that ledger, newest record first, and never leaves a negative row behind.
+
+def _fmt(seconds: int) -> str:
+    h, m = seconds // 3600, (seconds % 3600) // 60
+    return f"{h}h {m}m" if h and m else f"{h}h" if h else f"{m}m"
+
+
+def _entry_seconds(e: WorkTimeEntry) -> int:
+    return int(e.duration_seconds or (e.duration_minutes or 0) * 60)
+
+
+def _iso(dt: datetime | None) -> str | None:
+    if dt is None:
+        return None
+    return (dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt).isoformat()
+
+
+def _ended_sessions(source: str, item_id: str, db: Session) -> list[WorkSession]:
+    task_id, work_log_id = _namespace(source, item_id)
+    q = db.query(WorkSession).filter(WorkSession.ended_at.isnot(None))
+    q = q.filter(WorkSession.task_id == task_id) if task_id else q.filter(WorkSession.work_log_id == work_log_id)
+    return q.order_by(WorkSession.ended_at.desc()).all()
+
+
+def _running_session(source: str, item_id: str, db: Session) -> WorkSession | None:
+    task_id, work_log_id = _namespace(source, item_id)
+    q = db.query(WorkSession).filter(WorkSession.ended_at.is_(None))
+    q = q.filter(WorkSession.task_id == task_id) if task_id else q.filter(WorkSession.work_log_id == work_log_id)
+    return q.first()
+
+
+def _ticket_entries(ticket_id: str, db: Session) -> list[WorkTimeEntry]:
+    return (db.query(WorkTimeEntry).filter(WorkTimeEntry.ticket_id == ticket_id)
+            .order_by(WorkTimeEntry.created_at.desc()).all())
+
+
+def _resize_session(s: WorkSession, seconds: int, db: Session) -> None:
+    """Shrink a saved session to ``seconds`` (it ended earlier), or drop it at zero."""
+    if seconds <= 0:
+        db.delete(s)
+        return
+    s.duration_seconds = seconds
+    s.ended_at = s.started_at + timedelta(seconds=seconds)
+
+
+def _resize_entry(e: WorkTimeEntry, seconds: int, db: Session) -> None:
+    """Shrink a ticket time entry, keeping the timer session it came from in step."""
+    old = _entry_seconds(e)
+    twin = next((s for s in _ended_sessions("ticket", e.ticket_id, db) if s.duration_seconds == old), None)
+    if twin:
+        _resize_session(twin, seconds, db)
+    if seconds <= 0:
+        db.delete(e)
+    else:
+        e.duration_seconds = seconds
+        e.duration_minutes = seconds // 60
+
+
+def _recorded_total(source: str, item_id: str, db: Session) -> int:
+    if source == "task":
+        return sum(s.duration_seconds or 0 for s in _ended_sessions(source, item_id, db))
+    if source == "ticket":
+        return sum(_entry_seconds(e) for e in _ticket_entries(item_id, db))
+    return (db.get(WorkLog, item_id).duration_minutes or 0) * 60
+
+
+def _take_off(source: str, item_id: str, seconds: int, db: Session) -> None:
+    total = _recorded_total(source, item_id, db)
+    if total <= 0:
+        raise HTTPException(400, "No time is recorded on this yet")
+    if seconds > total:
+        raise HTTPException(400, f"Only {_fmt(total)} is recorded on this — cannot take off {_fmt(seconds)}")
+
+    left = seconds
+    if source == "task":
+        for s in _ended_sessions(source, item_id, db):
+            if left <= 0:
+                break
+            cut = min(left, s.duration_seconds or 0)
+            _resize_session(s, (s.duration_seconds or 0) - cut, db)
+            left -= cut
+    elif source == "ticket":
+        for e in _ticket_entries(item_id, db):
+            if left <= 0:
+                break
+            cut = min(left, _entry_seconds(e))
+            _resize_entry(e, _entry_seconds(e) - cut, db)
+            left -= cut
+        db.flush()
+        _recalc_ticket(db.get(WorkTicket, item_id), db)
+    else:
+        log = db.get(WorkLog, item_id)
+        log.duration_minutes = max(0, (log.duration_minutes or 0) - seconds // 60)
+        for s in _ended_sessions(source, item_id, db):
+            if left <= 0:
+                break
+            cut = min(left, s.duration_seconds or 0)
+            _resize_session(s, (s.duration_seconds or 0) - cut, db)
+            left -= cut
+
+
+def _check_source(source: str, item_id: str, db: Session) -> None:
+    if source not in SOURCES:
+        raise HTTPException(400, f"Unknown source: {source}")
+    _verify_exists(source, item_id, db)
+
+
+@router.get("/item")
+def item_time(source: str, item_id: str, db: Session = Depends(get_db)):
+    """What a correction would act on: the running session (if any), the most
+    recent recorded one, and the total recorded on the item."""
+    _check_source(source, item_id, db)
+    now = datetime.now(UTC)
+    running = _running_session(source, item_id, db)
+    last = None
+    if source == "ticket":
+        entries = _ticket_entries(item_id, db)
+        if entries:
+            e = entries[0]
+            twin = next((s for s in _ended_sessions(source, item_id, db)
+                         if s.duration_seconds == _entry_seconds(e)), None)
+            last = {"seconds": _entry_seconds(e), "ended_at": _iso(twin.ended_at) if twin else None,
+                    "date": e.logged_at}
+    else:
+        sessions = _ended_sessions(source, item_id, db)
+        if sessions:
+            s = sessions[0]
+            last = {"seconds": s.duration_seconds or 0, "ended_at": _iso(s.ended_at), "date": None}
+    started = _iso(running.started_at) if running else None
+    return {
+        "source": source, "item_id": item_id,
+        "running": {"started_at": started,
+                    "elapsed_seconds": max(0, int((now - datetime.fromisoformat(started)).total_seconds()))}
+        if running else None,
+        "last": last,
+        "total_seconds": _recorded_total(source, item_id, db),
+    }
+
+
+class ItemBody(BaseModel):
+    source: str
+    item_id: str
+
+
+@router.post("/undo-last")
+def undo_last(body: ItemBody, db: Session = Depends(get_db)):
+    """Throw away the latest session on an item: the one still running if there is
+    one (nothing is recorded), otherwise the most recent recorded one."""
+    _check_source(body.source, body.item_id, db)
+    now = datetime.now(UTC)
+    running = _running_session(body.source, body.item_id, db)
+    if running:
+        out = _stop_session(running, db, now, keep_seconds=0)
+        db.commit()
+        return {"ok": True, "was_running": True, "removed_seconds": out["discarded_seconds"]}
+
+    if body.source == "ticket":
+        entries = _ticket_entries(body.item_id, db)
+        if not entries:
+            raise HTTPException(404, "No session to undo")
+        removed = _entry_seconds(entries[0])
+        _resize_entry(entries[0], 0, db)
+        db.flush()
+        _recalc_ticket(db.get(WorkTicket, body.item_id), db)
+    else:
+        sessions = _ended_sessions(body.source, body.item_id, db)
+        if not sessions:
+            raise HTTPException(404, "No session to undo")
+        removed = sessions[0].duration_seconds or 0
+        if body.source == "worklog":   # undo exactly what stopping the timer added
+            log = db.get(WorkLog, body.item_id)
+            log.duration_minutes = max(0, (log.duration_minutes or 0) - max(1, removed // 60))
+        db.delete(sessions[0])
+    db.commit()
+    return {"ok": True, "was_running": False, "removed_seconds": removed}

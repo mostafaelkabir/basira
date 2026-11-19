@@ -1,3 +1,4 @@
+import { askConfirm } from './components/askConfirm'
 import { notify } from './components/Notice'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createContact, deleteCall, deleteContact, getContacts, logCall, polishText, updateContact, uploadContactPhoto } from './api'
@@ -245,7 +246,7 @@ export default function ContactsPage() {
 
   async function handleDelete(e, id) {
     e.stopPropagation()
-    if (!confirm('Remove this person?')) return
+    if (!(await askConfirm('Remove this person?', { title: 'Remove person', confirmLabel: 'Remove' }))) return
     try { await deleteContact(id); load() }
     catch (err) { notify(err.message) }
   }
@@ -263,7 +264,7 @@ export default function ContactsPage() {
   }
 
   async function handleDeleteCall(contactId, callId) {
-    if (!confirm('Delete this call log?')) return
+    if (!(await askConfirm('Delete this call log?', { title: 'Delete call log' }))) return
     try { await deleteCall(callId); load() }
     catch (err) { notify(err.message) }
   }

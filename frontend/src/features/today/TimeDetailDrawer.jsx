@@ -4,6 +4,7 @@ import { notify } from '../../components/Notice'
 import { logDayTime } from '../../api'
 import { fmtDuration } from './format'
 import ProjectTimePanel from './ProjectTimePanel'
+import FixTimeDialog from './FixTimeDialog'
 
 // The detail behind Today's one compact time line: project/client totals (recorded
 // vs live shown separately), a drill-down of the recorded entries to their original
@@ -13,6 +14,7 @@ export default function TimeDetailDrawer({ workspace, onClose, onLogged }) {
   const [minutes, setMinutes] = useState('')
   const [date, setDate] = useState(workspace?.date || '')
   const [saving, setSaving] = useState(false)
+  const [fixFor, setFixFor] = useState(null)
 
   // Items the user can log against: everything on today's plan or already recorded.
   const items = []
@@ -27,12 +29,12 @@ export default function TimeDetailDrawer({ workspace, onClose, onLogged }) {
 
   async function submit(e) {
     e.preventDefault()
-    if (!logItem || !minutes) return
+    if (!logItem || !parseInt(minutes)) return
     const [source, item_id] = logItem.split(/:(.+)/)
     setSaving(true)
     try {
       await logDayTime({ source, item_id, minutes: parseInt(minutes) || 0, date })
-      notify('Time logged')
+      notify(parseInt(minutes) < 0 ? `${fmtDuration(-parseInt(minutes) * 60)} taken off` : 'Time logged', { title: 'Time' })
       setMinutes('')
       onLogged?.()
     } catch (err) { notify(err.message) }   // entered fields preserved on failure
@@ -59,6 +61,7 @@ export default function TimeDetailDrawer({ workspace, onClose, onLogged }) {
                   <p className="text-[11px] text-muted truncate">{e.project_title}{e.company_name && e.company_name !== 'Personal' ? ` · ${e.company_name}` : ''}</p>
                 </div>
                 <span className="font-mono tabular-nums text-sm text-ink flex-shrink-0">{fmtDuration(e.seconds)}</span>
+                <button type="button" className="agenda-btn flex-shrink-0" onClick={() => setFixFor(e)} aria-label={`Fix time for ${e.title}`}>Fix</button>
               </div>
             ))}
           </div>
@@ -78,7 +81,7 @@ export default function TimeDetailDrawer({ workspace, onClose, onLogged }) {
             </label>
             <label className="text-[11px] text-muted flex flex-col gap-0.5">
               Minutes
-              <input type="number" min="1" value={minutes} onChange={e => setMinutes(e.target.value)} placeholder="30"
+              <input type="number" value={minutes} aria-describedby="log-minus-hint" onChange={e => setMinutes(e.target.value)} placeholder="30"
                 className="w-24 text-sm bg-canvas border border-border rounded-lg px-2 py-1.5 text-ink focus:outline-none focus:ring-1 focus:ring-accent" />
             </label>
             <label className="text-[11px] text-muted flex flex-col gap-0.5">
@@ -88,10 +91,12 @@ export default function TimeDetailDrawer({ workspace, onClose, onLogged }) {
             </label>
             <button type="submit" disabled={saving || !logItem || !minutes}
               className="px-3 py-2 rounded-lg bg-forest text-white text-sm font-semibold hover:bg-forest-hover disabled:opacity-50">
-              {saving ? 'Logging…' : 'Log time'}
+              {saving ? 'Saving…' : parseInt(minutes) < 0 ? 'Take off' : 'Log time'}
             </button>
           </div>
+          <p id="log-minus-hint" className="text-[11px] text-faint">A minus number (−30) takes time off the item's latest session.</p>
         </form>
+        {fixFor && <FixTimeDialog item={fixFor} onClose={() => setFixFor(null)} onChanged={() => onLogged?.()} />}
       </div>
     </Modal>
   )

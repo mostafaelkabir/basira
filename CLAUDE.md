@@ -174,7 +174,12 @@ All migrations run automatically in `app/main.py` → `run_migrations()`. Schema
 
 ### Core entities
 
-**goals** — `id, title, description, type (resolution|project|daily), icon, cover, archived_at, parent_id, task_count, done_count`
+**goals** — `id, title, description, type (resolution|project|daily), icon, cover, archived_at, parent_id, task_count, done_count`  
+plus the goal's **measure** — `metric_name, metric_unit, metric_source (manual|checkins|tasks|hours), metric_start, metric_target, metric_start_date, metric_target_date` (set when `metric_target` is not null)
+
+**goal_checkins** — `id, goal_id, week_start (Monday), date, value, note, created_at` — the goal's number for one week; unique per goal+week, a second check-in that week replaces the first`, status (active|blocked|achieved|moved_out|cancelled), status_reason, status_changed_at` — `POST /goals/{id}/status {status, reason}`; achieved/moved_out/cancelled also set `archived_at` (so the goal leaves Today and every active list), blocked stays open; reason required except for achieved. UI in `frontend/src/features/goals/GoalStatus.jsx`.
+
+**goal_status_logs** — `id, goal_id, from_status, to_status, reason, created_at` — one row per status change
 
 **tasks** — `id, goal_id, title, status (todo|done), type, is_urgent, is_important, estimated_minutes, due_date, plan_date, pinned_date, deferred_until, habit_frequency, sort_order, parent_task_id, created_at, scheduled_time (HH:MM), routine_days ("mon,wed,fri" — a habit puts itself on the day planner on those days; see app/services/habit_routine.py)`
 
@@ -208,6 +213,10 @@ All migrations run automatically in `app/main.py` → `run_migrations()`. Schema
 
 **habit_day_plans** — `id, task_id, date, scheduled_time, skipped` — a habit placed on one day's planner by hand (skipped=1: a routine habit taken off that one day)
 
+**rhythm_blocks** — `id, title, kind (project|client|routine|personal|break|free), target_ref (goal:<id>|company:<id>), days ("mon,tue,…"), start_time, duration_minutes, color, sort_order` — the repeating weekday shape of the day. `app/services/day_rhythm.py` builds each day from it, files agenda items into blocks (tickets by client, tasks by project incl. parent, habits into the routine block) and lays recorded time on top; the day workspace carries `blocks` + `totals.rhythm`. Routes in `app/routes/rhythm.py` (`/rhythm`, `/rhythm/suggest`, `/rhythm/day/override|restore|shift`).
+
+**day_blocks** — `id, date, start_time, duration_minutes, kind, source_ref, title, note, rhythm_id, skipped, revision` — one day's planning blocks; with `rhythm_id` set it is that day's change to a rhythm block (moved/resized, or skipped=1).
+
 **daily_snapshots** — `date (PK), tasks_total, tasks_done, habits_total, habits_done, score_pct, task_score, habit_score`
 
 **defer_logs** — `id, task_id, deferred_on, deferred_until`
@@ -231,7 +240,9 @@ cd frontend && npm test && cd ..
 # They create a throw-away client "QA Scratch Co" over the API and delete it afterwards.
 # First time only: venv/bin/playwright install chromium
 venv/bin/python -m unittest tests.e2e.test_boards_ui -v        # BASIRA_HEADED=1 to watch it
-venv/bin/python -m unittest tests.e2e.test_today_ui -v         # Today: undo, evidence, create once, delete, habit routine
+venv/bin/python -m unittest tests.e2e.test_goal_measure_ui -v  # Goal measure: set a target, weekly check-in, goal card, Weekly Review
+venv/bin/python -m unittest tests.e2e.test_today_ui -v         # Today: undo, evidence, create once, delete, habit routine, day rhythm calendar
+venv/bin/python -m unittest tests.e2e.test_goal_status_ui -v   # Goals: blocked / moved out / achieved with reason, history, reopen
 ```
 
 Boards, milestones and due dates live in `app/routes/boards.py`, `app/routes/work_milestones.py`,
@@ -301,6 +312,8 @@ export const createFoo = (data) => request('/foo', { method: 'POST', headers: {'
 ## Features Built
 
 ### Today Page (`TodayPage.jsx`)
+- **Calendar | List** switch (calendar default, remembered in `localStorage.basira_today_view`); both read the same day workspace. List = `DayAgenda` in time order (`features/today/listOrder.js` → `chronoEntries`): blocks and timed items merged by start time, items inside a block's window indented under it (header time opens the block editor; "Skip today" on the header takes a block off this day only — rhythm blocks are skipped and listed under "Skipped today · restore", today-only/added blocks are removed; Undo in the toast; the editor has "Skip <day> only" too); untimed items wait in "No time yet" at the end with a Set time control and move into place once timed; then Completed. An item timed outside every block of its own client/project carries `off_block` (set in `day_rhythm.file_items`); the list row and the calendar card (amber “!”, ⋯ menu) offer **Move into block** (first free slot, `features/today/blockSlot.js`) or **Add <block> here** (a today-only `/day-plan` block for the same target around the item). Calendar = `features/rhythm/DayCalendar.jsx` (layout helpers in `geometry.js`: `layoutItems`, `overlapsAny`): rhythm blocks are the background bands; every task/ticket/habit with a time is a card at that time (cards over a block sit to its right); untimed work sits inside its block, or in the Anytime lane (drag onto the day to give it a time). Each item has a ⋯ menu (Start/Pause, Done, Check off, Notes/Open, Time, Later…, Undo done, Delete) wired to `itemActions` in `TodayPage.jsx`. Blocks: drag to move, both edges resize, click for a floating toolbar (Start / Edit / Skip today / Reset), drag empty space or "+ Block" for `BlockEditor.jsx`. Zoom (⌘+scroll), Now, Late +30, height grip. Below it, `DayAgenda` shows only Completed (Undo, notes). "Plan my day" shows the day's blocks as chips (✕ off this day, + add a rhythm block). **Rhythm** opens `features/rhythm/RhythmModal.jsx`: the weekly template, week preview, and a research-backed suggested rhythm on first use (≈2h deep-work blocks with breaks, max three, lunch, protected evening). The scheduler sends macOS notifications at a block's start and 5 min before its end (`rhythm_notifications` setting).
+- **Fix time** (`features/today/FixTimeDialog.jsx`, routes in `app/routes/day_timer.py`): for a timer left running or a session that ran too long. Running: "Stop and keep only N min" (`POST /day-timer/stop {source, item_id, keep_minutes}`; 0 discards) or Discard. Stopped: "Take off N min" (`POST /day-timer/log` with minus minutes — trims the newest sessions, never more than is recorded) or "Undo last session" (`POST /day-timer/undo-last`). Each source's own ledger is corrected (task sessions, ticket time entries + their timer session, work-log minutes). Opened from the Now strip (Fix), an item's ⋯ menu / list row, the Time today drawer (Fix per entry; the manual log also accepts a minus number) and the floating timer widget. It fires `basira:time-fixed`, which `TimerContext` uses to re-read the timer.
 - Daily task list (plan date pinning)
 - **Focus Section**: 3-card grid of pinned tasks, Start timer + ✓ Done buttons
 - **Planner** (sub-view): drag-and-drop timeline
@@ -312,6 +325,9 @@ export const createFoo = (data) => request('/foo', { method: 'POST', headers: {'
 - Each goal: icon (emoji or uploaded image), progress bar, type badge
 - Sub-projects nested under parent projects
 - GoalIcon component: `export function GoalIcon({ icon, size })` — handles URL (img) vs emoji vs null (shows TYPE_META icon in dark circle)
+
+### Goal measure (`features/goals/GoalMeasure.jsx`, `app/services/goal_measure.py`)
+How close a goal is, and whether its system works. A goal gets one number from a start to a target (optionally by a date), read weekly: a manual check-in, or counted by the app since the start date (habit check-ins, completed tasks, hours logged). `measure()` returns progress %, pace (weeks ahead of/behind a straight line to the date), a projection (arrival at the rate since the last point ≥4 weeks back), 12 weeks of system adherence (habit check-ins vs weekly targets; today only counts once done) and a diagnosis comparing the two (`keep_going | change_system | execution | easy_or_luck | …`). Routes in `app/routes/goal_measure.py` (`/goals/measures`, `/goals/{id}/measure`, `…/measure/checkins`), included **before** the goals router so `/goals/measures` is not read as a goal id. UI: `GoalMeasurePanel` on the goal page (number, pace chip, chart with actual / steady pace / projection, system dots, diagnosis, check-ins), `MeasureMini` on goal cards, `ResolutionCheckins` in the Weekly Review. Chart geometry and labels are pure helpers in `measureChart.js` (Vitest).
 
 ### Goal Detail Page (`GoalPage.jsx`)
 - Tasks list with subtasks, status, urgency/importance flags
@@ -426,6 +442,10 @@ Requires `playwright`: `venv/bin/pip install playwright && venv/bin/playwright i
 4. Create FastAPI route in `app/routes/newpage.py`
 5. Register in `app/main.py` (import + `app.include_router(...)`)
 6. `npm run build`
+
+**New builds reach open windows by themselves:** the page is served `no-cache`, `/assets/*` as immutable, and `GET /app-version` fingerprints `frontend/dist/index.html` (`app/routes/app_version.py`). `useBuildWatcher` in `App.jsx` reloads the page when the window is shown again after a rebuild (or offers a Reload toast). Without this the desktop app kept running the JS it launched with.
+
+**Confirmations:** never use `window.confirm` / `alert` / `prompt`. The Basira desktop app (`macos/`, a WKWebView with no UI delegate) silently answers them with "cancel", so the action does nothing. Use `await askConfirm(message, { title, confirmLabel })` from `components/askConfirm.jsx` (rendered by `<ConfirmHost/>` in `App.jsx`). The Today e2e suite stubs `window.confirm` to return false to catch regressions.
 
 **Change UI styles:**
 - Use the semantic classes from the Design System section above (check both themes)

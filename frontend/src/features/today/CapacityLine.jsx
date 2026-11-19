@@ -39,6 +39,15 @@ export default function CapacityLine({ workspace, onOpenDetail, onSettingsChange
           {live > 0 && <span className="text-accent"> +{fmtDuration(live)}</span>}
         </span>
       </div>
+      {t.rhythm && (t.rhythm.work_minutes + t.rhythm.routine_minutes + t.rhythm.personal_minutes + t.rhythm.break_minutes) > 0 && (
+        <p className="text-[11px] text-muted mt-1.5 flex items-center gap-x-3 gap-y-0.5 flex-wrap" data-testid="rhythm-split">
+          <span className="text-faint">Rhythm</span>
+          {t.rhythm.work_minutes > 0 && <span>Deep work <span className="font-mono tabular-nums text-ink">{fmtMinutes(t.rhythm.work_minutes)}</span></span>}
+          {t.rhythm.routine_minutes > 0 && <span>Routine <span className="font-mono tabular-nums text-ink">{fmtMinutes(t.rhythm.routine_minutes)}</span></span>}
+          {t.rhythm.personal_minutes > 0 && <span>Personal <span className="font-mono tabular-nums text-ink">{fmtMinutes(t.rhythm.personal_minutes)}</span></span>}
+          {t.rhythm.break_minutes > 0 && <span>Breaks <span className="font-mono tabular-nums text-ink">{fmtMinutes(t.rhythm.break_minutes)}</span></span>}
+        </p>
+      )}
 
       <div className="capacity-bar mt-2" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
         <div className={`capacity-fill ${over > 0 ? 'over' : ''}`} style={{ width: `${pct}%` }} />

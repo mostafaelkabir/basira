@@ -1,7 +1,9 @@
+import { useBuildWatcher } from './useBuildWatcher'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import Modal from './components/Modal'
 import Icon, { BasiraMark } from './components/Icon'
 import Notice, { notify } from './components/Notice'
+import { ConfirmHost } from './components/askConfirm'
 import { TimerProvider, useTimer } from './TimerContext'
 import { applyTheme, setThemePreference, watchSystemTheme } from './theme'
 import TimerWidget from './TimerWidget'
@@ -25,6 +27,7 @@ const BoardsPage = lazy(() => import('./features/boards/BoardsPage'))
 const BoardView = lazy(() => import('./features/boards/BoardView'))
 
 export default function App() {
+  useBuildWatcher()   // pick up new builds in long-lived windows (desktop app)
   const [route, setRoute] = useState(() => readRoute(window.location.hash))
   const { tab, goalId, boardId } = route
   const [showReview, setShowReview] = useState(false)
@@ -106,6 +109,7 @@ export default function App() {
     {showMore && <Modal title="Your workspace" onClose={() => setShowMore(false)}><div className="command-list">{NAV_ITEMS.filter(n => !['today', 'goals', 'work'].includes(n.id)).map(n => <button key={n.id} onClick={() => navigate(n.id)}><Icon name={n.id}/>{n.label}</button>)}<button onClick={() => { setShowMore(false); setShowReview(true) }}><Icon name="review"/>Weekly review</button><button onClick={() => { setShowMore(false); setShowTrash(true) }}><Icon name="trash"/>Trash</button><button onClick={() => { setShowMore(false); setShowSettings(true) }}><Icon name="settings"/>Settings</button></div></Modal>}
     {tab !== 'today' && <TimerWidget/>}
     <Notice/>
+    <ConfirmHost/>
   </div></TimerProvider>
 }
 

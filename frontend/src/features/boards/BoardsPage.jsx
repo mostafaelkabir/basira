@@ -1,3 +1,4 @@
+import { askConfirm } from '../../components/askConfirm'
 import { useEffect, useState } from 'react'
 import { createBoard, deleteBoard, getBoards, getCompanies, getGoals } from '../../api'
 import Modal from '../../components/Modal'
@@ -30,7 +31,7 @@ export default function BoardsPage({ onOpen }) {
 
   async function remove(e, b) {
     e.stopPropagation()
-    if (!confirm(`Delete “${b.title}”? The drawing is lost; tickets, tasks and goals on it are untouched.`)) return
+    if (!(await askConfirm(`Delete “${b.title}”? The drawing is lost; tickets, tasks and goals on it are untouched.`, { title: 'Delete board' }))) return
     try { await deleteBoard(b.id); load() } catch (err) { notify(err.message) }
   }
 

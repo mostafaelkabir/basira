@@ -8,7 +8,7 @@ import Icon from '../../components/Icon'
 import { notify } from '../../components/Notice'
 import {
   getMorningSuggestions, getDayWorkspace, getUpcomingDays, addToSchedule, removeFromSchedule,
-  setScheduleTime, snoozeSuggestion,
+  setScheduleTime, snoozeSuggestion, getRhythm, overrideRhythmDay, restoreRhythmDay, deleteBlock,
 } from '../../api'
 import { fmtMinutes, fmtDuration, fmtClock, addDays, dayShort, dayLong } from './format'
 import FindOrCreateComposer from '../composer/FindOrCreateComposer'
@@ -31,6 +31,8 @@ export default function MorningPlanner({ date, initialDay, onClose, onPlanned })
   const [busyKey, setBusyKey] = useState(null)
   const [dragging, setDragging] = useState(null)
   const [includeOlder, setIncludeOlder] = useState(false)
+  const [rhythm, setRhythm] = useState([])
+  useEffect(() => { getRhythm().then(r => setRhythm(r.blocks)).catch(() => {}) }, [])
 
   // A click and a drag must not be confused: require a small movement to start a drag.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
@@ -169,10 +171,14 @@ export default function MorningPlanner({ date, initialDay, onClose, onPlanned })
               </div>
             </div>
 
-            {/* ── Right: the selected day's plan (drop target) ── */}
-            <DayPlan items={planItems} dragging={dragging} busyKey={busyKey}
-              label={isToday ? 'Today’s plan' : `Plan · ${dayLong(day)}`} dayName={dayName}
-              onRemove={unplan} onSetTime={setTime} />
+            {/* ── Right: the day's blocks, then its plan (drop target) ── */}
+            <div className="space-y-4 min-w-0">
+              <DayBlocks ws={ws} rhythm={rhythm} day={day} dayName={dayName} busyKey={busyKey} setBusyKey={setBusyKey}
+                onChanged={async () => { onPlanned?.(); await refresh() }} />
+              <DayPlan items={planItems} dragging={dragging} busyKey={busyKey}
+                label={isToday ? 'Today’s plan' : `Plan · ${dayLong(day)}`} dayName={dayName}
+                onRemove={unplan} onSetTime={setTime} />
+            </div>
           </div>
 
           <div className="flex justify-end pt-1">
@@ -181,6 +187,49 @@ export default function MorningPlanner({ date, initialDay, onClose, onPlanned })
         </div>
       </DndContext>
     </Modal>
+  )
+}
+
+// The day's rhythm blocks (remove one for this day) and the rhythm blocks that do
+// not run on this day (add one at its usual time). The shape of the day is set here
+// before any single item is planned into it.
+function DayBlocks({ ws, rhythm, day, dayName, busyKey, setBusyKey, onChanged }) {
+  const blocks = ws?.blocks || []
+  const skipped = ws?.skipped_blocks || []
+  const present = new Set([...blocks, ...skipped].map(b => b.rhythm_id).filter(Boolean))
+  const toAdd = rhythm.filter(b => !present.has(b.id))
+  if (!blocks.length && !toAdd.length && !skipped.length) return null
+  async function act(key, fn, msg) {
+    setBusyKey(key)
+    try { await fn(); if (msg) notify(msg); await onChanged() } catch (e) { notify(e.message) } finally { setBusyKey(null) }
+  }
+  const removeBlock = b => act(b.id,
+    () => b.rhythm_id ? (b.added ? restoreRhythmDay(b.rhythm_id, day) : overrideRhythmDay({ rhythm_id: b.rhythm_id, date: day, skipped: true })) : deleteBlock(b.id),
+    `“${b.title}” off ${dayName}`)
+  return (
+    <div data-testid="planner-blocks">
+      <p className="eyebrow mb-2">Blocks {isNaN(Date.parse(day)) ? '' : ''}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {blocks.map(b => (
+          <span key={b.id} className="cal-chip" style={{ '--chip-color': b.color || undefined }} title={`${b.title} · ${fmtClock(b.start_time)} – ${fmtClock(b.end_time)}`}>
+            <span className={`cal-swatch cal-block-${b.kind}`} style={b.color ? { '--block-color': b.color } : undefined} />
+            {b.title} <span className="text-faint font-mono text-[10px]">{fmtClock(b.start_time)}</span>
+            <button onClick={() => removeBlock(b)} disabled={busyKey === b.id} className="cal-chip-btn" aria-label={`Remove block ${b.title} from ${dayName}`} title={`Not ${dayName}`}>✕</button>
+          </span>
+        ))}
+        {skipped.map(b => (
+          <button key={b.rhythm_id} onClick={() => act(b.rhythm_id, () => restoreRhythmDay(b.rhythm_id, day), `“${b.title}” back on ${dayName}`)} disabled={busyKey === b.rhythm_id}
+            className="cal-chip is-draggable opacity-70" title="Skipped for this day; click to bring it back">↺ {b.title}</button>
+        ))}
+        {toAdd.map(b => (
+          <button key={b.id} onClick={() => act(b.id, () => overrideRhythmDay({ rhythm_id: b.id, date: day }), `“${b.title}” added to ${dayName}`)} disabled={busyKey === b.id}
+            className="cal-chip is-draggable" style={{ '--chip-color': b.color || undefined }} aria-label={`Add block ${b.title} to ${dayName}`}
+            title={`Add “${b.title}” to ${dayName} at ${fmtClock(b.start_time)}`}>
+            <span className="text-accent">+</span>{b.title} <span className="text-faint font-mono text-[10px]">{fmtClock(b.start_time)} · {fmtMinutes(b.duration_minutes)}</span>
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
 

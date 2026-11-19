@@ -44,6 +44,21 @@ export const moveBlock = (id, data) =>
   request(`/day-plan/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
 export const deleteBlock = (id) => request(`/day-plan/${id}`, { method: 'DELETE' })
 
+// Day rhythm: the repeating weekday template of blocks, and one day's changes to it.
+// (uses the `json` request helper declared with the boards bindings below)
+export const getRhythm = () => request('/rhythm')
+export const suggestRhythm = () => request('/rhythm/suggest')
+export const createRhythmBlock = (data) => request('/rhythm', json('POST', data))
+export const createRhythmBlocks = (blocks) => request('/rhythm/batch', json('POST', { blocks }))
+export const updateRhythmBlock = (id, data) => request(`/rhythm/${id}`, json('PATCH', data))
+export const deleteRhythmBlock = (id) => request(`/rhythm/${id}`, { method: 'DELETE' })
+export const getRhythmDay = (date) => request(`/rhythm/day?date=${date}`)
+// Move/resize/skip one template block on one day only.
+export const overrideRhythmDay = (data) => request('/rhythm/day/override', json('POST', data))
+export const restoreRhythmDay = (rhythm_id, date) => request('/rhythm/day/restore', json('POST', { rhythm_id, date }))
+// Running late: push everything from a time onwards, today only.
+export const shiftRhythmDay = (date, from_time, minutes) => request('/rhythm/day/shift', json('POST', { date, from_time, minutes }))
+
 // Unified timer across task/ticket/worklog sources. switchTimer stops whatever is
 // running (writing each source's ledger) then starts the requested item — one
 // active session, server-enforced. logDayTime records a missed session by
@@ -51,7 +66,13 @@ export const deleteBlock = (id) => request(`/day-plan/${id}`, { method: 'DELETE'
 export const getActiveDayTimer = () => request('/day-timer/active')
 export const switchDayTimer = (source, itemId) =>
   request('/day-timer/switch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source, item_id: itemId }) })
-export const stopDayTimer = () => request('/day-timer/stop', { method: 'POST' })
+// stopDayTimer({ source, item_id, keep_minutes }) stops one item keeping only the
+// real minutes of a timer that was left running (0 discards it).
+export const stopDayTimer = (data) => request('/day-timer/stop', data ? json('POST', data) : { method: 'POST' })
+// Corrections: what is running / last recorded on an item, and undoing its latest session.
+// logDayTime with minus minutes takes time off the most recent sessions.
+export const getItemTime = (source, itemId) => request(`/day-timer/item?source=${source}&item_id=${encodeURIComponent(itemId)}`)
+export const undoLastSession = (source, itemId) => request('/day-timer/undo-last', json('POST', { source, item_id: itemId }))
 export const logDayTime = (data) =>
   request('/day-timer/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
 
@@ -88,6 +109,9 @@ export const updateGoal = (id, data) =>
 export const archiveGoal = (id) => request(`/goals/${id}/archive`, { method: 'POST' })
 export const unarchiveGoal = (id) => request(`/goals/${id}/unarchive`, { method: 'POST' })
 export const deleteGoal = (id) => request(`/goals/${id}`, { method: 'DELETE' })
+// status: active | blocked | achieved | moved_out | cancelled. The reason is logged on the goal.
+export const setGoalStatus = (id, status, reason = '') =>
+  request(`/goals/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status, reason }) })
 
 // Trash (soft-delete): goals and tasks move to a 30-day trash, restorable.
 export const getTrash = () => request('/trash')
@@ -369,3 +393,12 @@ export const getMilestone = (id) => request(`/work-milestones/${id}`)
 export const createMilestone = (data) => request('/work-milestones', json('POST', data))
 export const updateMilestone = (id, data) => request(`/work-milestones/${id}`, json('PUT', data))
 export const deleteMilestone = (id) => request(`/work-milestones/${id}`, { method: 'DELETE' })
+
+// Goal measure: one target number per goal, a weekly check-in, and the read-out
+// (progress, pace, projection, system adherence, diagnosis). See app/services/goal_measure.py.
+export const getGoalMeasures = () => request('/goals/measures')
+export const getGoalMeasure = (goalId) => request(`/goals/${goalId}/measure`)
+export const setGoalMeasure = (goalId, data) => request(`/goals/${goalId}/measure`, json('PUT', data))
+export const clearGoalMeasure = (goalId) => request(`/goals/${goalId}/measure`, { method: 'DELETE' })
+export const checkInGoal = (goalId, data) => request(`/goals/${goalId}/measure/checkins`, json('POST', data))
+export const deleteGoalCheckin = (goalId, checkinId) => request(`/goals/${goalId}/measure/checkins/${checkinId}`, { method: 'DELETE' })

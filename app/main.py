@@ -14,6 +14,7 @@ from app.database import Base, engine
 from app.routes.comments import router as comments_router
 from app.routes.contacts import router as contacts_router
 from app.routes.goals import router as goals_router
+from app.routes.goal_measure import router as goal_measure_router
 from app.routes.habits import router as habits_router
 from app.routes.proofs import router as proofs_router
 from app.routes.review import router as review_router
@@ -42,6 +43,7 @@ from app.routes.morning_planner import router as morning_planner_router
 from app.routes.trash import router as trash_router
 from app.routes.boards import router as boards_router
 from app.routes.work_milestones import router as work_milestones_router
+from app.routes.rhythm import router as rhythm_router
 from app.scheduler import start_scheduler
 
 
@@ -296,6 +298,24 @@ def run_migrations():
         "ALTER TABLE tasks ADD COLUMN routine_days TEXT",
         # A routine habit taken off one day: the day-plan row stays as a skip marker.
         "ALTER TABLE habit_day_plans ADD COLUMN skipped BOOLEAN DEFAULT 0",
+        # Day rhythm: the repeating shape of the day (weekday template of blocks); a day's
+        # changes to it are day_blocks rows carrying rhythm_id (moved/resized/skipped).
+        """CREATE TABLE IF NOT EXISTS rhythm_blocks (
+            id TEXT PRIMARY KEY,
+            title TEXT DEFAULT '',
+            kind TEXT NOT NULL,
+            target_ref TEXT,
+            days TEXT DEFAULT 'mon,tue,wed,thu,fri',
+            start_time TEXT NOT NULL,
+            duration_minutes INTEGER DEFAULT 60,
+            color TEXT,
+            sort_order INTEGER DEFAULT 0,
+            created_at TIMESTAMP,
+            updated_at TIMESTAMP
+        )""",
+        "ALTER TABLE day_blocks ADD COLUMN rhythm_id TEXT",
+        "ALTER TABLE day_blocks ADD COLUMN skipped BOOLEAN DEFAULT 0",
+        "CREATE INDEX IF NOT EXISTS ix_day_blocks_rhythm ON day_blocks (rhythm_id, date)",
         # Postpone with a reason: the free-text "why" next to the category.
         "ALTER TABLE defer_logs ADD COLUMN note TEXT",
         # Planning whiteboards: one tldraw document per board, scoped to a goal / client / all work.
@@ -325,6 +345,37 @@ def run_migrations():
             completed_at TIMESTAMP
         )""",
         "CREATE INDEX IF NOT EXISTS ix_work_tickets_milestone ON work_tickets (milestone_id)",
+        # Goal outcomes: achieved / blocked / moved out / cancelled, with the reason logged.
+        "ALTER TABLE goals ADD COLUMN status VARCHAR DEFAULT 'active'",
+        "ALTER TABLE goals ADD COLUMN status_reason TEXT",
+        "ALTER TABLE goals ADD COLUMN status_changed_at TIMESTAMP",
+        """CREATE TABLE IF NOT EXISTS goal_status_logs (
+            id VARCHAR PRIMARY KEY,
+            goal_id VARCHAR NOT NULL REFERENCES goals(id),
+            from_status VARCHAR DEFAULT 'active',
+            to_status VARCHAR NOT NULL,
+            reason TEXT DEFAULT '',
+            created_at TIMESTAMP
+        )""",
+        "CREATE INDEX IF NOT EXISTS ix_goal_status_logs_goal ON goal_status_logs (goal_id)",
+        # Goal measure: one target number per goal + a weekly check-in (app/services/goal_measure.py).
+        "ALTER TABLE goals ADD COLUMN metric_name VARCHAR",
+        "ALTER TABLE goals ADD COLUMN metric_unit VARCHAR",
+        "ALTER TABLE goals ADD COLUMN metric_source VARCHAR",
+        "ALTER TABLE goals ADD COLUMN metric_start FLOAT",
+        "ALTER TABLE goals ADD COLUMN metric_target FLOAT",
+        "ALTER TABLE goals ADD COLUMN metric_start_date VARCHAR",
+        "ALTER TABLE goals ADD COLUMN metric_target_date VARCHAR",
+        """CREATE TABLE IF NOT EXISTS goal_checkins (
+            id VARCHAR PRIMARY KEY,
+            goal_id VARCHAR NOT NULL REFERENCES goals(id),
+            week_start VARCHAR NOT NULL,
+            date VARCHAR NOT NULL,
+            value FLOAT NOT NULL,
+            note TEXT DEFAULT '',
+            created_at TIMESTAMP,
+            UNIQUE (goal_id, week_start)
+        )""",
     ]
     with engine.connect() as conn:
         for sql in migrations:
@@ -360,7 +411,9 @@ app.add_middleware(
 )
 
 app.include_router(today_router)
+app.include_router(rhythm_router)
 app.include_router(contacts_router)
+app.include_router(goal_measure_router)   # before goals: /goals/measures must not match /goals/{goal_id}
 app.include_router(goals_router)
 app.include_router(comments_router)
 app.include_router(tasks_router)
@@ -397,7 +450,18 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 # Serve the built frontend — must be mounted AFTER all API routes
 _frontend_dist = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 if os.path.isdir(_frontend_dist):
-    app.mount("/assets", StaticFiles(directory=os.path.join(_frontend_dist, "assets")), name="assets")
+    from app.routes.app_version import IMMUTABLE, index_response, make_router as app_version_router
+
+    class _ImmutableAssets(StaticFiles):
+        """Hashed bundles never change, so they may be cached forever."""
+        async def get_response(self, path, scope):
+            response = await super().get_response(path, scope)
+            if response.status_code == 200:
+                response.headers.update(IMMUTABLE)
+            return response
+
+    app.mount("/assets", _ImmutableAssets(directory=os.path.join(_frontend_dist, "assets")), name="assets")
+    app.include_router(app_version_router(_frontend_dist))
 
     @app.get("/health")
     def health_check() -> dict[str, str]:
@@ -405,7 +469,7 @@ if os.path.isdir(_frontend_dist):
 
     @app.get("/{full_path:path}")
     def serve_spa(full_path: str):
-        return FileResponse(os.path.join(_frontend_dist, "index.html"))
+        return index_response(_frontend_dist)
 else:
     @app.get("/health")
     def health_check() -> dict[str, str]:

@@ -1,3 +1,4 @@
+import { askConfirm } from './components/askConfirm'
 import { notify } from './components/Notice'
 import { lazy, Suspense, useEffect, useState, useRef } from 'react'
 import {
@@ -443,7 +444,7 @@ export function TicketDrawer({ ticket, onClose, onUpdate, onDelete, onEdit }) {
                   className="w-7 h-7 flex items-center justify-center text-muted hover:text-accent transition-colors text-sm">✏️</button>
               )}
               {onDelete && (
-                <button onClick={() => { if (confirm('Delete ticket?')) deleteWorkTicket(ticket.id).then(onDelete).catch(e => notify(e.message)) }}
+                <button onClick={async () => { if (await askConfirm(`Delete ticket “${ticket.title}”? This can't be undone.`, { title: 'Delete ticket' })) deleteWorkTicket(ticket.id).then(onDelete).catch(e => notify(e.message)) }}
                   className="w-7 h-7 flex items-center justify-center text-muted hover:text-red-400 transition-colors text-sm">🗑</button>
               )}
               <button onClick={onClose} aria-label="Close ticket"
@@ -1388,7 +1389,7 @@ export default function WorkPage() {
     setShowCompany(false); setEditCompany(null); load()
   }
   async function handleDeleteCompany(id) {
-    if (!confirm('Delete this company and all its data?')) return
+    if (!(await askConfirm('Delete this company and all its data?', { title: 'Delete company' }))) return
     await deleteCompany(id)
     if (filterCompany === id) setFilterCompany(null)
     load()
@@ -1436,7 +1437,7 @@ export default function WorkPage() {
     } catch (err) { notify(err.message) }
   }
   async function handleDeleteMilestone(id) {
-    if (!confirm('Delete this milestone? Its tickets stay, they just lose the link.')) return
+    if (!(await askConfirm('Delete this milestone? Its tickets stay, they just lose the link.', { title: 'Delete milestone' }))) return
     try {
       await deleteMilestone(id)
       setEditMilestone(null)
@@ -1456,7 +1457,7 @@ export default function WorkPage() {
     setShowNewLog(false); setEditLog(null); load()
   }
   async function handleDeleteLog(id) {
-    if (!confirm('Delete this log?')) return
+    if (!(await askConfirm('Delete this log?', { title: 'Delete log' }))) return
     await deleteWorkLog(id); load()
   }
   async function handleLogTimerToggle(log) {

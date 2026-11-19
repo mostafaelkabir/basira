@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getTask, stopTimerWithFocus } from './api'
 import { ActivityComments } from './components/ActivityComposer'
 import { useTimer } from './TimerContext'
+import FixTimeDialog from './features/today/FixTimeDialog'
 
 const FOCUS_STARS = [1, 2, 3, 4, 5]
 
@@ -78,6 +79,7 @@ export default function TimerWidget() {
   const [taskData, setTaskData] = useState(null)
   const [loadingTask, setLoadingTask] = useState(false)
   const [showFocusPrompt, setShowFocusPrompt] = useState(false)
+  const [fixing, setFixing] = useState(false)
   const prevTaskId = useRef(null)
 
   async function handleStop() {
@@ -235,6 +237,11 @@ export default function TimerWidget() {
                 ⏹ Stop
               </button>
             </div>
+            <button onClick={() => setFixing(true)}
+              className="block w-full pb-4 -mt-2 text-center text-[11px] text-white/50 hover:text-white underline-offset-2 hover:underline">
+              Left it running? Fix time
+            </button>
+            {fixing && <FixTimeDialog item={{ source: 'task', item_id: timer.taskId, title: timer.taskTitle }} onClose={() => setFixing(false)} />}
             {showFocusPrompt && (
               <FocusPrompt
                 onSelect={handleFocusSelect}

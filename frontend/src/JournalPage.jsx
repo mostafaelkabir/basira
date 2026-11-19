@@ -1,3 +1,4 @@
+import { askConfirm } from './components/askConfirm'
 import { notify } from './components/Notice'
 import { useEffect, useState } from 'react'
 import {
@@ -324,7 +325,7 @@ function EntryCard({ entry, onEdit, onDelete, onUpdate }) {
               className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted hover:border-accent/40 hover:text-accent transition-colors">
               Edit
             </button>
-            <button onClick={() => { if (confirm('Delete this entry?')) onDelete(entry.id) }}
+            <button onClick={async () => { if (await askConfirm('Delete this entry?', { title: 'Delete entry' })) onDelete(entry.id) }}
               className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted hover:border-red-300 hover:text-red-500 transition-colors">
               Delete
             </button>

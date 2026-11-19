@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { getWeeklyReview } from './api'
 import Modal from './components/Modal'
 import { DailyCheckinCard } from './features/today/DailyCheckinCard'
+import { ResolutionCheckins } from './features/goals/GoalMeasure'
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
@@ -140,6 +141,9 @@ export default function WeeklyReview({ onClose }) {
             <div className={`h-2 rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
           </div>
         </div>
+
+        {/* ── Goal measures: this week's number per goal, and what it means ── */}
+        <ResolutionCheckins />
 
         {/* ── What went well ── */}
         {onTrack.length > 0 && (

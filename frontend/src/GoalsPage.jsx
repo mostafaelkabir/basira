@@ -1,7 +1,10 @@
+import { askConfirm } from './components/askConfirm'
+import { GoalStatusBadge, GoalStatusDialog, fmtStatusDate } from './features/goals/GoalStatus'
 import { notify, notifyAction } from './components/Notice'
 import { useEffect, useRef, useState } from 'react'
-import { archiveGoal, createGoal, deleteGoal, getGoals, unarchiveGoal, updateGoal, uploadGoalIcon, restoreTrashItem } from './api'
+import { archiveGoal, createGoal, deleteGoal, getGoalMeasures, getGoals, unarchiveGoal, updateGoal, uploadGoalIcon, restoreTrashItem } from './api'
 import Modal from './components/Modal'
+import { MeasureMini } from './features/goals/GoalMeasure'
 import ConfirmDialog from './components/ConfirmDialog'
 
 const TYPE_META = {
@@ -49,7 +52,9 @@ export default function GoalsPage({ onSelectGoal }) {
   const [goals, setGoals] = useState([])
   const [archived, setArchived] = useState([])
   const [showArchived, setShowArchived] = useState(false)
+  const [statusFor, setStatusFor] = useState(null)   // goal whose status dialog is open
   const [loading, setLoading] = useState(true)
+  const [measures, setMeasures] = useState({})        // goal id → measure read-out
   const [editing, setEditing] = useState(null)
   const [showNew, setShowNew] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -65,6 +70,7 @@ export default function GoalsPage({ onSelectGoal }) {
       const [active, arch] = await Promise.all([getGoals(false), getGoals(true)])
       setGoals(active)
       setArchived(arch)
+      getGoalMeasures().then(list => setMeasures(Object.fromEntries(list.map(m => [m.goal_id, m])))).catch(() => {})
     } catch (err) { notify(err.message) }
     finally { setLoading(false) }
   }
@@ -112,7 +118,7 @@ export default function GoalsPage({ onSelectGoal }) {
 
   async function handleArchive(e, goalId) {
     e.stopPropagation()
-    if (!confirm('Archive this goal? You can unarchive it anytime.')) return
+    if (!(await askConfirm('Archive this goal? You can unarchive it anytime.', { title: 'Archive goal', confirmLabel: 'Archive', danger: false }))) return
     try { await archiveGoal(goalId); load() }
     catch (err) { notify(err.message) }
   }
@@ -177,20 +183,22 @@ export default function GoalsPage({ onSelectGoal }) {
                 <div className="grid gap-3 sm:grid-cols-2">
                   {list.map(goal => (
                     <div key={goal.id} className="contents">
-                      <GoalCard goal={goal}
+                      <GoalCard goal={goal} measure={measures[goal.id]}
                         onClick={() => onSelectGoal(goal.id)}
                         onEdit={(e) => openEdit(e, goal)}
                         onArchive={(e) => handleArchive(e, goal.id)}
+                        onStatus={(e) => { e.stopPropagation(); setStatusFor(goal) }}
                         onDelete={(e) => handleDelete(e, goal.id)} />
                       {/* Sub-projects nested under this goal */}
                       {(subProjectsByParent[goal.id] || []).map(sg => (
                         <div key={sg.id} className="relative">
                           <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-sand-200 ml-4 rounded-full" />
                           <div className="ml-6">
-                            <GoalCard goal={sg}
+                            <GoalCard goal={sg} measure={measures[sg.id]}
                               onClick={() => onSelectGoal(sg.id)}
                               onEdit={(e) => openEdit(e, sg)}
                               onArchive={(e) => handleArchive(e, sg.id)}
+                              onStatus={(e) => { e.stopPropagation(); setStatusFor(sg) }}
                               onDelete={(e) => handleDelete(e, sg.id)}
                               isSub />
                           </div>
@@ -203,17 +211,18 @@ export default function GoalsPage({ onSelectGoal }) {
             )
           })}
 
+          {statusFor && <GoalStatusDialog goal={statusFor} onClose={() => setStatusFor(null)} onDone={() => { setStatusFor(null); load() }} />}
           {archived.length > 0 && (
             <div>
               <button onClick={() => setShowArchived(v => !v)}
                 className="text-sm text-muted hover:text-ink flex items-center gap-1.5 transition-colors">
                 <span>{showArchived ? '▾' : '▸'}</span>
-                {showArchived ? 'Hide' : 'Show'} archived ({archived.length})
+                {showArchived ? 'Hide' : 'Show'} closed & archived ({archived.length})
               </button>
               {showArchived && (
                 <div className="grid gap-3 sm:grid-cols-2 mt-3">
                   {archived.map(goal => (
-                    <div key={goal.id} className="bg-raised border border-border rounded-2xl p-5 opacity-60">
+                    <div key={goal.id} className="bg-raised border border-border rounded-2xl p-5 opacity-80">
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-2.5">
                           <GoalIcon icon={goal.icon} size="sm" />
@@ -225,12 +234,19 @@ export default function GoalsPage({ onSelectGoal }) {
                             )}
                             <p className="font-medium text-muted text-sm">{goal.title}</p>
                             <p className="text-xs text-sand-400 mt-0.5">{goal.done_count}/{goal.task_count} tasks done</p>
+                            {goal.status && goal.status !== 'active' && (
+                              <div className="mt-2">
+                                <GoalStatusBadge status={goal.status} />
+                                <span className="text-[11px] text-muted ml-2">{fmtStatusDate(goal.status_changed_at)}</span>
+                                {goal.status_reason && <p className="text-xs text-ink mt-1 line-clamp-2">{goal.status_reason}</p>}
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="flex gap-1">
                           <button onClick={() => handleUnarchive(goal.id)}
                             className="text-xs text-teal-600 border border-accent/30 px-2 py-1 rounded-lg hover:bg-brand/10 transition-colors">
-                            Unarchive
+                            {goal.status && goal.status !== 'active' ? 'Reopen' : 'Unarchive'}
                           </button>
                           <button onClick={(e) => handleDelete(e, goal.id)}
                             className="text-xs text-muted hover:text-terra-400 px-2 py-1 rounded-lg transition-colors">
@@ -417,7 +433,7 @@ export default function GoalsPage({ onSelectGoal }) {
   )
 }
 
-function GoalCard({ goal, onClick, onEdit, onArchive, onDelete, isSub = false }) {
+function GoalCard({ goal, measure, onClick, onEdit, onArchive, onStatus, onDelete, isSub = false }) {
   const pct = goal.task_count > 0 ? Math.round((goal.done_count / goal.task_count) * 100) : 0
   const allDone = goal.task_count > 0 && goal.done_count === goal.task_count
   const meta = TYPE_META[goal.type]
@@ -434,6 +450,7 @@ function GoalCard({ goal, onClick, onEdit, onArchive, onDelete, isSub = false })
         {/* Action buttons — z-20 so they sit above the content layer (z-10) */}
         <div className="absolute top-3 right-3 flex items-center gap-1 z-20">
           <button onClick={onEdit} className="text-white/80 hover:text-white w-6 h-6 flex items-center justify-center transition-colors bg-black/30 rounded-lg backdrop-blur-sm" title="Edit">✎</button>
+          {onStatus && <button onClick={onStatus} className="text-white/80 hover:text-white w-6 h-6 flex items-center justify-center text-sm transition-colors bg-black/30 rounded-lg backdrop-blur-sm" title="Close or flag: achieved, blocked, moved out, cancelled" aria-label="Update status">⚑</button>}
           <button onClick={onArchive} className="text-white/60 hover:text-gold-300 w-6 h-6 flex items-center justify-center text-sm transition-colors bg-black/30 rounded-lg backdrop-blur-sm" title="Archive">◫</button>
           <button onClick={onDelete} className="text-white/60 hover:text-terra-300 w-6 h-6 flex items-center justify-center text-sm transition-colors bg-black/30 rounded-lg backdrop-blur-sm" title="Delete">✕</button>
         </div>
@@ -446,7 +463,7 @@ function GoalCard({ goal, onClick, onEdit, onArchive, onDelete, isSub = false })
                 {meta.icon} {meta.label}
               </span>
             )}
-            <h2 className="font-bold text-white leading-snug text-base drop-shadow">{goal.title}</h2>
+            <h2 className="font-bold text-white leading-snug text-base drop-shadow">{goal.title} <GoalStatusBadge status={goal.status} /></h2>
             {goal.description && <p className="text-sm text-white/70 mt-1 line-clamp-1">{goal.description}</p>}
             {goal.task_count > 0 && goal.type !== 'resolution' && (
               <div className="mt-3">
@@ -484,7 +501,11 @@ function GoalCard({ goal, onClick, onEdit, onArchive, onDelete, isSub = false })
             )}
           </div>
           {goal.description && <p className="text-xs text-muted line-clamp-1">{goal.description}</p>}
-          {goal.task_count > 0 && (
+          {goal.status === 'blocked' && (
+            <p className="text-xs mt-1.5 line-clamp-2"><GoalStatusBadge status="blocked" /> <span className="text-muted">{goal.status_reason}</span></p>
+          )}
+          <MeasureMini m={measure} />
+          {goal.task_count > 0 && !measure && (
             <div className="mt-2.5 flex items-center gap-3">
               <div className="flex-1 bg-border rounded-full h-1">
                 <div className={`h-1 rounded-full transition-all ${allDone ? 'bg-brand' : 'bg-brand'}`} style={{ width: `${pct}%` }} />
@@ -497,6 +518,7 @@ function GoalCard({ goal, onClick, onEdit, onArchive, onDelete, isSub = false })
         </div>
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
           <button onClick={onEdit} className="text-muted hover:text-accent w-6 h-6 flex items-center justify-center transition-colors" title="Edit">✎</button>
+          {onStatus && <button onClick={onStatus} className="text-muted hover:text-accent w-6 h-6 flex items-center justify-center text-sm transition-colors" title="Close or flag: achieved, blocked, moved out, cancelled" aria-label="Update status">⚑</button>}
           <button onClick={onArchive} className="text-muted hover:text-highlight w-6 h-6 flex items-center justify-center text-sm transition-colors" title="Archive">◫</button>
           <button onClick={onDelete} className="text-muted hover:text-terra-400 w-6 h-6 flex items-center justify-center text-sm transition-colors" title="Delete">✕</button>
         </div>

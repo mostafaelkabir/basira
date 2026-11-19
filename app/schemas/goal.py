@@ -23,6 +23,11 @@ class GoalUpdate(BaseModel):
     parent_id: str | None = None
 
 
+class GoalStatusUpdate(BaseModel):
+    status: str
+    reason: str = ""
+
+
 class GoalRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -37,6 +42,9 @@ class GoalRead(BaseModel):
     task_count: int = 0
     done_count: int = 0
     parent_id: str | None = None
+    status: str = "active"
+    status_reason: str | None = None
+    status_changed_at: datetime | None = None
 
 
 class GoalDetail(BaseModel):
@@ -52,5 +60,9 @@ class GoalDetail(BaseModel):
     archived_at: datetime | None = None
     parent_id: str | None = None
     parent_title: str | None = None
+    status: str = "active"
+    status_reason: str | None = None
+    status_changed_at: datetime | None = None
+    status_history: list[dict] = []
     tasks: list[TaskWithProofs] = []
     sub_goals: list[GoalRead] = []

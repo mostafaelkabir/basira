@@ -3,6 +3,7 @@ import Icon from '../../components/Icon'
 import { dayLong, fmtClock, fmtDuration, fmtMinutes } from './format'
 import { POSTPONE_REASONS } from './PostponeDialog'
 import { routineLabel } from '../habits/RoutineEditor'
+import { chronoEntries } from './listOrder'
 
 // One chronological Today agenda: scheduled Tasks, tickets and habit occurrences in
 // time order, an "Anytime today" group for selected items without a time, and a
@@ -26,7 +27,7 @@ function Elapsed({ startedAt, priorSeconds = 0 }) {
   return <span className="font-mono tabular-nums">{fmtDuration(priorSeconds + Math.max(0, base))}</span>
 }
 
-function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo, onDelete }) {
+function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo, onDelete, onFixTime, onMoveIntoBlock, onAddBlockHere }) {
   const [editing, setEditing] = useState(false)
   const isTask = item.source === 'task'
   const isTicket = item.source === 'ticket'
@@ -45,7 +46,7 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
         ) : item.scheduled_time ? (
           <button onClick={() => onEditTime && setEditing(true)} className="text-xs font-mono text-ink tabular-nums hover:text-accent">{fmtClock(item.scheduled_time)}</button>
         ) : (
-          <button onClick={() => onEditTime && setEditing(true)} className="text-[10px] text-faint uppercase hover:text-accent">Anytime</button>
+          <button onClick={() => onEditTime && setEditing(true)} className="text-[10px] text-accent uppercase hover:underline" aria-label={`Set time for ${item.title}`}>Set time</button>
         )}
       </div>
 
@@ -75,6 +76,13 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
           {running && <><span className="text-faint">·</span><span className="text-accent flex items-center gap-1"><span className="status-dot live" /><Elapsed startedAt={timer.startedAt} priorSeconds={timer.priorSeconds} /></span></>}
           {!running && recorded > 0 && !isHabit && <><span className="text-faint">·</span><span className="text-accent">{fmtDuration(recorded)} recorded</span></>}
         </p>
+        {item.off_block && !item.done && (onMoveIntoBlock || onAddBlockHere) && (
+          <p className="off-block" data-testid="off-block">
+            <span>Outside your {item.off_block.title} block ({fmtClock(item.off_block.start_time)} – {fmtClock(item.off_block.end_time)})</span>
+            {onMoveIntoBlock && <button onClick={() => onMoveIntoBlock(item)}>Move into block</button>}
+            {onAddBlockHere && <button onClick={() => onAddBlockHere(item)}>Add {item.off_block.title} block here</button>}
+          </p>
+        )}
         {item.postponed && !item.done && (
           <p className="text-[11px] text-amber-700 mt-0.5 truncate" title={item.postponed.reason || undefined}>
             ↷ Postponed from {dayLong(item.postponed.from_date)}
@@ -96,6 +104,9 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
             <button onClick={() => onUndo(item)} className="agenda-btn" title={isHabit ? 'Uncheck for today' : 'Not done after all — put it back'} aria-label={`Undo completing ${item.title}`}>
               <Icon name="undo" size={13} />Undo
             </button>
+          )}
+          {(isTask || isTicket) && onFixTime && (recorded > 0 || running) && (
+            <button onClick={() => onFixTime(item)} className="agenda-btn" title="Fix time — undo the last session or take minutes off" aria-label={`Fix time for ${item.title}`}><Icon name="clock" size={13} /></button>
           )}
           {(isTask || isTicket) && onDelete && (
             <button onClick={() => onDelete(item)} className="agenda-btn hover:text-red-500" title={isTask ? 'Move to trash' : 'Delete ticket'} aria-label={`Delete ${item.title}`}><Icon name="trash" size={13} /></button>
@@ -127,6 +138,9 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
           {isTicket && (
             <button onClick={() => onOpenTicket(item)} className="agenda-btn">Open</button>
           )}
+          {(isTask || isTicket) && onFixTime && (recorded > 0 || running) && (
+            <button onClick={() => onFixTime(item)} className="agenda-btn" title="Fix time — undo the last session or take minutes off" aria-label={`Fix time for ${item.title}`}><Icon name="clock" size={13} /></button>
+          )}
           {(isTask || isTicket) && onDelete && (
             <button onClick={() => onDelete(item)} className="agenda-btn hover:text-red-500" title={isTask ? 'Move to trash' : 'Delete ticket'} aria-label={`Delete ${item.title}`}><Icon name="trash" size={13} /></button>
           )}
@@ -136,13 +150,24 @@ function Row({ item, timer, onStartTask, onPauseTask, onResumeTask, onCompleteTa
   )
 }
 
+// The same structure as the calendar view: the day's rhythm blocks with the work
+// filed into them, then whatever sits outside a block (timed, then anytime), then
+// Completed. `blocks` comes from the day workspace; without a rhythm the list is
+// simply time order.
 export default function DayAgenda({
-  scheduled, anytime, completed, timer,
-  onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo, onDelete,
+  scheduled, anytime, completed, timer, hideEmpty = false, blocks = [], onEditBlock, onSkipBlock, skippedBlocks = [], onRestoreBlock,
+  onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo, onDelete, onFixTime,
+  onMoveIntoBlock, onAddBlockHere,
 }) {
   const [showDone, setShowDone] = useState(false)
-  const rowProps = { timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo, onDelete }
+  const rowProps = { timer, onStartTask, onPauseTask, onResumeTask, onCompleteTask, onOpenTicket, onOpenNotes, onCheckHabit, onEditTime, onPostpone, onUndo, onDelete, onFixTime, onMoveIntoBlock, onAddBlockHere }
   const empty = scheduled.length === 0 && anytime.length === 0 && completed.length === 0
+  if (empty && hideEmpty) return null
+
+  // As the day goes: blocks and timed items by start time; items inside a block's
+  // window sit under it. Anything without a time waits at the end until it gets one.
+  const entries = chronoEntries(blocks, scheduled)
+  const blockById = Object.fromEntries(blocks.map(b => [b.id, b]))
 
   return (
     <div className="bg-surface border border-border rounded-2xl shadow-card">
@@ -153,15 +178,53 @@ export default function DayAgenda({
         </div>
       )}
 
-      {scheduled.length > 0 && (
-        <div className="divide-y divide-border px-4">
-          {scheduled.map(i => <Row key={i.key} item={i} {...rowProps} />)}
+      {entries.length > 0 && (
+        <div className="px-4 py-1" data-testid="agenda-timeline">
+          {entries.map(e => {
+            if (e.type === 'block') {
+              const b = e.block
+              const isWork = b.kind === 'project' || b.kind === 'client'
+              const done = (b.recorded_seconds || 0) + (b.live_seconds || 0)
+              return (
+                <div key={e.key} className="agenda-block-head" data-testid="agenda-block" data-title={b.title}>
+                  <span className={`cal-swatch cal-block-${b.kind}`} style={b.color ? { '--block-color': b.color } : undefined} />
+                  <span className="text-[11px] font-mono uppercase tracking-wide text-ink">{b.title}</span>
+                  {onEditBlock
+                    ? <button onClick={() => onEditBlock(b)} className="text-[11px] font-mono text-muted hover:text-accent" title="Change this block" aria-label={`Edit block ${b.title}`}>{fmtClock(b.start_time)} – {fmtClock(b.end_time)}{b.added ? ' · added' : !b.virtual ? ' · today' : ''}</button>
+                    : <span className="text-[11px] font-mono text-muted">{fmtClock(b.start_time)} – {fmtClock(b.end_time)}</span>}
+                  {isWork && <span className="text-[11px] font-mono text-muted ml-auto">{done > 0 ? `${fmtDuration(done)} / ` : ''}{fmtMinutes(b.duration_minutes)}</span>}
+                  {onSkipBlock && (
+                    <button onClick={() => onSkipBlock(b)} className={`agenda-skip ${isWork ? '' : 'ml-auto'}`}
+                      aria-label={`${b.rhythm_id && !b.added ? 'Skip' : 'Remove'} block ${b.title} today`}
+                      title={b.rhythm_id && !b.added ? 'Not today. Your rhythm stays the same.' : 'Remove from today'}>
+                      {b.rhythm_id && !b.added ? 'Skip today' : 'Remove'}
+                    </button>
+                  )}
+                </div>
+              )
+            }
+            const holder = e.inBlock ? blockById[e.inBlock] : null
+            return (
+              <div key={e.key} data-testid="agenda-entry" data-title={e.item.title}
+                className={holder ? `agenda-in-block cal-block-${holder.kind}` : 'agenda-loose'}
+                style={holder?.color ? { '--block-color': holder.color } : undefined}>
+                <Row item={e.item} {...rowProps} />
+              </div>
+            )
+          })}
         </div>
       )}
 
+      {skippedBlocks.length > 0 && onRestoreBlock && (
+        <p className="text-[11px] text-muted px-4 py-2 border-t border-border flex items-center gap-2 flex-wrap">
+          <span>Skipped today:</span>
+          {skippedBlocks.map(b => <button key={b.rhythm_id} onClick={() => onRestoreBlock(b)} className="underline hover:text-ink">{b.title} · restore</button>)}
+        </p>
+      )}
+
       {anytime.length > 0 && (
-        <div className="border-t border-border px-4 pt-2 pb-1">
-          <p className="text-[11px] font-mono uppercase tracking-wide text-muted mb-1 pt-1">Anytime today</p>
+        <div className="border-t border-border px-4 pt-2 pb-1" data-testid="agenda-untimed">
+          <p className="text-[11px] font-mono uppercase tracking-wide text-muted mb-1 pt-1">No time yet · set one to place it in your day</p>
           <div className="divide-y divide-border">
             {anytime.map(i => <Row key={i.key} item={i} {...rowProps} />)}
           </div>
