@@ -16,7 +16,7 @@ function toMin(hhmm) {
 
 // Sticky Now / Next strip (mockup zone B): what is running, or what is next, or a
 // prompt to plan. One primary timer presentation for the active session.
-export default function NowStrip({ workspace, timer, onPause, onResume, onDone, onStart, onOpenPlanner, onOpenTicket, onOpenNotes, onCheckHabit, onSwitch }) {
+export default function NowStrip({ workspace, timer, onPause, onResume, onDone, onStart, onOpenPlanner, onOpenTicket, onOpenNotes, onCheckHabit, onSwitch, onFixTime }) {
   const [, force] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef(null)
@@ -32,6 +32,19 @@ export default function NowStrip({ workspace, timer, onPause, onResume, onDone, 
 
   if (!workspace) return null
   const active = (workspace.active_timers || [])[0] || null
+  // The rhythm block we are in right now, and the one after it.
+  const nowMin = nowMinutes()
+  const blocks = workspace.blocks || []
+  const block = blocks.find(b => b.start_minutes <= nowMin && nowMin < b.start_minutes + b.duration_minutes) || null
+  const nextBlock = blocks.find(b => b.start_minutes > nowMin) || null
+  const blockLine = (block || nextBlock) && (
+    <p className="text-[11px] text-muted truncate" data-testid="now-block">
+      {block
+        ? <><span className="text-[10px] font-mono uppercase text-faint mr-1.5">Block</span><span className="text-ink">{block.title}</span> · {fmtMinutes(block.start_minutes + block.duration_minutes - nowMin)} left</>
+        : <><span className="text-[10px] font-mono uppercase text-faint mr-1.5">Free until</span>{fmtClock(nextBlock.start_time)}</>}
+      {block && nextBlock && <span className="text-faint"> · then {nextBlock.title} at {fmtClock(nextBlock.start_time)}</span>}
+    </p>
+  )
   const schedule = [...(workspace.agenda || [])].sort((a, b) => (a.scheduled_time || '').localeCompare(b.scheduled_time || ''))
   const unfinished = [...(workspace.agenda || []), ...(workspace.unscheduled || [])]
     .filter(i => i.status !== 'done' && i.source !== 'habit' && (!active || i.key !== active.key))   // habits are never timed
@@ -65,6 +78,7 @@ export default function NowStrip({ workspace, timer, onPause, onResume, onDone, 
               {active.project_title}{active.company_name && active.company_name !== 'Personal' ? ` · ${active.company_name}` : ''}
               {plannedMin > 0 && <> · {fmtDuration(elapsed)} of {fmtMinutes(plannedMin)}</>}
             </p>
+            {blockLine}
             {plannedMin > 0 && <div className="now-bar mt-1"><div className="now-bar-fill" style={{ width: `${pct}%` }} /></div>}
           </div>
           <span className="font-mono tabular-nums text-ink text-sm flex-shrink-0">{fmtDuration(elapsed)}</span>
@@ -79,6 +93,9 @@ export default function NowStrip({ workspace, timer, onPause, onResume, onDone, 
           {active.source === 'task'
             ? <button className="agenda-btn" onClick={() => onDone(active)}><Icon name="check" size={13}/>Done</button>
             : <button className="agenda-btn" onClick={() => onOpenTicket(active)}>Open</button>}
+          {onFixTime && (
+            <button className="agenda-btn" onClick={() => onFixTime(active)} title="Left it running? Keep only the real time, or discard this session" aria-label={`Fix time for ${active.title}`}><Icon name="clock" size={13}/>Fix</button>
+          )}
           <div className="relative" ref={menuRef}>
             <button className="agenda-btn" onClick={() => setMenuOpen(v => !v)} aria-haspopup="menu" aria-expanded={menuOpen}>Switch ▾</button>
             {menuOpen && (
@@ -102,12 +119,15 @@ export default function NowStrip({ workspace, timer, onPause, onResume, onDone, 
   if (next) {
     return (
       <div className="now-strip">
-        <p className="text-sm text-muted min-w-0 flex-1 truncate">
+        <div className="min-w-0 flex-1">
+        {blockLine}
+        <p className="text-sm text-muted min-w-0 truncate">
           <span className="text-[10px] font-mono uppercase text-muted mr-2">Next</span>
           <span className="text-ink">{next.title}</span>
           {next.scheduled_time && <> at <span className="font-mono tabular-nums">{fmtClock(next.scheduled_time)}</span></>}
           {nextIn != null && nextIn > 0 && <span className="text-faint"> · in {fmtMinutes(nextIn)}</span>}
         </p>
+        </div>
         {(next.source === 'task' || next.source === 'habit') && onOpenNotes && (
           <button className="agenda-btn flex-shrink-0" onClick={() => onOpenNotes(next)} title="Notes" aria-label={`Notes for ${next.title}`}><Icon name="note" size={13}/></button>
         )}
@@ -123,7 +143,10 @@ export default function NowStrip({ workspace, timer, onPause, onResume, onDone, 
   // ── (c) No plan ──
   return (
     <div className="now-strip">
-      <p className="text-sm text-muted min-w-0 flex-1">Nothing scheduled yet.</p>
+      <div className="min-w-0 flex-1">
+        {blockLine}
+        <p className="text-sm text-muted">{block ? `In your ${block.title} block — nothing scheduled in it yet.` : 'Nothing scheduled yet.'}</p>
+      </div>
       <button className="primary-button flex-shrink-0" onClick={onOpenPlanner}><Icon name="goals" size={14}/>Plan your day</button>
     </div>
   )

@@ -1,6 +1,6 @@
 import { notify } from './components/Notice'
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { getActiveTimer, pauseTimer as apiPause, startTimer as apiStart } from './api'
+import { getActiveTimer, getTaskTime, pauseTimer as apiPause, startTimer as apiStart } from './api'
 
 const TimerContext = createContext(null)
 
@@ -53,6 +53,30 @@ export function TimerProvider({ children }) {
       }
     }
     restore()
+  }, [])
+
+  // A correction (Fix time) changed sessions behind our back: read the truth again.
+  const timerRef = useRef(null)
+  timerRef.current = timer
+  useEffect(() => {
+    async function resync() {
+      try {
+        const active = await getActiveTimer()
+        const prev = timerRef.current
+        let next = null
+        if (active && active.session_id) {
+          next = { taskId: active.task_id, taskTitle: active.task_title, goalTitle: active.goal_title,
+            sessionId: active.session_id, startedAt: active.started_at, priorSeconds: active.prior_seconds ?? 0, running: true }
+        } else if (prev) {
+          const t = await getTaskTime(prev.taskId)
+          next = { ...prev, priorSeconds: t.total_seconds ?? 0, running: false, sessionId: null, startedAt: null }
+        }
+        setTimer(next)
+        saveToStorage(next)
+      } catch { /* keep what we have */ }
+    }
+    window.addEventListener('basira:time-fixed', resync)
+    return () => window.removeEventListener('basira:time-fixed', resync)
   }, [])
 
   const startTimerFn = useCallback(async (taskId, taskTitle, goalTitle) => {

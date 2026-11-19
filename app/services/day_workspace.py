@@ -43,6 +43,7 @@ from app.models.work_log import WorkLog
 from app.models.work_session import WorkSession
 from app.models.work_ticket import WorkTicket, WorkTimeEntry
 from app.services.habit_routine import habit_placements, parse_routine_days
+from app.services.day_rhythm import apply_recorded, file_items, goal_parents, resolve_day, rhythm_totals
 
 UNASSIGNED_PROJECT = "Unassigned"
 PERSONAL_CLIENT = "Personal"
@@ -335,6 +336,7 @@ def _agenda(db: Session, day: date, recorded_by_key: dict[str, int],
             "status": t.status,
             "project_title": goal_titles.get(t.goal_id, UNASSIGNED_PROJECT),
             "company_name": PERSONAL_CLIENT,
+            "goal_id": t.goal_id, "company_id": None,
             "postponed": postponed.get(t.id),
         })
 
@@ -353,6 +355,7 @@ def _agenda(db: Session, day: date, recorded_by_key: dict[str, int],
             "recorded_seconds": recorded_by_key.get(key, 0),
             "live_seconds": live_by_key.get(key, 0),
             "status": tk.status,
+            "goal_id": tk.linked_goal_id, "company_id": tk.company_id,
             "project_title": t_goal_titles.get(tk.linked_goal_id, UNASSIGNED_PROJECT),
             "company_name": company_name,
         })
@@ -371,6 +374,7 @@ def _agenda(db: Session, day: date, recorded_by_key: dict[str, int],
             "recorded_seconds": recorded_by_key.get(key, 0),
             "live_seconds": live_by_key.get(key, 0),
             "status": lg.status,
+            "goal_id": None, "company_id": lg.company_id,
             "project_title": UNASSIGNED_PROJECT,
             "company_name": company_name,
         })
@@ -394,6 +398,7 @@ def _agenda(db: Session, day: date, recorded_by_key: dict[str, int],
             "recorded_seconds": 0, "live_seconds": 0,
             "status": "done" if count >= target else "todo",
             "project_title": p.goal_title, "company_name": PERSONAL_CLIENT,
+            "goal_id": t.goal_id, "company_id": None,
             "habit_count": count, "habit_target": target,
             "routine": p.routine, "routine_days": parse_routine_days(t.routine_days),
         })
@@ -490,6 +495,14 @@ def build_day_workspace(db: Session, day: date, tz: ZoneInfo, as_of: datetime) -
     agenda, unscheduled, planned_minutes = _agenda(db, day, recorded_by_key, live_by_key)
     routines = _routines(db, day)
 
+    # The day's rhythm: template blocks for this weekday with the day's own changes,
+    # items filed into them by project/client, and recorded time laid on top.
+    rhythm = resolve_day(db, day)
+    blocks = rhythm["blocks"]
+    items = agenda + unscheduled
+    file_items(blocks, items, goal_parents(db, {i["goal_id"] for i in items if i.get("goal_id")}))
+    apply_recorded(blocks, by_project, by_client)
+
     warnings: list[dict] = []
     if len(timers) > 1:
         warnings.append({
@@ -521,7 +534,10 @@ def build_day_workspace(db: Session, day: date, tz: ZoneInfo, as_of: datetime) -
             "day_start": cap["day_start"],
             "day_end": cap["day_end"],
             "buffer_pct": cap["buffer_pct"],
+            "rhythm": rhythm_totals(blocks),
         },
+        "blocks": blocks,
+        "skipped_blocks": rhythm["skipped"],
         "recorded": entries,
         "by_project": by_project,
         "by_client": by_client,

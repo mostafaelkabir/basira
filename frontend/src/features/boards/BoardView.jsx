@@ -1,3 +1,4 @@
+import { askConfirm } from '../../components/askConfirm'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { createShapeId, useValue } from 'tldraw'
 import { completeTask, deleteBoard, getBoard, getCompanies, getMilestones, getTask, getWorkTicket, updateBoard, updateTask, updateWorkTicket } from '../../api'
@@ -207,7 +208,7 @@ export default function BoardView({ boardId, embedded = false, onBack }) {
   }
 
   async function remove() {
-    if (!confirm('Delete this board? The drawing is lost; tickets, tasks, goals and milestones on it are untouched.')) return
+    if (!(await askConfirm('Delete this board? The drawing is lost; tickets, tasks, goals and milestones on it are untouched.', { title: 'Delete board' }))) return
     try { await deleteBoard(board.id); onBack?.() } catch (e) { notify(e.message) }
   }
 

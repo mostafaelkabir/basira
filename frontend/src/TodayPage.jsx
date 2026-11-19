@@ -1,3 +1,4 @@
+import { askConfirm } from './components/askConfirm'
 import Icon from './components/Icon'
 import CompleteTaskDialog from './features/tasks/CompleteTaskDialog'
 import { notify, notifyAction } from './components/Notice'
@@ -18,6 +19,7 @@ import { useDayWorkspace } from './features/today/useDayWorkspace'
 import DayAgenda from './features/today/DayAgenda'
 import MorningPlanner from './features/today/MorningPlanner'
 import TimeDetailDrawer from './features/today/TimeDetailDrawer'
+import FixTimeDialog from './features/today/FixTimeDialog'
 import CapacityLine from './features/today/CapacityLine'
 import RoutineStrip from './features/today/RoutineStrip'
 import NowStrip from './features/today/NowStrip'
@@ -26,6 +28,11 @@ import PostponeDialog from './features/today/PostponeDialog'
 import UpcomingStrip from './features/today/UpcomingStrip'
 import FindOrCreateComposer from './features/composer/FindOrCreateComposer'
 import { TicketDrawer } from './WorkPage'
+import DayCalendar from './features/rhythm/DayCalendar'
+import RhythmModal from './features/rhythm/RhythmModal'
+import BlockEditor from './features/rhythm/BlockEditor'
+import { freeSlotInBlock } from './features/today/blockSlot'
+import { createBlock, overrideRhythmDay, restoreRhythmDay, deleteBlock } from './api'
 
 const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -50,8 +57,14 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
   const [showPlanner, setShowPlanner] = useState(false)   // false | true (today) | 'YYYY-MM-DD'
   const [showQuickAdd, setShowQuickAdd] = useState(false)
   const [showTimeDetail, setShowTimeDetail] = useState(false)
+  const [fixTimeFor, setFixTimeFor] = useState(null)   // { source, item_id, title }
   const [openTicket, setOpenTicket] = useState(null)
   const [notesFor, setNotesFor] = useState(null)   // { item_id, title, project_title }
+  const [showRhythm, setShowRhythm] = useState(false)
+  // 'calendar' (default) | 'list': two views of the same day, remembered per browser.
+  const [view, setView] = useState(() => { try { return localStorage.getItem('basira_today_view') === 'list' ? 'list' : 'calendar' } catch { return 'calendar' } })
+  function chooseView(v) { setView(v); try { localStorage.setItem('basira_today_view', v) } catch {} }
+  const [blockEditor, setBlockEditor] = useState(null)   // { mode: 'create'|'edit', block?, defaults? }
 
   async function handleOpenTicket(item) {
     try { setOpenTicket(await getWorkTicket(item.item_id)) }
@@ -166,6 +179,61 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
     const pools = [...data.focus, ...data.daily, ...data.projects.flatMap(p => p.tasks)]
     return pools.find(t => t.id === id) || { id, title: '', requires_proof: false, proofs: [] }
   }
+  // Everything an item on the day can do; the timeline's ⋯ menu and controls use these.
+  const itemActions = {
+    start: item => { startTimer(item.item_id, item.title, item.project_title || ''); window.dispatchEvent(new CustomEvent('basira:timer-changed')); setTimeout(() => refreshWorkspace?.(), 400) },
+    pause: () => { pauseTimer(); setTimeout(() => refreshWorkspace?.(), 300) },
+    resume: () => { resumeTimer(); setTimeout(() => refreshWorkspace?.(), 300) },
+    complete: item => handleComplete(findTask(item.item_id)),
+    toggleHabit: item => { const full = habitById.get(item.item_id); if (full) handleToggleHabit(full) },
+    notes: item => setNotesFor(item),
+    openTicket: item => handleOpenTicket(item),
+    postpone: item => setPostponeFor(item),
+    remove: item => handleDelete(item),
+    undo: item => handleUndo(item),
+    fixTime: item => setFixTimeFor(item),
+    setTime: (item, time) => handleEditTime(item, time),
+    // Timed outside its own client/project block: move it in, or give it a block here.
+    moveIntoBlock: async item => {
+      const b = item.off_block; if (!b) return
+      const block = (workspace?.blocks || []).find(x => x.id === b.block_id) || { start_time: b.start_time, duration_minutes: 60 }
+      const time = freeSlotInBlock(block, [...(workspace?.agenda || []), ...(workspace?.unscheduled || [])], item.key, item.planned_minutes || 30)
+      await handleEditTime(item, time)
+      notify(`“${item.title}” moved into ${b.title} at ${fmtClockShort(time)}`, { title: 'Moved' })
+    },
+    addBlockHere: async item => {
+      const b = item.off_block; if (!b) return
+      const [h, m] = item.scheduled_time.split(':').map(Number)
+      const start = Math.floor((h * 60 + m) / 15) * 15
+      try {
+        await createBlock({ date: data.date, kind: b.kind, source_ref: b.target_ref, title: b.title,
+          start_time: `${String(Math.floor(start / 60)).padStart(2, '0')}:${String(start % 60).padStart(2, '0')}`,
+          duration_minutes: Math.max(30, Math.ceil((item.planned_minutes || 60) / 15) * 15) })
+        refreshWorkspace?.(); window.dispatchEvent(new CustomEvent('basira:schedule-updated'))
+        notify(`A second ${b.title} block was added for today around “${item.title}”`, { title: 'Block added' })
+      } catch (err) { notify(err.message) }
+    },
+  }
+  // Take a block off this day only: a rhythm block is skipped (restorable), a block
+  // pulled onto the day or made for it alone is removed. The weekly rhythm is unchanged.
+  async function skipBlock(b) {
+    try {
+      if (b.rhythm_id && !b.added) await overrideRhythmDay({ rhythm_id: b.rhythm_id, date: data.date, skipped: true })
+      else if (b.rhythm_id) await restoreRhythmDay(b.rhythm_id, data.date)
+      else await deleteBlock(b.id)
+      refreshWorkspace?.(); window.dispatchEvent(new CustomEvent('basira:schedule-updated'))
+      notifyAction(`“${b.title}” is off today`, 'Undo', () => restoreBlock(b))
+    } catch (err) { notify(err.message) }
+  }
+  async function restoreBlock(b) {
+    try {
+      if (b.rhythm_id && !b.added) await restoreRhythmDay(b.rhythm_id, data.date)
+      else if (b.rhythm_id) await overrideRhythmDay({ rhythm_id: b.rhythm_id, date: data.date })
+      else await createBlock({ date: data.date, kind: b.kind, source_ref: b.target_ref, title: b.title, start_time: b.start_time, duration_minutes: b.duration_minutes })
+      refreshWorkspace?.(); window.dispatchEvent(new CustomEvent('basira:schedule-updated'))
+    } catch (err) { notify(err.message) }
+  }
+  function fmtClockShort(t) { const [h, m] = t.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` }
   async function handleEditTime(item, time) {
     try { await setScheduleTime(item.source, item.item_id, time || null); refreshWorkspace?.() }
     catch (err) { notify(err.message) }
@@ -193,7 +261,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
         load()
         notifyAction(`“${item.title}” moved to trash`, 'Undo', () => restoreTrashItem('task', item.item_id).then(load).catch(e => notify(e.message)))
       } else if (item.source === 'ticket') {
-        if (!window.confirm(`Delete ticket “${item.title}”? This can't be undone.`)) return
+        if (!(await askConfirm(`Delete ticket “${item.title}”? This can't be undone.`, { title: 'Delete ticket' }))) return
         await deleteWorkTicket(item.item_id)
         setOpenTicket(t => (t?.id === item.item_id ? null : t))
         load()
@@ -216,6 +284,11 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
           <h1 className="today-title">{formatDate(data.date)}</h1>
         </div>
         <div className="today-head-actions">
+          <div className="view-toggle" role="group" aria-label="Today view">
+            <button onClick={() => chooseView('calendar')} aria-pressed={view === 'calendar'}>Calendar</button>
+            <button onClick={() => chooseView('list')} aria-pressed={view === 'list'}>List</button>
+          </div>
+          <button onClick={() => setShowRhythm(true)} className="ghost-link" title="The repeating shape of your days"><Icon name="settings" size={15}/><span>Rhythm</span></button>
           <button onClick={onOpenReview} className="ghost-link"><Icon name="review" size={15}/><span>Review</span></button>
           <button onClick={() => setShowQuickAdd(true)} className="secondary-button"><Icon name="plus" size={15}/><span>Add</span></button>
           <button onClick={() => setShowPlanner(true)} className="primary-button"><Icon name="goals" size={15}/><span>{planExists ? 'Edit day' : 'Plan my day'}</span></button>
@@ -231,6 +304,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
         onDone={item => handleComplete(findTask(item.item_id))}
         onOpenTicket={handleOpenTicket}
         onOpenNotes={setNotesFor}
+        onFixTime={setFixTimeFor}
         onCheckHabit={item => { const full = habitById.get(item.item_id); if (full) handleToggleHabit(full) }}
         onOpenPlanner={() => setShowPlanner(true)} />
 
@@ -245,21 +319,31 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
         onOpenNotes={h => setNotesFor({ item_id: h.id, title: h.title, project_title: 'Routine', source: 'habit' })}
         onAddToDay={() => setShowPlanner(true)} />
 
-      {/* One chronological agenda */}
+      {/* The day as a timeline: rhythm blocks shape it; every item sits at its time. */}
+      {view === 'calendar' && <DayCalendar workspace={workspace} isToday timer={timer} actions={itemActions}
+        onAddToBlock={b => setShowQuickAdd({ companyId: b.target_ref?.startsWith('company:') ? b.target_ref.slice(8) : '', goalId: b.target_ref?.startsWith('goal:') ? b.target_ref.slice(5) : '' })}
+        onEditRhythm={() => setShowRhythm(true)}
+        onCreateBlock={defaults => setBlockEditor({ mode: 'create', defaults })}
+        onEditBlock={block => setBlockEditor({ mode: 'edit', block })}
+        onChanged={() => { refreshWorkspace?.(); window.dispatchEvent(new CustomEvent('basira:schedule-updated')) }} />}
+
+      {/* The list: the same day in reading order — each block with its work, then what is
+          outside a block, then Completed. In calendar view only Completed shows here. */}
       <DayAgenda
-        scheduled={scheduled} anytime={anytimeItems} completed={completedItems}
+        blocks={view === 'list' ? (workspace?.blocks || []) : []}
+        onEditBlock={block => setBlockEditor({ mode: 'edit', block })}
+        onSkipBlock={view === 'list' ? skipBlock : undefined}
+        skippedBlocks={view === 'list' ? (workspace?.skipped_blocks || []) : []}
+        onRestoreBlock={restoreBlock}
+        scheduled={view === 'list' ? scheduled : []}
+        anytime={view === 'list' ? anytimeItems : []}
+        completed={completedItems} hideEmpty={view === 'calendar'}
         timer={timer}
-        onStartTask={item => { startTimer(item.item_id, item.title, item.project_title || ''); window.dispatchEvent(new CustomEvent('basira:timer-changed')); setTimeout(() => refreshWorkspace?.(), 400) }}
-        onPauseTask={() => { pauseTimer(); setTimeout(() => refreshWorkspace?.(), 300) }}
-        onResumeTask={() => { resumeTimer(); setTimeout(() => refreshWorkspace?.(), 300) }}
-        onCompleteTask={item => handleComplete(findTask(item.item_id))}
-        onOpenTicket={handleOpenTicket}
-        onOpenNotes={setNotesFor}
-        onCheckHabit={item => { const full = habitById.get(item.item_id); if (full) handleToggleHabit(full) }}
-        onEditTime={handleEditTime}
-        onPostpone={setPostponeFor}
-        onUndo={handleUndo}
-        onDelete={handleDelete}
+        onStartTask={itemActions.start} onPauseTask={itemActions.pause} onResumeTask={itemActions.resume}
+        onCompleteTask={itemActions.complete} onOpenTicket={handleOpenTicket} onOpenNotes={setNotesFor}
+        onCheckHabit={itemActions.toggleHabit} onEditTime={handleEditTime}
+        onPostpone={setPostponeFor} onUndo={handleUndo} onDelete={handleDelete} onFixTime={setFixTimeFor}
+        onMoveIntoBlock={itemActions.moveIntoBlock} onAddBlockHere={itemActions.addBlockHere}
       />
 
       {/* Next six days at a glance; opens the planner on that day (BAS-046) */}
@@ -283,6 +367,7 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
         <Modal title="Add to today" onClose={() => setShowQuickAdd(false)}>
           <FindOrCreateComposer
             placeholder="Find an existing ticket/task/habit/goal, or type a new title…"
+            defaultCompanyId={showQuickAdd?.companyId} defaultGoalId={showQuickAdd?.goalId}
             onDone={(r) => { setShowQuickAdd(false); if (r) { load(); refreshWorkspace?.() } }}
           />
         </Modal>
@@ -291,6 +376,11 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
       {/* Time detail */}
       {showTimeDetail && workspace && (
         <TimeDetailDrawer workspace={workspace} onClose={() => setShowTimeDetail(false)} onLogged={() => refreshWorkspace?.()} />
+      )}
+
+      {/* Fix time: a timer left running, or a session that ran too long */}
+      {fixTimeFor && (
+        <FixTimeDialog item={fixTimeFor} onClose={() => setFixTimeFor(null)} onChanged={() => { refreshWorkspace?.(); load() }} />
       )}
 
       {/* Time-log modal */}
@@ -313,6 +403,18 @@ export default function TodayPage({ onGoToGoal, onOpenReview }) {
           onDelete={() => { const t = openTicket; setOpenTicket(null); load(); notify(`Ticket “${t.title}” deleted`, { title: 'Deleted' }); window.dispatchEvent(new CustomEvent('basira:schedule-updated')) }}
           onUpdate={updated => { setOpenTicket(updated); refreshWorkspace?.(); window.dispatchEvent(new CustomEvent('basira:schedule-updated')) }} />
       )}
+
+      {/* Add or change a block for this day (or the rhythm) */}
+      {blockEditor && (
+        <BlockEditor mode={blockEditor.mode} block={blockEditor.block} defaults={blockEditor.defaults} date={data.date}
+          existingRhythmIds={[...(workspace?.blocks || []), ...(workspace?.skipped_blocks || [])].map(b => b.rhythm_id).filter(Boolean)}
+          onSkipDay={b => { setBlockEditor(null); skipBlock(b) }}
+          onClose={() => setBlockEditor(null)}
+          onSaved={() => { refreshWorkspace?.(); window.dispatchEvent(new CustomEvent('basira:schedule-updated')) }} />
+      )}
+
+      {/* The weekly rhythm template */}
+      {showRhythm && <RhythmModal onClose={() => { setShowRhythm(false); refreshWorkspace?.() }} onChanged={() => refreshWorkspace?.()} />}
 
       {/* Notes on a task or daily/habit task (BAS-045) */}
       {notesFor && <TaskNotesDialog item={notesFor} onClose={() => setNotesFor(null)} onChanged={load} />}

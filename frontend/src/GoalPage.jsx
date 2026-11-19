@@ -10,6 +10,8 @@ import Modal from './components/Modal'
 import ConfirmDialog from './components/ConfirmDialog'
 import TimeLogModal from './components/TimeLogModal'
 import GoalStats from './features/goals/GoalStats'
+import GoalMeasurePanel from './features/goals/GoalMeasure'
+import { GoalStatusBadge, GoalStatusDialog, GoalStatusPanel } from './features/goals/GoalStatus'
 import { getDueDateMeta, sortByDueDate } from './utils'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -70,6 +72,7 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
   const [proofForm, setProofForm] = useState({ type: 'text', content: '', imageFile: null, imagePreview: null })
   const [submitting, setSubmitting] = useState(false)
   const [localTaskOrder, setLocalTaskOrder] = useState(null)
+  const [showStatus, setShowStatus] = useState(false)
   const [goalView, setGoalView] = useState('tasks')   // 'tasks' | 'board' (this goal's whiteboard)
   const taskSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
@@ -313,7 +316,13 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
         <div className="flex items-start gap-3">
           {goal.icon && <GoalIcon icon={goal.icon} size="xl" className="mt-0.5" />}
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold text-ink">{goal.title}</h1>
+            <div className="flex items-start gap-3 flex-wrap">
+              <h1 className="text-xl font-bold text-ink flex-1 min-w-0">{goal.title}</h1>
+              <GoalStatusBadge status={goal.status} className="mt-1" />
+              <button type="button" className="secondary-button" onClick={() => setShowStatus(true)}>
+                {(goal.status || 'active') === 'active' ? 'Close or flag…' : 'Update status'}
+              </button>
+            </div>
             {goal.description && <p className="text-muted mt-0.5 text-sm">{goal.description}</p>}
             {allTaskCount > 0 && (
               <div className="mt-3 flex items-center gap-3">
@@ -328,6 +337,11 @@ export default function GoalPage({ goalId, onBack, onGoToGoal }) {
           </div>
         </div>
       </div>
+
+      <GoalStatusPanel goal={goal} onChange={() => setShowStatus(true)} />
+      {showStatus && <GoalStatusDialog goal={goal} onClose={() => setShowStatus(false)} onDone={() => { setShowStatus(false); load() }} />}
+
+      <GoalMeasurePanel goalId={goalId} goalTitle={goal.title} refreshKey={goal} />
 
       <GoalStats goalId={goalId} refreshKey={goal} />
 

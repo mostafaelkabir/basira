@@ -147,6 +147,98 @@ class DayTimerTests(unittest.TestCase):
         self.assertEqual(self.switch('bogus', 'x').status_code, 400)
         self.assertEqual(self.switch('task', 'missing').status_code, 404)
 
+    # ── Corrections: a timer left running, a session that should not count ────
+
+    def _item(self, source, item_id):
+        return self.client.get('/day-timer/item', params={'source': source, 'item_id': item_id}).json()
+
+    def test_stop_keeping_only_part_of_a_forgotten_timer(self):
+        self.switch('task', 't1')
+        self._backdate_active(3 * 3600)     # left running for three hours
+        r = self.client.post('/day-timer/stop', json={'source': 'task', 'item_id': 't1', 'keep_minutes': 45}).json()
+        self.assertEqual(r['stopped'][0]['seconds'], 45 * 60)
+        with Session(self.engine) as db:
+            s = db.query(WorkSession).one()
+            self.assertEqual(s.duration_seconds, 45 * 60)
+            self.assertEqual((s.ended_at - s.started_at).total_seconds(), 45 * 60)
+
+    def test_keep_is_never_more_than_really_elapsed(self):
+        self.switch('task', 't1')
+        self._backdate_active(600)
+        r = self.client.post('/day-timer/stop', json={'keep_minutes': 90}).json()
+        self.assertLess(r['stopped'][0]['seconds'], 700)
+
+    def test_undo_discards_a_running_timer_without_recording(self):
+        self.switch('ticket', 'tk')
+        self._backdate_active(7200)
+        self.assertGreaterEqual(self._item('ticket', 'tk')['running']['elapsed_seconds'], 7200)
+        r = self.client.post('/day-timer/undo-last', json={'source': 'ticket', 'item_id': 'tk'}).json()
+        self.assertTrue(r['was_running'])
+        with Session(self.engine) as db:
+            self.assertEqual(db.query(WorkSession).count(), 0)
+            self.assertEqual(db.query(WorkTimeEntry).count(), 0)
+
+    def test_undo_last_task_session_keeps_earlier_ones(self):
+        self.client.post('/day-timer/log', json={'source': 'task', 'item_id': 't1', 'minutes': 20, 'date': '2026-09-01'})
+        self.switch('task', 't1')
+        self._backdate_active(5000)
+        self.client.post('/day-timer/stop')
+        self.assertGreaterEqual(self._item('task', 't1')['last']['seconds'], 5000)
+        r = self.client.post('/day-timer/undo-last', json={'source': 'task', 'item_id': 't1'}).json()
+        self.assertGreaterEqual(r['removed_seconds'], 5000)
+        self.assertEqual(self._item('task', 't1')['total_seconds'], 20 * 60)
+
+    def test_undo_last_ticket_session_removes_entry_and_recalculates(self):
+        self.client.post('/day-timer/log', json={'source': 'ticket', 'item_id': 'tk', 'minutes': 30})
+        self.switch('ticket', 'tk')
+        self._backdate_active(4000)
+        self.client.post('/day-timer/stop')
+        self.client.post('/day-timer/undo-last', json={'source': 'ticket', 'item_id': 'tk'})
+        with Session(self.engine) as db:
+            self.assertEqual(db.query(WorkTimeEntry).count(), 1)
+            self.assertEqual(db.get(WorkTicket, 'tk').logged_seconds, 1800)
+            self.assertEqual(db.query(WorkSession).count(), 0)   # its timer session went with it
+
+    def test_undo_last_worklog_session_takes_its_minutes_back(self):
+        self.switch('worklog', 'wl')
+        self._backdate_active(1200)
+        self.client.post('/day-timer/stop')
+        self.client.post('/day-timer/undo-last', json={'source': 'worklog', 'item_id': 'wl'})
+        with Session(self.engine) as db:
+            self.assertEqual(db.get(WorkLog, 'wl').duration_minutes, 0)
+
+    def test_undo_with_nothing_recorded_is_404(self):
+        r = self.client.post('/day-timer/undo-last', json={'source': 'task', 'item_id': 't1'})
+        self.assertEqual(r.status_code, 404)
+
+    def test_minus_minutes_take_time_off_the_latest_session(self):
+        self.switch('task', 't1')
+        self._backdate_active(3600)
+        self.client.post('/day-timer/stop')
+        before = self._item('task', 't1')['total_seconds']
+        r = self.client.post('/day-timer/log', json={'source': 'task', 'item_id': 't1', 'minutes': -40})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(self._item('task', 't1')['total_seconds'], before - 2400)
+        with Session(self.engine) as db:
+            s = db.query(WorkSession).one()
+            self.assertEqual((s.ended_at - s.started_at).total_seconds(), s.duration_seconds)
+
+    def test_minus_minutes_on_a_ticket_spill_into_older_entries(self):
+        self.client.post('/day-timer/log', json={'source': 'ticket', 'item_id': 'tk', 'minutes': 30})
+        self.client.post('/day-timer/log', json={'source': 'ticket', 'item_id': 'tk', 'minutes': 10})
+        self.client.post('/day-timer/log', json={'source': 'ticket', 'item_id': 'tk', 'minutes': -25})
+        with Session(self.engine) as db:
+            self.assertEqual(db.get(WorkTicket, 'tk').logged_seconds, 15 * 60)
+            self.assertTrue(all(e.duration_seconds > 0 for e in db.query(WorkTimeEntry).all()))
+
+    def test_cannot_take_off_more_than_recorded(self):
+        self.client.post('/day-timer/log', json={'source': 'task', 'item_id': 't1', 'minutes': 10})
+        r = self.client.post('/day-timer/log', json={'source': 'task', 'item_id': 't1', 'minutes': -30})
+        self.assertEqual(r.status_code, 400)
+        self.assertIn('Only 10m', r.json()['detail'])
+        self.assertEqual(self._item('task', 't1')['total_seconds'], 600)
+        self.assertEqual(self.client.post('/day-timer/log', json={'source': 'task', 'item_id': 't1', 'minutes': 0}).status_code, 400)
+
 
 if __name__ == '__main__':
     unittest.main()

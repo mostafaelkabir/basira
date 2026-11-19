@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -14,9 +14,10 @@ from app.database import Base
 #   project                   -> a reservation against an existing goal   (goal:<id>)
 #   client                    -> client-only reservation for a company    (company:<id>)
 #   break | personal | free   -> non-work time; occupies the day, no source_ref
+#   routine                   -> the habits block (morning routine); no source_ref
 ITEM_KINDS = {"task", "ticket", "worklog"}
 CONTAINER_KINDS = {"project", "client"}
-FREE_KINDS = {"break", "personal", "free"}
+FREE_KINDS = {"break", "personal", "free", "routine"}
 ALLOWED_KINDS = ITEM_KINDS | CONTAINER_KINDS | FREE_KINDS
 
 
@@ -31,6 +32,10 @@ class DayBlock(Base):
     source_ref: Mapped[str | None] = mapped_column(String, nullable=True)  # e.g. task:<id>, goal:<id>, company:<id>
     title: Mapped[str] = mapped_column(String, default="")
     note: Mapped[str] = mapped_column(Text, default="")
+    # Set when this row is one day's change to a repeating RhythmBlock: moved/resized
+    # (times here win over the template) or skipped (not on this day at all).
+    rhythm_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    skipped: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
     # Optimistic-concurrency version; bumped on every edit so a stale move is a 409.
     revision: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))

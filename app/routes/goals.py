@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
-from app.models.goal import Goal
+from app.models.goal import CLOSED_STATUSES, GOAL_STATUSES, REASON_REQUIRED, Goal, GoalStatusLog
 from app.models.task import Task
-from app.schemas.goal import GoalCreate, GoalDetail, GoalRead, GoalUpdate
+from app.schemas.goal import GoalCreate, GoalDetail, GoalRead, GoalStatusUpdate, GoalUpdate
 from app.services.goal_stats import goal_stats
 
 router = APIRouter(prefix="/goals", tags=["goals"])
@@ -24,9 +24,30 @@ def _goal_to_dict(goal: Goal) -> dict:
         "created_at": goal.created_at,
         "archived_at": goal.archived_at,
         "parent_id": goal.parent_id,
+        "status": goal.status or "active",
+        "status_reason": goal.status_reason,
+        "status_changed_at": goal.status_changed_at,
         "task_count": len(goal.tasks),
         "done_count": sum(1 for t in goal.tasks if t.status == "done"),
     }
+
+
+def _history(db: Session, goal_id: str) -> list[dict]:
+    rows = (db.query(GoalStatusLog).filter(GoalStatusLog.goal_id == goal_id)
+            .order_by(GoalStatusLog.created_at.desc()).all())
+    return [{"id": r.id, "from_status": r.from_status, "to_status": r.to_status,
+             "reason": r.reason or "", "created_at": str(r.created_at)} for r in rows]
+
+
+def _set_status(db: Session, goal: Goal, status: str, reason: str) -> None:
+    """Change the outcome and log it. Closing statuses archive the goal; the others reopen it."""
+    now = datetime.now(UTC)
+    db.add(GoalStatusLog(id=str(uuid4()), goal_id=goal.id, from_status=goal.status or "active",
+                         to_status=status, reason=reason, created_at=now))
+    goal.status = status
+    goal.status_reason = reason or None
+    goal.status_changed_at = now
+    goal.archived_at = now if status in CLOSED_STATUSES else None
 
 
 @router.get("", response_model=list[GoalRead])
@@ -126,6 +147,10 @@ def get_goal(goal_id: str, db: Session = Depends(get_db)) -> dict:
         "archived_at": goal.archived_at,
         "parent_id": goal.parent_id,
         "parent_title": parent_title,
+        "status": goal.status or "active",
+        "status_reason": goal.status_reason,
+        "status_changed_at": goal.status_changed_at,
+        "status_history": _history(db, goal.id),
         "tasks": [_enrich(t) for t in top_level],
         "sub_goals": [_goal_to_dict(sg) for sg in sub_goals],
     }
@@ -152,6 +177,26 @@ def update_goal(goal_id: str, data: GoalUpdate, db: Session = Depends(get_db)) -
     return _goal_to_dict(goal)
 
 
+@router.post("/{goal_id}/status", response_model=GoalRead)
+def set_goal_status(goal_id: str, body: GoalStatusUpdate, db: Session = Depends(get_db)) -> dict:
+    """Mark a goal achieved, blocked, moved out or cancelled (or active again), with the reason.
+    Blocked, moved out and cancelled need a reason so the shift in priorities is on record."""
+    goal = db.query(Goal).options(joinedload(Goal.tasks)).filter(Goal.id == goal_id).first()
+    if not goal or goal.trashed_at is not None:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    if body.status not in GOAL_STATUSES:
+        raise HTTPException(status_code=400, detail=f"status must be one of: {', '.join(GOAL_STATUSES)}")
+    reason = body.reason.strip()
+    if body.status in REASON_REQUIRED and not reason:
+        raise HTTPException(status_code=400, detail="Add a reason so the change is on record")
+    if body.status == (goal.status or "active") and reason == (goal.status_reason or ""):
+        return _goal_to_dict(goal)
+    _set_status(db, goal, body.status, reason)
+    db.commit()
+    db.refresh(goal)
+    return _goal_to_dict(goal)
+
+
 @router.post("/{goal_id}/archive", response_model=GoalRead)
 def archive_goal(goal_id: str, db: Session = Depends(get_db)) -> dict:
     goal = db.query(Goal).options(joinedload(Goal.tasks)).filter(Goal.id == goal_id).first()
@@ -168,6 +213,8 @@ def unarchive_goal(goal_id: str, db: Session = Depends(get_db)) -> dict:
     goal = db.query(Goal).options(joinedload(Goal.tasks)).filter(Goal.id == goal_id).first()
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
+    if (goal.status or "active") in CLOSED_STATUSES:
+        _set_status(db, goal, "active", "Reopened")   # a closed goal comes back as active, on record
     goal.archived_at = None
     db.commit()
     db.refresh(goal)

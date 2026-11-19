@@ -14,6 +14,8 @@ DEFAULTS = {
     "day_start": "09:00",
     "day_end": "18:00",
     "buffer_pct": "15",
+    # Day rhythm: macOS notifications when a block starts and 5 min before it ends.
+    "rhythm_notifications": "true",
 }
 
 
